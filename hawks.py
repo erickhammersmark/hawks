@@ -25,7 +25,11 @@ def parse_args():
   parser.add_argument("--textsize", type=int, default=27)
   parser.add_argument("--thickness", type=int, default=1)
   parser.add_argument("--preset", default=None, choices=PRESETS.keys())
-  return parser.parse_args()
+  args = parser.parse_args()
+  if args.preset:
+    for k,v in args.preset.iteritems():
+      setattr(args, k, v)
+  return args
 
 def init_matrix(args):
   # Configuration for the matrix
