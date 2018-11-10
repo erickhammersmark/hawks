@@ -28,7 +28,7 @@ def init_matrix(args):
   options.parallel = 1
   options.hardware_mapping = 'adafruit-hat'  # If you have an Adafruit HAT: 'adafruit-hat'
   matrix = RGBMatrix(options = options)
-  matrix.setImage(Image.new("RGB", (args.cols, args.rows), "black"))
+  matrix.SetImage(Image.new("RGB", (args.cols, args.rows), "black"))
   return matrix
 
 def main():
