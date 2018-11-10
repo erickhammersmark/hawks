@@ -5,6 +5,12 @@ import time
 from rgbmatrix import RGBMatrix, RGBMatrixOptions
 from PIL import Image, ImageDraw, ImageFont
 
+PRESETS = {
+    "dark": {"bgcolor": "black", "innercolor": "blue", "outercolor": "green"},
+    "daylight": {"bgcolor": "blue", "innercolor": "black", "outercolor": "green"},
+    "blue_on_green": {"bgcolor": "green", "innercolor": "green", "outercolor": "black"},
+}
+
 def parse_args():
   parser = argparse.ArgumentParser()
   parser.add_argument("--bgcolor", default="black")
@@ -18,6 +24,7 @@ def parse_args():
   parser.add_argument("--text", default="12")
   parser.add_argument("--textsize", type=int, default=27)
   parser.add_argument("--thickness", type=int, default=1)
+  parser.add_argument("--preset", default=None, choices=PRESETS.keys())
   return parser.parse_args()
 
 def init_matrix(args):
