@@ -8,7 +8,7 @@ from PIL import Image, ImageDraw, ImageFont
 PRESETS = {
     "dark": {"bgcolor": "black", "innercolor": "blue", "outercolor": "green"},
     "daylight": {"bgcolor": "blue", "innercolor": "black", "outercolor": "green"},
-    "blue_on_green": {"bgcolor": "green", "innercolor": "green", "outercolor": "black"},
+    "blue_on_green": {"bgcolor": "green", "innercolor": "blue", "outercolor": "black"},
 }
 
 def parse_args():
@@ -27,7 +27,7 @@ def parse_args():
   parser.add_argument("--preset", default=None, choices=PRESETS.keys())
   args = parser.parse_args()
   if args.preset:
-    for k,v in args.preset.iteritems():
+    for k,v in PRESETS[args.preset].iteritems():
       setattr(args, k, v)
   return args
 
