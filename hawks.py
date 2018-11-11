@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 import argparse
+import BaseHTTPServer
+import sys
 import time
 from rgbmatrix import RGBMatrix, RGBMatrixOptions
 from PIL import Image, ImageDraw, ImageFont
@@ -25,6 +27,7 @@ def parse_args():
   parser.add_argument("--textsize", type=int, default=27)
   parser.add_argument("--thickness", type=int, default=1)
   parser.add_argument("--preset", default=None, choices=PRESETS.keys())
+  parser.add_argument("--port", type=int, default=1212)
   args = parser.parse_args()
   if args.preset:
     for k,v in PRESETS[args.preset].iteritems():
@@ -42,9 +45,7 @@ def init_matrix(args):
   matrix.SetImage(Image.new("RGB", (args.cols, args.rows), "black"))
   return matrix
 
-def main():
-  args = parse_args()
-  
+def draw_text(args):
   matrix = init_matrix(args)
 
   image = Image.new("RGB", (args.cols, args.rows), args.bgcolor)
@@ -62,12 +63,38 @@ def main():
 
   matrix.SetImage(image)
 
-  try:
-    print("Press CTRL-C to stop.")
-    while True:
-      time.sleep(100)
-  except KeyboardInterrupt:
-    return
+def main():
+  args = parse_args()
+  draw_text(args)
+
+  class HawksRequestHandler(BaseHTTPServer.BaseHTTPRequestHanlder):
+    def __init__(self, *a, **kw):
+      self.args = args
+      super(HawksRequestHandler, self).__init__(self, *a, **kw)
+
+    def send(self, code):
+        self.send_response(code)
+        self.send_header('Content-Type', 'text/html')
+        self.end_headers()
+
+    def do_GET(self, req):
+      if !req or req.path == '/':
+        return self.send(400)
+      if req.path == "/exit":
+        sys.exit(0)
+      parts = req.path.split('/')
+      key = parts[1]
+      value = parts[2]
+      if hasattr(args, key):
+        if type(getattr(args, key) == int):
+          value = int(value)
+        args.key = value
+        draw_text(args)
+        return self.send(200)
+      self.send(404)
+
+  httpd = BaseHttpServer(('', args.port), HawksRequestHandler)
+  httpd.serve_forever()
 
 if __name__ == '__main__':
   main()
