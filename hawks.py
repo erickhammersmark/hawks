@@ -7,9 +7,11 @@ import time
 from rgbmatrix import RGBMatrix, RGBMatrixOptions
 from PIL import Image, ImageDraw, ImageFont
 
+global matrix
+
 PRESETS = {
     "dark": {"bgcolor": "black", "innercolor": "blue", "outercolor": "green"},
-    "daylight": {"bgcolor": "blue", "innercolor": "black", "outercolor": "green"},
+    "bright": {"bgcolor": "blue", "innercolor": "black", "outercolor": "green"},
     "blue_on_green": {"bgcolor": "green", "innercolor": "blue", "outercolor": "black"},
 }
 
@@ -28,10 +30,7 @@ def parse_args():
   parser.add_argument("--thickness", type=int, default=1)
   parser.add_argument("--preset", default=None, choices=PRESETS.keys())
   parser.add_argument("--port", type=int, default=1212)
-  args = parser.parse_args()
-  if args.preset:
-    for k,v in PRESETS[args.preset].iteritems():
-      setattr(args, k, v)
+  return parser.parse_args()
   return args
 
 def init_matrix(args):
@@ -46,7 +45,11 @@ def init_matrix(args):
   return matrix
 
 def draw_text(args):
-  matrix = init_matrix(args)
+  global matrix
+
+  if args.preset:
+    for k,v in PRESETS[args.preset].iteritems():
+      setattr(args, k, v)
 
   image = Image.new("RGB", (args.cols, args.rows), args.bgcolor)
   draw = ImageDraw.Draw(image)
@@ -64,36 +67,39 @@ def draw_text(args):
   matrix.SetImage(image)
 
 def main():
+  global matrix
   args = parse_args()
+  matrix = init_matrix(args)
   draw_text(args)
 
-  class HawksRequestHandler(BaseHTTPServer.BaseHTTPRequestHanlder):
+  class HawksRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     def __init__(self, *a, **kw):
       self.args = args
-      super(HawksRequestHandler, self).__init__(self, *a, **kw)
+      return BaseHTTPServer.BaseHTTPRequestHandler.__init__(self, *a, **kw)
 
     def send(self, code):
         self.send_response(code)
         self.send_header('Content-Type', 'text/html')
         self.end_headers()
 
-    def do_GET(self, req):
-      if !req or req.path == '/':
+    def do_GET(self):
+      if self.path == '/':
         return self.send(400)
-      if req.path == "/exit":
+      if self.path == "/exit":
         sys.exit(0)
-      parts = req.path.split('/')
+      parts = self.path.split('/')
       key = parts[1]
       value = parts[2]
-      if hasattr(args, key):
-        if type(getattr(args, key) == int):
+      if hasattr(self.args, key):
+        if type(getattr(self.args, key)) is int:
           value = int(value)
-        args.key = value
-        draw_text(args)
+        setattr(self.args, key, value)
+        print(args.preset)
+        draw_text(self.args)
         return self.send(200)
       self.send(404)
 
-  httpd = BaseHttpServer(('', args.port), HawksRequestHandler)
+  httpd = BaseHTTPServer.HTTPServer(('', args.port), HawksRequestHandler)
   httpd.serve_forever()
 
 if __name__ == '__main__':
