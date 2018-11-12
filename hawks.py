@@ -5,11 +5,12 @@ import BaseHTTPServer
 import os
 import sys
 import time
-
 from PIL import Image, ImageDraw, ImageFont
 
-nodename = os.uname()[1]
-if nodename == 'raspberrypi':
+def running_on_pi():
+  return os.uname()[1] == 'raspberrypi'
+
+if running_on_pi():
   from rgbmatrix import RGBMatrix, RGBMatrixOptions
 else:
   from mock import RGBMatrix, RGBMatrixOptions
@@ -113,29 +114,39 @@ def run_api_forever(args):
       self.args = args
       return BaseHTTPServer.BaseHTTPRequestHandler.__init__(self, *a, **kw)
 
-    def send(self, code):
+    def send(self, code, body=None, content_type="text/html"):
         self.send_response(code)
-        self.send_header('Content-Type', 'text/html')
+        body=None
+        if body:
+          self.send_header('Content-Type', content_type)
+          self.send_header('Content-Length', len(body))
         self.end_headers()
+        if body:
+          self.wfile.write(body)
 
     def do_GET(self):
       if self.path == '/':
         return self.send(400)
       if self.path == "/exit":
         sys.exit(0)
-      parts = self.path.split('/')
-      if len(parts) < 3:
-        return self.send(404)
-      key = parts[1]
-      value = parts[2]
-      if hasattr(self.args, key):
-        if type(getattr(self.args, key)) is int:
-          value = int(value)
-        setattr(self.args, key, value)
-        print(args.preset)
-        image = draw_text(self.args)
-        return self.send(200)
-      self.send(404)
+
+      parts = self.path.strip('/').split('/')
+      print(parts)
+      if not parts or len(parts) % 2 != 0:
+        return self.send(400, body="Path must have non-zero, even number of elements")
+
+      while parts:
+        key = parts.pop(0)
+        value = parts.pop(0)
+        print(key, value)
+        if hasattr(self.args, key):
+          if type(getattr(self.args, key)) is int:
+            value = int(value)
+          setattr(self.args, key, value)
+        else:
+          return self.send(404, body="Unknown attribute: {0}".format(key))
+      image = draw_text(self.args)
+      return self.send(200)
 
   httpd = BaseHTTPServer.HTTPServer(('', args.port), HawksRequestHandler)
   httpd.serve_forever()
