@@ -79,7 +79,6 @@ def init_matrix(args):
   options.parallel = 1
   options.hardware_mapping = 'adafruit-hat'  # If you have an Adafruit HAT: 'adafruit-hat'
   matrix = RGBMatrix(options = options)
-  #matrix.SetImage(Image.new("RGB", (args.cols, args.rows), "black"))
   set_image(args, matrix, Image.new("RGB", (args.cols, args.rows), "black"))
   return matrix
 
@@ -103,10 +102,7 @@ def draw_text(args):
 
   draw.text((x, y), args.text, fill=args.innercolor, font=font)
 
-  #matrix.SetImage(image)
   set_image(args, matrix, image)
-
-  return image
 
 def run_api_forever(args):
   class HawksRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
@@ -116,7 +112,6 @@ def run_api_forever(args):
 
     def send(self, code, body=None, content_type="text/html"):
         self.send_response(code)
-        body=None
         if body:
           self.send_header('Content-Type', content_type)
           self.send_header('Content-Length', len(body))
@@ -124,28 +119,22 @@ def run_api_forever(args):
         if body:
           self.wfile.write(body)
 
-    def do_GET(self):
-      if self.path == '/':
-        return self.send(400)
-      if self.path == "/exit":
-        sys.exit(0)
+    def tups(self, parts):
+      return ((parts[2*n], parts[2*n+1]) for n in range(0, len(parts)/2))
 
+    def do_GET(self):
       parts = self.path.strip('/').split('/')
-      print(parts)
       if not parts or len(parts) % 2 != 0:
         return self.send(400, body="Path must have non-zero, even number of elements")
 
-      while parts:
-        key = parts.pop(0)
-        value = parts.pop(0)
-        print(key, value)
+      for key,value in self.tups(parts):
         if hasattr(self.args, key):
           if type(getattr(self.args, key)) is int:
             value = int(value)
           setattr(self.args, key, value)
         else:
           return self.send(404, body="Unknown attribute: {0}".format(key))
-      image = draw_text(self.args)
+      draw_text(self.args)
       return self.send(200)
 
   httpd = BaseHTTPServer.HTTPServer(('', args.port), HawksRequestHandler)
@@ -161,3 +150,4 @@ def main():
 
 if __name__ == '__main__':
   main()
+
