@@ -39,7 +39,6 @@ class Hawks(object):
     self.init_matrix()
 
     for k,v in kwargs.iteritems():
-      print(k, v)
       setattr(self, k, v)
 
 

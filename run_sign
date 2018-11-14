@@ -6,8 +6,8 @@ from hawks_api import run_api
 
 def parse_args():
   parser = argparse.ArgumentParser()
-  parser.add_argument("--bgcolor", default="black")
-  parser.add_argument("--outercolor", default="green")
+  parser.add_argument("--bgcolor", default="green")
+  parser.add_argument("--outercolor", default="black")
   parser.add_argument("--innercolor", default="blue")
   parser.add_argument("--font", default="FreeSansBold")
   parser.add_argument("--x", type=int, default=0, help="left position of text")
@@ -25,10 +25,11 @@ def parse_args():
 
 def main():
   args = parse_args()
-  hawks_args = args._get_kwargs()
-  hawks_args = (tup for tup in hawks_args if tup[0] not in ["port"])
+  hawks_args = dict(args._get_kwargs())
+  hawks_args.pop("port")
   hawks = Hawks(**hawks_args)
-  run_api('', port, hawks)
+  hawks.draw_text()
+  run_api('', args.port, hawks)
 
 
 if __name__ == '__main__':
