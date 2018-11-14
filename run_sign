@@ -1,0 +1,70 @@
+#!/usr/bin/env python
+
+import argparse
+import BaseHTTPServer
+from hawks import Hawks
+
+def parse_args():
+  parser = argparse.ArgumentParser()
+  parser.add_argument("--bgcolor", default="black")
+  parser.add_argument("--outercolor", default="green")
+  parser.add_argument("--innercolor", default="blue")
+  parser.add_argument("--font", default="FreeSansBold")
+  parser.add_argument("--x", type=int, default=0, help="left position of text")
+  parser.add_argument("--y", type=int, default=2, help="top position of text")
+  parser.add_argument("--rows", type=int, default=32)
+  parser.add_argument("--cols", type=int, default=32)
+  parser.add_argument("--text", default="12")
+  parser.add_argument("--textsize", type=int, default=27)
+  parser.add_argument("--thickness", type=int, default=1)
+  parser.add_argument("--preset", default=None, choices=Hawks.PRESETS.keys())
+  parser.add_argument("--port", type=int, default=1212)
+  parser.add_argument("--debug", action="store_true", default=False)
+  return parser.parse_args()
+  return args
+
+def run_api_forever(hawks):
+  class HawksRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+    def __init__(self, *a, **kw):
+      self.hawks = hawks
+      return BaseHTTPServer.BaseHTTPRequestHandler.__init__(self, *a, **kw)
+
+    def send(self, code, body=None, content_type="text/html"):
+        self.send_response(code)
+        if body:
+          self.send_header('Content-Type', content_type)
+          self.send_header('Content-Length', len(body))
+        self.end_headers()
+        if body:
+          self.wfile.write(body)
+
+    def tups(self, parts):
+      return ((parts[2*n], parts[2*n+1]) for n in range(0, len(parts)/2))
+
+    def do_GET(self):
+      parts = self.path.strip('/').split('/')
+      if not parts or len(parts) % 2 != 0:
+        return self.send(400, body="Path must have non-zero, even number of elements")
+
+      for key,value in self.tups(parts):
+        if hasattr(self.hawks, key):
+          if type(getattr(self.hawks, key)) is int:
+            value = int(value)
+          setattr(self.hawks, key, value)
+        else:
+          return self.send(404, body="Unknown attribute: {0}".format(key))
+      hawks.draw_text()
+      return self.send(200)
+
+  httpd = BaseHTTPServer.HTTPServer(('', hawks.port), HawksRequestHandler)
+  httpd.serve_forever()
+
+def main():
+  args = parse_args()
+  hawks = Hawks(args._get_kwargs())
+  run_api_forever(hawks)
+
+
+if __name__ == '__main__':
+  main()
+
