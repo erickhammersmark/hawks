@@ -66,8 +66,6 @@ class Hawks(object):
     print
 
   def set_image(self, image):
-    if self.debug:
-      self.print_image(image)
     self.matrix.SetImage(image)
 
   def init_matrix(self):
@@ -89,12 +87,14 @@ class Hawks(object):
     draw = ImageDraw.Draw(image)
     font = ImageFont.truetype(self.font, self.textsize)
 
-    (x, y, z) = (self.x, self.y, self.thickness)
+    (x, y) = (self.x, self.y)
 
-    draw.text((x-z, y-z), self.text, fill=self.outercolor, font=font)
-    draw.text((x+z, y-z), self.text, fill=self.outercolor, font=font)
-    draw.text((x-z, y+z), self.text, fill=self.outercolor, font=font)
-    draw.text((x+z, y+z), self.text, fill=self.outercolor, font=font)
+    for dx in range(0 - self.thickness, self.thickness + 1):
+      for dy in range(0 - self.thickness, self.thickness + 1):
+        draw.text((x-dx, y-dy), self.text, fill=self.outercolor, font=font)
+        draw.text((x+dx, y-dy), self.text, fill=self.outercolor, font=font)
+        draw.text((x-dx, y+dy), self.text, fill=self.outercolor, font=font)
+        draw.text((x+dx, y+dy), self.text, fill=self.outercolor, font=font)
 
     draw.text((x, y), self.text, fill=self.innercolor, font=font)
 
