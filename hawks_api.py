@@ -42,12 +42,7 @@ def run_api(ip, port, hawks):
         hawks.draw_text()
         return self.send(200)
       elif action == 'get':
-        settings = {}
-        blacklist = ['matrix']
-        for k,v in self.hawks.__dict__.iteritems():
-          if k not in blacklist:
-            settings[k] = v
-        return self.send(200, body=json.dumps(settings))
+        return self.send(200, body=json.dumps(hawks.settings))
 
   httpd = BaseHTTPServer.HTTPServer((ip, port), HawksRequestHandler)
   httpd.serve_forever()

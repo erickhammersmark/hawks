@@ -12,6 +12,29 @@ if running_on_pi():
 else:
   from mock import RGBMatrix, RGBMatrixOptions
 
+class HawksSettings(object):
+  def __init__(self, *args, **kwargs):
+    self.set("bgcolor", "black")
+    self.set("outercolor", "green")
+    self.set("innercolor", "blue")
+    self.set("font", "FreeSansBold")
+    self.set("x", 0)
+    self.set("y", 2)
+    self.set("rows", 32)
+    self.set("cols", 32)
+    self.set("text", "12")
+    self.set("textsize", 27)
+    self.set("thickness", 1)
+    self.set("preset", "none")
+    for k,v in kwargs.iteritems():
+      self.set(k, v)
+
+  def __contains__(self, name):
+    return name in self.__dict__
+
+  def set(self, name, value):
+    setattr(self, name, value)
+
 class Hawks(object):
   PRESETS = {
       "dark": {"bgcolor": "black", "innercolor": "blue", "outercolor": "green"},
@@ -21,25 +44,17 @@ class Hawks(object):
   }
 
   def __init__(self, *args, **kwargs):
-    self.bgcolor = "black"
-    self.outercolor = "green"
-    self.innercolor = "blue"
-    self.font = "FreeSansBold"
-    self.x = 0
-    self.y = 2
-    self.rows = 32
-    self.cols = 32
-    self.text = "12"
-    self.textsize=27
-    self.thickness = 1
-    self.preset = "none"
+    self.settings = HawksSettings()
     self.port = 1212
     self.debug = False
 
     self.init_matrix()
 
     for k,v in kwargs.iteritems():
-      setattr(self, k, v)
+      if k in self.settings:
+        self.settings.set(k, v)
+      else:
+        setattr(self, k, v)
 
 
   def text_as_color(self, text, rgb):
@@ -71,32 +86,32 @@ class Hawks(object):
   def init_matrix(self):
     # Configuration for the matrix
     options = RGBMatrixOptions()
-    options.rows = self.rows
+    options.rows = self.settings.rows
     options.chain_length = 1
     options.parallel = 1
     options.hardware_mapping = 'adafruit-hat'  # If you have an Adafruit HAT: 'adafruit-hat'
     self.matrix = RGBMatrix(options = options)
-    self.set_image(Image.new("RGB", (self.cols, self.rows), "black"))
+    self.set_image(Image.new("RGB", (self.settings.cols, self.settings.rows), "black"))
 
   def draw_text(self):
-    if self.preset:
-      for k,v in Hawks.PRESETS[self.preset].iteritems():
+    if self.settings.preset:
+      for k,v in Hawks.PRESETS[self.settings.preset].iteritems():
         setattr(self, k, v)
 
-    image = Image.new("RGB", (self.cols, self.rows), self.bgcolor)
+    image = Image.new("RGB", (self.settings.cols, self.settings.rows), self.settings.bgcolor)
     draw = ImageDraw.Draw(image)
-    font = ImageFont.truetype(self.font, self.textsize)
+    font = ImageFont.truetype(self.settings.font, self.settings.textsize)
 
-    (x, y) = (self.x, self.y)
+    (x, y) = (self.settings.x, self.settings.y)
 
-    for dx in range(0 - self.thickness, self.thickness + 1):
-      for dy in range(0 - self.thickness, self.thickness + 1):
-        draw.text((x-dx, y-dy), self.text, fill=self.outercolor, font=font)
-        draw.text((x+dx, y-dy), self.text, fill=self.outercolor, font=font)
-        draw.text((x-dx, y+dy), self.text, fill=self.outercolor, font=font)
-        draw.text((x+dx, y+dy), self.text, fill=self.outercolor, font=font)
+    for dx in range(0 - self.settings.thickness, self.settings.thickness + 1):
+      for dy in range(0 - self.settings.thickness, self.settings.thickness + 1):
+        draw.text((x-dx, y-dy), self.settings.text, fill=self.settings.outercolor, font=font)
+        draw.text((x+dx, y-dy), self.settings.text, fill=self.settings.outercolor, font=font)
+        draw.text((x-dx, y+dy), self.settings.text, fill=self.settings.outercolor, font=font)
+        draw.text((x+dx, y+dy), self.settings.text, fill=self.settings.outercolor, font=font)
 
-    draw.text((x, y), self.text, fill=self.innercolor, font=font)
+    draw.text((x, y), self.settings.text, fill=self.settings.innercolor, font=font)
 
     self.set_image(image)
 
