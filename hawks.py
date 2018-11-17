@@ -35,6 +35,11 @@ class HawksSettings(object):
   def set(self, name, value):
     setattr(self, name, value)
 
+  def get(self, name):
+    if name in self.__dict__:
+      return self.__dict__[name]
+    return None
+
 class Hawks(object):
   PRESETS = {
       "dark": {"bgcolor": "black", "innercolor": "blue", "outercolor": "green"},

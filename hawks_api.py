@@ -33,16 +33,17 @@ def run_api(ip, port, hawks):
 
       if action == 'set':
         for key,value in self.tups(parts[2:]):
-          if hasattr(self.hawks, key):
-            if type(getattr(self.hawks, key)) is int:
+          _val = hawks.settings.get(key)
+          if _val is not None:
+            if type(_val) is int:
               value = int(value)
-            setattr(self.hawks, key, value)
+            self.hawks.settings.set(key, value)
           else:
             return self.send(404, body="Unknown attribute: {0}".format(key))
         hawks.draw_text()
         return self.send(200)
       elif action == 'get':
-        return self.send(200, body=json.dumps(hawks.settings))
+        return self.send(200, body=json.dumps(hawks.settings.__dict__))
 
   httpd = BaseHTTPServer.HTTPServer((ip, port), HawksRequestHandler)
   httpd.serve_forever()
