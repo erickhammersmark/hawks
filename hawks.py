@@ -34,9 +34,9 @@ class Settings(object):
 
 class HawksSettings(Settings):
   def __init__(self):
-    self.set("bgcolor", "black")
-    self.set("outercolor", "green")
-    self.set("innercolor", "blue")
+    self.set("bgcolor", "blue")
+    self.set("outercolor", "black")
+    self.set("innercolor", "green")
     self.set("font", "FreeSansBold")
     self.set("x", 0)
     self.set("y", 2)
