@@ -48,6 +48,8 @@ class HawksSettings(Settings):
     self.set("preset", "none")
     self.set("animation", "")
     self.set("amplitude", 0.4)
+    self.set("fps", 16)
+    self.set("period", 2000)
 
 
 class AnimState(Settings):
@@ -152,18 +154,18 @@ class Hawks(object):
     if self.timer:
       self.timer.cancel()
     self.init_anim_frames()
-    self.anim_state.set("ms_per_frame", 1000 / self.anim_state.fps)
+    self.anim_state.set("ms_per_frame", self.settings.period / self.anim_state.fps)
     wavelength_radians = math.pi * 2.0
     phase_step_per_frame = wavelength_radians / self.anim_state.fps
     radians_per_pixel = wavelength_radians / self.settings.cols
     phase = 0.0
-    amplitude = self.settings.get("amplitude") or -0.5 
+    amplitude = self.settings.amplitude
     for n in range(0, self.anim_state.fps):
       for c in range(0, self.settings.cols):
         radians = radians_per_pixel * c + phase
         delta_y = int(round((math.sin(radians) * amplitude) / radians_per_pixel)) # assumes rows == cols!
         self.shift_column(self.anim_state.frames[n], c, delta_y)
-      phase += phase_step_per_frame
+      phase -= phase_step_per_frame
     self.anim_state.set("frame_no", 0)
 
   def waving_do(self):
@@ -185,7 +187,7 @@ class Hawks(object):
     setattr(self, "anim_state", AnimState())
     self.anim_state.set("start_time", time.time()*1000)
     self.anim_state.set("next_update_time", self.anim_state.start_time)
-    self.anim_state.set("fps", 16)
+    self.anim_state.set("fps", self.settings.fps)
     self.waving_setup()
     self.waving_do()
 
