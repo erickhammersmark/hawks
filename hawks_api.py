@@ -35,7 +35,9 @@ def run_api(ip, port, hawks):
         for key,value in self.tups(parts[2:]):
           _val = hawks.settings.get(key)
           if _val is not None:
-            if type(_val) is int:
+            if type(_val) is float:
+              value = float(value)
+            elif type(_val) is int:
               value = int(value)
             self.hawks.settings.set(key, value)
           else:
