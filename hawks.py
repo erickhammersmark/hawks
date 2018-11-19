@@ -147,7 +147,7 @@ class Hawks(object):
       delta = 0 - delta
       for n in range(self.settings.rows - 1, delta, -1):
         image.putpixel((column, n), image.getpixel((column, n - delta)))
-      for n in range(delta, 0, -1):
+      for n in range(0, delta):
         image.putpixel((column, n), (0, 0, 0))
 
   def waving_setup(self):
