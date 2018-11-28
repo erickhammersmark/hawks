@@ -21,6 +21,7 @@ class RGBMatrix(object):
   def print_image(self, image):
     #\033[38;2;255;82;197;48;2;155;106;0mHello
     count = 0
+    sys.stdout.write('\033[2J\033[H')
     print
     for px in image.getdata():
       sys.stdout.write(self.text_as_color('  ', px))

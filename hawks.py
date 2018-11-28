@@ -150,22 +150,81 @@ class Hawks(object):
       for n in range(0, delta):
         image.putpixel((column, n), (0, 0, 0))
 
+  def frames_equal(self, one, two):
+    if not one or not two:
+      return False
+    for o,t in zip(one.getdata(), two.getdata()):
+      if o != t:
+        return False
+    return True
+
+  def multiply_pixel(self, pixel, value):
+    return tuple([int(c * value) for c in pixel])
+
+  def average_anim_frames(self, group):
+    '''
+    group is a list of indices of self.anim_stat.frames
+    The frames should represent repetitions of the first image
+    and one instnace of the next image, a set of duplicate
+    frames and one instance of what the next frame will be.  This
+    method should leave the first and last frames untouched and
+    replace each of the intermediate frames with a combination of the two.
+    '''
+
+    if not group:
+      return
+    num_frames = len(group)
+    if num_frames <= 2:
+      return
+    num_frames -= 1
+
+    saf = self.anim_state.frames
+    # we can redo this to only fetch the first and last.  we compute the ones in the middle.
+    group_data = [saf[n].getdata() for n in group]
+    new_data = [[] for n in group]
+    num_pixels = len(list(group_data[0]))
+
+    for pixel_no in range(0, num_pixels):
+      first = group_data[0][pixel_no]
+      last = group_data[-1][pixel_no]
+      for idx, frame_no in enumerate(group):
+        left = self.multiply_pixel(
+            group_data[0][pixel_no],
+            float(num_frames - idx) / num_frames)
+        right = self.multiply_pixel(
+            group_data[-1][pixel_no],
+            float(idx) / num_frames)
+        new_data[idx].append(tuple([l + r for l, r in zip(left, right)]))
+    for idx, frame_no in enumerate(group):
+      if idx == 0 or idx == num_frames:
+        continue
+      saf[frame_no].putdata(new_data[idx])
+
   def waving_setup(self):
     if self.timer:
       self.timer.cancel()
     self.init_anim_frames()
+    saf = self.anim_state.frames
     self.anim_state.set("ms_per_frame", self.settings.period / self.anim_state.fps)
     wavelength_radians = math.pi * 2.0
     phase_step_per_frame = wavelength_radians / self.anim_state.fps
     radians_per_pixel = wavelength_radians / self.settings.cols
     phase = 0.0
     amplitude = self.settings.amplitude
+    # first pass
     for n in range(0, self.anim_state.fps):
       for c in range(0, self.settings.cols):
         radians = radians_per_pixel * c + phase
         delta_y = int(round((math.sin(radians) * amplitude) / radians_per_pixel)) # assumes rows == cols!
-        self.shift_column(self.anim_state.frames[n], c, delta_y)
+        self.shift_column(saf[n], c, delta_y)
       phase -= phase_step_per_frame
+    # second pass
+    group = []
+    for n in range(0, self.anim_state.fps):
+      group.append(n)
+      if not self.frames_equal(saf[group[0]], saf[n]):
+        self.average_anim_frames(group)
+        group = [n]
     self.anim_state.set("frame_no", 0)
 
   def waving_do(self):
