@@ -255,6 +255,7 @@ class Hawks(object):
       for k,v in Hawks.PRESETS[self.settings.preset].iteritems():
         setattr(self, k, v)
 
+    text = self.settings.text.upper()
     image = Image.new("RGB", (self.settings.cols, self.settings.rows), self.settings.bgcolor)
     draw = ImageDraw.Draw(image)
     font = ImageFont.truetype(self.settings.font, self.settings.textsize)
@@ -263,12 +264,12 @@ class Hawks(object):
 
     for dx in range(0 - self.settings.thickness, self.settings.thickness + 1):
       for dy in range(0 - self.settings.thickness, self.settings.thickness + 1):
-        draw.text((x-dx, y-dy), self.settings.text, fill=self.settings.outercolor, font=font)
-        draw.text((x+dx, y-dy), self.settings.text, fill=self.settings.outercolor, font=font)
-        draw.text((x-dx, y+dy), self.settings.text, fill=self.settings.outercolor, font=font)
-        draw.text((x+dx, y+dy), self.settings.text, fill=self.settings.outercolor, font=font)
+        draw.text((x-dx, y-dy), text, fill=self.settings.outercolor, font=font)
+        draw.text((x+dx, y-dy), text, fill=self.settings.outercolor, font=font)
+        draw.text((x-dx, y+dy), text, fill=self.settings.outercolor, font=font)
+        draw.text((x+dx, y+dy), text, fill=self.settings.outercolor, font=font)
 
-    draw.text((x, y), self.settings.text, fill=self.settings.innercolor, font=font)
+    draw.text((x, y), text, fill=self.settings.innercolor, font=font)
 
     self.set_image(image)
 
