@@ -6,6 +6,7 @@ import sys
 import time
 from PIL import Image, ImageDraw, ImageFont
 from threading import Timer
+from urllib import unquote
 
 def running_on_pi():
   return os.uname()[1] == 'raspberrypi'
@@ -255,7 +256,7 @@ class Hawks(object):
       for k,v in Hawks.PRESETS[self.settings.preset].iteritems():
         setattr(self, k, v)
 
-    text = self.settings.text.upper()
+    text = unquote(self.settings.text.upper())
     image = Image.new("RGB", (self.settings.cols, self.settings.rows), self.settings.bgcolor)
     draw = ImageDraw.Draw(image)
     font = ImageFont.truetype(self.settings.font, self.settings.textsize)
