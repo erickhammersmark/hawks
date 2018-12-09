@@ -66,6 +66,7 @@ class Hawks(object):
       "dark": {"bgcolor": "black", "innercolor": "blue", "outercolor": "green"},
       "bright": {"bgcolor": "blue", "innercolor": "black", "outercolor": "green"},
       "blue_on_green": {"bgcolor": "green", "innercolor": "blue", "outercolor": "black"},
+      "christmas": {"bgcolor": "green", "innercolor": "red", "outercolor": "black", "text": 12, "textsize", 27, "x", 0, "y", 2, "animation", "none", "thickness", 1},
       "none": {},
   }
 
