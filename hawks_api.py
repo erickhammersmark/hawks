@@ -37,6 +37,8 @@ def run_api(ip, port, hawks):
             value = float(value)
           elif type(_val) is int:
             value = int(value)
+          else:
+            value = value
           self.hawks.settings.set(key, value)
         else:
           return self.send(404, body="Unknown attribute: {0}".format(key))
