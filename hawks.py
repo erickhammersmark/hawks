@@ -162,10 +162,11 @@ class Hawks(object):
   def init_matrix(self):
     # Configuration for the matrix
     options = RGBMatrixOptions()
-    options.cols = self.settings.panel_cols
+    options.cols = self.settings.panel_cols / 2
     options.rows = self.settings.panel_rows
-    options.chain_length = 1
+    options.chain_length = 2
     options.parallel = 1
+    options.gpio_slowdown = 2
     options.hardware_mapping = 'adafruit-hat'  # If you have an Adafruit HAT: 'adafruit-hat'
     self.matrix = RGBMatrix(options = options)
     self.set_image(Image.new("RGB", (self.settings.cols, self.settings.rows), "black"))
