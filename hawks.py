@@ -41,8 +41,10 @@ class HawksSettings(Settings):
     self.set("font", "FreeSansBold")
     self.set("x", 0)
     self.set("y", 2)
-    self.set("rows", 32)
-    self.set("cols", 32)
+    self.set("rows", 64)
+    self.set("cols", 64)
+    self.set("panel_rows", 32)
+    self.set("panel_cols", 128)
     self.set("text", "12")
     self.set("textsize", 27)
     self.set("thickness", 1)
@@ -110,17 +112,58 @@ class Hawks(object):
         print
     print
 
+  def reshape(self, image):
+    '''
+    Map image of size self.rows x self.cols into an image of
+    size self.panel_rows x self.panel_cols
+
+    rows = 64
+    cols = 64
+    panel_rows = 32
+    panel_cols = 128
+
+    Build a new Image of panel_rows x panel_cols
+    put first panel_rows rows of original image in to new image,
+    repeat with next panel_rows rows of original image, but shifted cols to the right.
+
+    It's not super generic, it mostly assumes 64x64 -> 32x128
+    '''
+    rows, cols = self.settings.rows, self.settings.cols
+    p_rows, p_cols = self.settings.panel_rows, self.settings.panel_cols
+    img = Image.new("RGB", (p_cols, p_rows), "black")
+    orig_data = image.getdata()
+    img_data = []
+    for row in range(0, p_rows):
+      for col in range(0, cols):
+        img_data.append(orig_data[row * cols + col])
+      for col in range(cols, p_cols):
+        img_data.append(orig_data[(row + p_rows - 1) * cols + col])
+    img.putdata(img_data)
+    return img
+
+  def SetImage(self, image):
+    '''
+    Use instead of matrix.SetImage
+    Distinct from set_image(), which sets self.image and kicks off animations if necessary.
+    This does live last-second post-processing before calling matrix.SetImage
+    '''
+    if self.settings.rows != self.settings.panel_rows or self.settings.cols != self.settings.panel_cols:
+      self.matrix.SetImage(self.reshape(image))
+    else:
+      self.matrix.SetImage(image)
+
   def set_image(self, image):
     self.image = image
     if self.settings.animation == "waving":
       self.waving_start()
     else:
-      self.matrix.SetImage(image)
+      self.SetImage(image)
 
   def init_matrix(self):
     # Configuration for the matrix
     options = RGBMatrixOptions()
-    options.rows = self.settings.rows
+    options.cols = self.settings.panel_cols
+    options.rows = self.settings.panel_rows
     options.chain_length = 1
     options.parallel = 1
     options.hardware_mapping = 'adafruit-hat'  # If you have an Adafruit HAT: 'adafruit-hat'
@@ -234,7 +277,7 @@ class Hawks(object):
     if self.settings.animation == "waving" and time.time()*1000 >= self.anim_state.next_update_time:
       print("waving_do {0} is later than {1}".format(time.time()*1000, self.anim_state.next_update_time))
       self.anim_state.next_update_time += self.anim_state.ms_per_frame
-      self.matrix.SetImage(self.anim_state.frames[self.anim_state.frame_no])
+      self.SetImage(self.anim_state.frames[self.anim_state.frame_no])
       self.anim_state.frame_no += 1
       if self.anim_state.frame_no >= len(self.anim_state.frames):
         self.anim_state.frame_no = 0

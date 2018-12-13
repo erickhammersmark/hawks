@@ -26,7 +26,7 @@ class RGBMatrix(object):
     for px in image.getdata():
       sys.stdout.write(self.text_as_color('  ', px))
       count += 1
-      if count % 32 == 0:
+      if count % 128 == 0:
         print
     print
 
