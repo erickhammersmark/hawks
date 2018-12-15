@@ -77,13 +77,13 @@ class Hawks(object):
     self.debug = False
     self.timer = None
 
-    self.init_matrix()
-
     for k,v in kwargs.iteritems():
       if k in self.settings:
         self.settings.set(k, v)
       else:
         setattr(self, k, v)
+
+    self.init_matrix()
 
   def debug_log(self, obj):
     if self.debug:
