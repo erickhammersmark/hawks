@@ -136,6 +136,7 @@ class Hawks(object):
       for col in range(cols, p_cols):
         img_data.append(orig_data[(row + p_rows - 1) * cols + col])
     img.putdata(img_data)
+    self.debug_log(img)
     return img
 
   def SetImage(self, image):
@@ -161,7 +162,7 @@ class Hawks(object):
     options = RGBMatrixOptions()
     options.rows = 32
     if self.settings.big:
-      options.cols = 128
+      options.cols = 64
       options.chain_length = 2
     else:
       options.cols = 32
@@ -334,9 +335,6 @@ class Hawks(object):
     draw.text((x, y), text, fill=self.settings.innercolor, font=font)
 
     self.set_image(image)
-
-    self.debug_log(image)
-    self.debug_log(dir(self.matrix))
 
 
 def main():
