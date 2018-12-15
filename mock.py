@@ -23,10 +23,16 @@ class RGBMatrix(object):
     count = 0
     sys.stdout.write('\033[2J\033[H')
     print
-    for px in image.getdata():
+    data = image.getdata()
+    # filthy hack inside a kind of nice hack
+    if len(data) == 1024:
+      cols = 32
+    else:
+      cols = 128
+    for px in data:
       sys.stdout.write(self.text_as_color('  ', px))
       count += 1
-      if count % 128 == 0:
+      if count % cols == 0:
         print
     print
 

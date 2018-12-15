@@ -41,10 +41,7 @@ class HawksSettings(Settings):
     self.set("font", "FreeSansBold")
     self.set("x", 0)
     self.set("y", 2)
-    self.set("rows", 64)
-    self.set("cols", 64)
-    self.set("panel_rows", 32)
-    self.set("panel_cols", 128)
+    self.set("big", False)
     self.set("text", "12")
     self.set("textsize", 27)
     self.set("thickness", 1)
@@ -88,6 +85,9 @@ class Hawks(object):
       else:
         setattr(self, k, v)
 
+  def debug_log(self, obj):
+    if self.debug:
+      sys.stderr.write(str(obj) + "\n")
 
   def text_as_color(self, text, rgb):
     '''
@@ -114,8 +114,7 @@ class Hawks(object):
 
   def reshape(self, image):
     '''
-    Map image of size self.rows x self.cols into an image of
-    size self.panel_rows x self.panel_cols
+    Map image of size 64x64 to fit a 32x128 display
 
     rows = 64
     cols = 64
@@ -125,11 +124,9 @@ class Hawks(object):
     Build a new Image of panel_rows x panel_cols
     put first panel_rows rows of original image in to new image,
     repeat with next panel_rows rows of original image, but shifted cols to the right.
-
-    It's not super generic, it mostly assumes 64x64 -> 32x128
     '''
-    rows, cols = self.settings.rows, self.settings.cols
-    p_rows, p_cols = self.settings.panel_rows, self.settings.panel_cols
+    rows, cols = 64, 64
+    p_rows, p_cols = 32, 128
     img = Image.new("RGB", (p_cols, p_rows), "black")
     orig_data = image.getdata()
     img_data = []
@@ -147,7 +144,7 @@ class Hawks(object):
     Distinct from set_image(), which sets self.image and kicks off animations if necessary.
     This does live last-second post-processing before calling matrix.SetImage
     '''
-    if self.settings.rows != self.settings.panel_rows or self.settings.cols != self.settings.panel_cols:
+    if self.settings.big:
       self.matrix.SetImage(self.reshape(image))
     else:
       self.matrix.SetImage(image)
@@ -162,27 +159,36 @@ class Hawks(object):
   def init_matrix(self):
     # Configuration for the matrix
     options = RGBMatrixOptions()
-    options.cols = self.settings.panel_cols
-    options.rows = self.settings.panel_rows
+    options.rows = 32
+    if self.settings.big:
+      options.cols = 128
+    else:
+      options.cols = 32
     options.chain_length = 1
     options.parallel = 1
     options.hardware_mapping = 'adafruit-hat'  # If you have an Adafruit HAT: 'adafruit-hat'
     self.matrix = RGBMatrix(options = options)
-    self.set_image(Image.new("RGB", (self.settings.cols, self.settings.rows), "black"))
+    if self.settings.big:
+      self.set_image(Image.new("RGB", (64, 64), "black"))
+    else:
+      self.set_image(Image.new("RGB", (32, 32), "black"))
 
   def init_anim_frames(self):
     self.anim_state.frames = [self.image.copy() for n in range(0, self.anim_state.fps)]
 
   def shift_column(self, image, column, delta):
+    rows = 32
+    if self.settings.big:
+      rows = 64
     if delta == 0:
       return image
     if delta > 0:
       # positive == up
       # from 0 to rows-delta, pull from row+delta.
       # from rows-delta to rows-1, black
-      for n in range(0, self.settings.rows - delta):
+      for n in range(0, rows - delta):
         image.putpixel((column, n), image.getpixel((column, n + delta)))
-      for n in range(self.settings.rows - delta, self.settings.rows):
+      for n in range(rows - delta, rows):
         image.putpixel((column, n), (0, 0, 0))
     else:
       # negative == down
@@ -190,7 +196,7 @@ class Hawks(object):
       # from rows-1 to delta, pull from row-delta
       # from delta to 0, black
       delta = 0 - delta
-      for n in range(self.settings.rows - 1, delta, -1):
+      for n in range(rows - 1, delta, -1):
         image.putpixel((column, n), image.getpixel((column, n - delta)))
       for n in range(0, delta):
         image.putpixel((column, n), (0, 0, 0))
@@ -248,17 +254,20 @@ class Hawks(object):
   def waving_setup(self):
     if self.timer:
       self.timer.cancel()
+    cols = 32
+    if self.settings.big:
+      cols = 64
     self.init_anim_frames()
     saf = self.anim_state.frames
     self.anim_state.set("ms_per_frame", self.settings.period / self.anim_state.fps)
     wavelength_radians = math.pi * 2.0
     phase_step_per_frame = wavelength_radians / self.anim_state.fps
-    radians_per_pixel = wavelength_radians / self.settings.cols
+    radians_per_pixel = wavelength_radians / cols
     phase = 0.0
     amplitude = self.settings.amplitude
     # first pass
     for n in range(0, self.anim_state.fps):
-      for c in range(0, self.settings.cols):
+      for c in range(0, cols):
         radians = radians_per_pixel * c + phase
         delta_y = int(round((math.sin(radians) * amplitude) / radians_per_pixel)) # assumes rows == cols!
         self.shift_column(saf[n], c, delta_y)
@@ -300,8 +309,14 @@ class Hawks(object):
       for k,v in Hawks.PRESETS[self.settings.preset].iteritems():
         self.settings.set(k, v)
 
+    rows = 32
+    cols = 32
+    if self.settings.big:
+      rows = 64
+      cols = 64
+
     text = unquote(self.settings.text.upper())
-    image = Image.new("RGB", (self.settings.cols, self.settings.rows), self.settings.bgcolor)
+    image = Image.new("RGB", (cols, rows), self.settings.bgcolor)
     draw = ImageDraw.Draw(image)
     font = ImageFont.truetype(self.settings.font, self.settings.textsize)
 
@@ -317,6 +332,10 @@ class Hawks(object):
     draw.text((x, y), text, fill=self.settings.innercolor, font=font)
 
     self.set_image(image)
+
+    self.debug_log(image)
+    self.debug_log(dir(self.matrix))
+
 
 def main():
   h = Hawks()
