@@ -18,6 +18,8 @@ def parse_args():
   parser.add_argument("--thickness", type=int, default=1)
   parser.add_argument("--preset", default="none", choices=Hawks.PRESETS.keys())
   parser.add_argument("--port", type=int, default=1212)
+  parser.add_argument("--file", default="none", help="PNG or JPG to load.  Overrides most other settings.")
+  parser.add_argument("--mock_square", action="store_true", default=False, help="When using mock rgbmatrix, skip converstion of 64x64 to 32x128")
   parser.add_argument("--debug", action="store_true", default=False)
   return parser.parse_args()
   return args

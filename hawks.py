@@ -50,6 +50,8 @@ class HawksSettings(Settings):
     self.set("amplitude", 0.4)
     self.set("fps", 16)
     self.set("period", 2000)
+    self.set("file", "none")
+    self.set("mock_square", False)
 
 
 class AnimState(Settings):
@@ -146,7 +148,11 @@ class Hawks(object):
     This does live last-second post-processing before calling matrix.SetImage
     '''
     if self.settings.big:
-      self.matrix.SetImage(self.reshape(image))
+      if not running_on_pi() and self.settings.mock_square:
+        setattr(self.matrix, "mock_square", True)
+        self.matrix.SetImage(image)
+      else:
+        self.matrix.SetImage(self.reshape(image))
     else:
       self.matrix.SetImage(image)
 
@@ -307,6 +313,15 @@ class Hawks(object):
     self.waving_setup()
     self.waving_do()
 
+  def resize_image(self, image, cols, rows):
+    orig_c, orig_r = image.size
+    new_c, new_r = cols, rows
+    if orig_c > orig_r:
+      new_r = new_r * float(orig_r) / orig_c
+    elif orig_r > orig_c:
+      new_c = new_c * float(orig_c) / orig_r
+    return image.resize((new_c, new_r))
+
   def draw_text(self):
     if self.settings.preset:
       for k,v in Hawks.PRESETS[self.settings.preset].iteritems():
@@ -317,6 +332,12 @@ class Hawks(object):
     if self.settings.big:
       rows = 64
       cols = 64
+
+    if self.settings.file and self.settings.file != "none":
+      image = Image.open(self.settings.file).convert("RGB")
+      image = self.resize_image(image, cols, rows)
+      self.set_image(image)
+      return
 
     text = unquote(self.settings.text.upper())
     image = Image.new("RGB", (cols, rows), self.settings.bgcolor)
@@ -340,6 +361,9 @@ class Hawks(object):
 def main():
   h = Hawks()
   h.debug = True
+  h.settings.big = True
+  if len(sys.argv) > 1:
+    h.settings.file = sys.argv[1]
   h.draw_text()
 
 if __name__ == '__main__':

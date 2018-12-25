@@ -4,7 +4,8 @@ import sys
 
 class RGBMatrix(object):
   def __init__(self, *args, **kwargs):
-    pass
+    for k, v in kwargs.iteritems():
+      setattr(self, k, v)
 
   def text_as_color(self, text, rgb):
     '''
@@ -29,6 +30,8 @@ class RGBMatrix(object):
       cols = 32
     else:
       cols = 128
+    if hasattr(self, "mock_square") and getattr(self, "mock_square"):
+      cols = 64
     for px in data:
       sys.stdout.write(self.text_as_color('  ', px))
       count += 1
