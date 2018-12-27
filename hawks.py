@@ -320,7 +320,7 @@ class Hawks(object):
       new_r = new_r * float(orig_r) / orig_c
     elif orig_r > orig_c:
       new_c = new_c * float(orig_c) / orig_r
-    return image.resize((new_c, new_r))
+    return image.resize((int(new_c), int(new_r)))
 
   def draw_text(self):
     if self.settings.preset:
