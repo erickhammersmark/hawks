@@ -29,6 +29,13 @@ def run_api(ip, port, hawks):
           return dictionary.get(d_key)
       return None
 
+    def api_get(self, parts):
+      if not parts:
+        return self.send(200, body=json.dumps(hawks.settings.__dict__))
+      if parts[0] == "presets":
+        return self.send(200, body=json.dumps(hawks.PRESETS.keys()))
+      return self.send(404)
+
     def api_set(self, parts):
       for key,value in parts.iteritems():
         _val = hawks.settings.get(key)
@@ -45,6 +52,19 @@ def run_api(ip, port, hawks):
       hawks.draw_text()
       return self.send(200)
 
+    def api_do(self, parts):
+      if not parts:
+        return self.send(400, body="API action 'do' requires at least one command and argument")
+      if parts[0] == "preset":
+        if parts[1]:
+          if hawks.apply_preset(parts[1]):
+            return self.send(200)
+          return self.send(400, body="Unknown preset: {0}".format(parts[1]))
+        else:
+          return self.send(400, body="Path must have non-zero, even number of elements")
+      else:
+        return self.send(404, body="Unknown command: {0}".format(parts[0]))
+
     def do_GET(self):
       parts = map(str.lower, self.path.strip('/').split('/'))
       if not parts or len(parts) % 2 != 0:
@@ -52,14 +72,16 @@ def run_api(ip, port, hawks):
 
       api, action = parts[0:2]
 
-      if api != 'api' or action not in ["get", "set"]:
+      if api != 'api' or action not in ["get", "set", "do"]:
         return self.send(404, body="Unrecognized path: self.path")
 
       if action == 'set':
         settings = dict(self.tups(parts[2:]))
         return self.api_set(settings)
       elif action == 'get':
-        return self.send(200, body=json.dumps(hawks.settings.__dict__))
+        return self.api_get(parts[2:])
+      elif action == 'do':
+        return self.api_do(parts[2:])
 
     def do_POST(self):
       parts = map(str.lower, self.path.strip('/').split('/'))
