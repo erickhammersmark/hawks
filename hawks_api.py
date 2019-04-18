@@ -1,110 +1,101 @@
 #!/usr/bin/env python
 
+import api_server
 import BaseHTTPServer
 import json
 
 def run_api(ip, port, hawks):
-  class HawksRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
-    def __init__(self, *a, **kw):
-      self.hawks = hawks
-      return BaseHTTPServer.BaseHTTPRequestHandler.__init__(self, *a, **kw)
+  api = api_server.Api(prefix="/api")
 
-    def send(self, code, body=None, content_type="text/html"):
-        self.send_response(code)
-        if body:
-          self.send_header('Content-Type', content_type)
-          self.send_header('Content-Length', len(body))
-        self.end_headers()
-        if body:
-          self.wfile.write(body)
+  def tups(parts):
+    return ((parts[2*n], parts[2*n+1]) for n in range(0, len(parts)/2))
 
-    def tups(self, parts):
-      return ((parts[2*n], parts[2*n+1]) for n in range(0, len(parts)/2))
+  def ci_dict_get(dictionary, key):
+    if key in dictionary:
+      return dictionary.get(key)
+    for d_key in dictionary:
+      if key.lower() == d_key.lower():
+        return dictionary.get(d_key)
+    return None
 
-    def ci_dict_get(self, dictionary, key):
-      if key in dictionary:
-        return dictionary.get(key)
-      for d_key in dictionary:
-        if key.lower() == d_key.lower():
-          return dictionary.get(d_key)
-      return None
+  def api_get(req, parts):
+    if not parts:
+      return req.send(200, body=json.dumps(hawks.settings.__dict__))
+    if parts[0] == "presets":
+      return req.send(200, body=json.dumps(hawks.PRESETS.keys()))
+    if parts[0] == "image":
+      return self.send(200, body=hawks.get_image(), content_type="image/png")
+    return req.send(404)
 
-    def api_get(self, parts):
-      if not parts:
-        return self.send(200, body=json.dumps(hawks.settings.__dict__))
-      if parts[0] == "presets":
-        return self.send(200, body=json.dumps(hawks.PRESETS.keys()))
-      if parts[0] == "image":
-        return self.send(200, body=hawks.get_image(), content_type="image/png")
-      return self.send(404)
-
-    def api_set(self, parts):
-      for key,value in parts.iteritems():
-        _val = hawks.settings.get(key)
-        if _val is not None:
-          if type(_val) is float:
-            value = float(value)
-          elif type(_val) is int:
-            value = int(value)
-          else:
-            value = value
-          self.hawks.settings.set(key, value)
+  def api_set(req, parts):
+    for key,value in parts.iteritems():
+      _val = hawks.settings.get(key)
+      if _val is not None:
+        if type(_val) is float:
+          value = float(value)
+        elif type(_val) is int:
+          value = int(value)
         else:
-          return self.send(404, body="Unknown attribute: {0}".format(key))
-      hawks.draw_text()
-      return self.send(200)
-
-    def api_do(self, parts):
-      if not parts:
-        return self.send(400, body="API action 'do' requires at least one command and argument")
-      if parts[0] == "preset":
-        if parts[1]:
-          if hawks.apply_preset(parts[1]):
-            return self.send(200)
-          return self.send(400, body="Unknown preset: {0}".format(parts[1]))
-        else:
-          return self.send(400, body="Path must have non-zero, even number of elements")
+          value = value
+        hawks.settings.set(key, value)
       else:
-        return self.send(404, body="Unknown command: {0}".format(parts[0]))
+        return req.send(404, body="Unknown attribute: {0}".format(key))
+    hawks.draw_text()
+    return req.send(200)
 
-    def do_GET(self):
-      parts = map(str.lower, self.path.strip('/').split('/'))
-      if not parts or len(parts) % 2 != 0:
-        return self.send(400, body="Path must have non-zero, even number of elements")
+  def api_do(req, parts):
+    if not parts:
+      return req.send(400, body="API action 'do' requires at least one command and argument")
+    if parts[0] == "preset":
+      if parts[1]:
+        if hawks.apply_preset(parts[1]):
+          return req.send(200)
+        return req.send(400, body="Unknown preset: {0}".format(parts[1]))
+      else:
+        return req.send(400, body="Path must have non-zero, even number of elements")
+    else:
+      return req.send(404, body="Unknown command: {0}".format(parts[0]))
 
-      api, action = parts[0:2]
+  def do_GET(req):
+    parts = map(str.lower, req.path.strip('/').split('/'))
+    if not parts or len(parts) % 2 != 0:
+      return req.send(400, body="Path must have non-zero, even number of elements")
 
-      if api != 'api' or action not in ["get", "set", "do"]:
-        return self.send(404, body="Unrecognized path: self.path")
+    api, action = parts[0:2]
 
-      if action == 'set':
-        settings = dict(self.tups(parts[2:]))
-        return self.api_set(settings)
-      elif action == 'get':
-        return self.api_get(parts[2:])
-      elif action == 'do':
-        return self.api_do(parts[2:])
+    if api != 'api' or action not in ["get", "set", "do"]:
+      return req.send(404, body="Unrecognized path: " + req.path)
 
-    def do_POST(self):
-      parts = map(str.lower, self.path.strip('/').split('/'))
+    if action == 'set':
+      settings = dict(tups(parts[2:]))
+      return api_set(req, settings)
+    elif action == 'get':
+      return api_get(req, parts[2:])
+    elif action == 'do':
+      return api_do(req, parts[2:])
 
-      if not parts or len(parts) != 2:
-        return self.send(404, body="Path {0} not found".format(self.path))
+  def do_POST(req):
+    parts = map(str.lower, req.path.strip('/').split('/'))
 
-      cl = self.ci_dict_get(self.headers, 'Content-Length')
-      if not cl:
-        return self.send(400, body="POST body required")
-      body = self.rfile.read(int(cl))
+    if not parts or len(parts) != 2:
+      return req.send(404, body="Path {0} not found".format(req.path))
 
-      try:
-        settings = json.loads(body)
-      except Exception as e:
-        return self.send(400, body="Unable to decode POST body:  {0}".format(e))
+    cl = ci_dict_get(req.headers, 'Content-Length')
+    if not cl:
+      return req.send(400, body="POST body required")
+    body = req.rfile.read(int(cl))
 
-      if type(settings) != dict:
-        return self.send(400, body="JSON body must contain only a map of key, value pairs")
+    try:
+      settings = json.loads(body)
+    except Exception as e:
+      return req.send(400, body="Unable to decode POST body:  {0}".format(e))
 
-      return self.api_set(settings)
+    if type(settings) != dict:
+      return req.send(400, body="JSON body must contain only a map of key, value pairs")
 
-  httpd = BaseHTTPServer.HTTPServer((ip, port), HawksRequestHandler)
-  httpd.serve_forever()
+    return api_set(settings)
+
+  api.register_endpoint("/get", do_GET)
+  api.register_endpoint("/set", do_GET)
+  api.register_endpoint("/do", do_GET)
+  api.run(ip, port)
