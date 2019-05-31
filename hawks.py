@@ -58,6 +58,7 @@ class HawksSettings(Settings):
     self.set("mock_square", False)
     self.set("autosize", True)
     self.set("margin", 1)
+    self.set("brightness", 255)
 
 
 class AnimState(Settings):
@@ -127,6 +128,13 @@ class Hawks(object):
         print
     print
 
+  def transform(self, image, func):
+    img = Image.new("RGB", image.size, "black")
+    orig_data = image.getdata()
+    img_data = [func(p) for p in orig_data]
+    img.putdata(img_data)
+    return img
+
   def reshape(self, image):
     '''
     Map image of size 64x64 to fit a 32x128 display
@@ -160,6 +168,11 @@ class Hawks(object):
     Distinct from set_image(), which sets self.image and kicks off animations if necessary.
     This does live last-second post-processing before calling matrix.SetImage
     '''
+    if self.settings.brightness != 255:
+      factor = float(self.settings.brightness) / 255
+      def set_brightness(p):
+        return tuple(int(c * factor) for c in p)
+      image = self.transform(image, set_brightness)
     if self.settings.big:
       if not running_on_pi() and self.settings.mock_square:
         setattr(self.matrix, "mock_square", True)
