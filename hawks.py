@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 
+import disc
 import math
 import os
+import sample
 import sys
 import time
 from PIL import Image, ImageDraw, ImageFont, ImageColor
@@ -62,6 +64,7 @@ class HawksSettings(Settings):
     self.set("capture", 0)
     self.set("tempfile", "tmp.png")
     self.set("capturefile", "image.png")
+    self.set("disc", False)
 
 
 class AnimState(Settings):
@@ -168,6 +171,11 @@ class Hawks(object):
     self.debug_log(img)
     return img
 
+  def set_disc_image(self, image):
+    disc = disc.Disc()
+    pixels = disc.sample_image(image)
+    # somehow write these pixels over SPI
+
   def SetImage(self, image):
     '''
     Use instead of matrix.SetImage
@@ -182,6 +190,11 @@ class Hawks(object):
     if self.settings.capture:
       image.save(os.path.join("/tmp", self.settings.tempfile))
       os.rename(os.path.join("/tmp", self.settings.tempfile), os.path.join("/tmp", self.settings.capturefile))
+
+    if self.settings.disc:
+      self.set_disc_image(image)
+      return
+
     if self.settings.big:
       if not running_on_pi() and self.settings.mock_square:
         setattr(self.matrix, "mock_square", True)
