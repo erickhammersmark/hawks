@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 
+import disc
 import math
 import os
+import sample
 import sys
 import time
 from PIL import Image, ImageDraw, ImageFont, ImageColor
@@ -58,6 +60,7 @@ class HawksSettings(Settings):
     self.set("mock_square", False)
     self.set("autosize", True)
     self.set("margin", 1)
+    self.set("disc", False)
 
 
 class AnimState(Settings):
@@ -155,12 +158,21 @@ class Hawks(object):
     self.debug_log(img)
     return img
 
+  def set_disc_image(self, image):
+    disc = disc.Disc()
+    pixels = disc.sample_image(image)
+    # somehow write these pixels over SPI
+
   def SetImage(self, image):
     '''
     Use instead of matrix.SetImage
     Distinct from set_image(), which sets self.image and kicks off animations if necessary.
     This does live last-second post-processing before calling matrix.SetImage
     '''
+    if self.settings.disc:
+      self.set_disc_image(image)
+      return
+
     if self.settings.big:
       if not running_on_pi() and self.settings.mock_square:
         setattr(self.matrix, "mock_square", True)
