@@ -21,6 +21,9 @@ total_pixels    radius
 '''
 
 import math
+import sys
+from PIL import Image
+from sample import sample, generate_offsets
 
 class DotstarPixel(object):
     def __init__(self, radius, position, total_pixels):
@@ -55,6 +58,7 @@ class Disc(object):
         return (self.calculate_xy(px, xy_range) for px in self.pixels)
 
     def init_pixels(self, circles=None):
+        self.pixels = []
         if circles == None:
             # dotstar disc numbers, radius of and count of pixels in each circle
             circles = [
@@ -94,12 +98,34 @@ class Disc(object):
         y = (y / (2 * self.get_max_radius())) * y_range
         x = (x / (2 * self.get_max_radius())) * x_range
 
+        y = min(y_range - 1, int(y))
+        x = min(x_range - 1, int(x))
+
         return (x, y)
+
+    def sample_image(self, image, radius=2):
+        pixels = self.get_pixels()
+        offsets = generate_offsets("circle", radius)
+        return sample(image, pixels, offsets)
 
 
 if __name__ == "__main__":
     disc = Disc()
-    disc.init_pixels()
-    print(disc.pixels)
-    print(disc.get_max_radius())
-    print('\n'.join(str(px) for px in disc.get_pixels((100,100))))
+    img = Image.open("xmas_hawks.png")
+    samples = sample(img, disc.get_pixels(img.size), generate_offsets("circle", 2))
+    new_img = Image.new("RGB", img.size, "black")
+    new_img_data = []
+    new_img_data.extend(new_img.getdata())
+    cols, rows = new_img.size
+    for (pos, pixel) in zip(disc.get_pixels(img.size), samples):
+        x, y = pos
+        #print(x, y, y * cols + x)
+        new_img_data[y * cols + x] = pixel
+    print(new_img_data)
+    new_img.putdata(new_img_data)
+    new_img.save("test.png")
+
+    #disc.init_pixels()
+    #print(disc.pixels)
+    #print(disc.get_max_radius())
+    #print('\n'.join(str(px) for px in disc.get_pixels((100,100))))
