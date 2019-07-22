@@ -104,7 +104,7 @@ class Disc(object):
         return (x, y)
 
     def sample_image(self, image, radius=2):
-        pixels = self.get_pixels()
+        pixels = self.get_pixels(image.size)
         offsets = generate_offsets("circle", radius)
         return sample(image, pixels, offsets)
 
