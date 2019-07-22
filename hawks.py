@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import disc
 import math
@@ -8,7 +8,7 @@ import sys
 import time
 from PIL import Image, ImageDraw, ImageFont, ImageColor
 from threading import Timer
-from urllib import unquote
+from urllib.parse import unquote
 
 def running_on_pi():
   return os.uname()[1] == 'raspberrypi'
@@ -20,7 +20,7 @@ else:
 
 class Settings(object):
   def __init__(self, *args, **kwargs):
-    for k,v in kwargs.iteritems():
+    for k,v in kwargs.items():
       self.set(k, v)
 
   def __contains__(self, name):
@@ -88,16 +88,22 @@ class Hawks(object):
     self.port = 1212
     self.debug = False
     self.timer = None
+    self.dots = None
 
     preset = None
 
-    for k,v in kwargs.iteritems():
+    for k,v in kwargs.items():
       if k in self.settings:
         self.settings.set(k, v)
       elif k == "preset":
         preset = v
       else:
         setattr(self, k, v)
+
+    if self.settings.disc:
+      import board
+      import adafruit_dotstar as dotstar
+      self.dots = dotstar.DotStar(board.SCK, board.MOSI, 255)
 
     self.init_matrix()
 
@@ -159,9 +165,11 @@ class Hawks(object):
     return img
 
   def set_disc_image(self, image):
-    disc = disc.Disc()
-    pixels = disc.sample_image(image)
-    # somehow write these pixels over SPI
+    self.disc = disc.Disc()
+    pixels = self.disc.sample_image(image)
+    for idx, pixel in enumerate(pixels):
+      self.dots[idx] = pixel[0:3]
+    self.dots.show()
 
   def SetImage(self, image):
     '''
@@ -202,7 +210,8 @@ class Hawks(object):
     options.parallel = 1
     options.gpio_slowdown = 2
     options.hardware_mapping = 'adafruit-hat'  # If you have an Adafruit HAT: 'adafruit-hat'
-    self.matrix = RGBMatrix(options = options)
+    if not self.settings.disc:
+      self.matrix = RGBMatrix(options = options)
     if self.settings.big:
       self.set_image(Image.new("RGB", (64, 64), "black"))
     else:
@@ -350,7 +359,7 @@ class Hawks(object):
 
   def apply_preset(self, preset):
     if preset in Hawks.PRESETS:
-      for k,v in Hawks.PRESETS[preset].iteritems():
+      for k,v in Hawks.PRESETS[preset].items():
         self.settings.set(k, v)
       self.draw_text()
       return True

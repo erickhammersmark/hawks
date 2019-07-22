@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import BaseHTTPServer
+import http.server
 import unittest
 from copy import copy
 
@@ -41,7 +41,7 @@ class Api(object):
   def __init__(self, *args, **kwargs):
     self.prefix = "/api/v1"
     self.endpoints = {}
-    for k, v in kwargs.iteritems():
+    for k, v in kwargs.items():
       setattr(self, k, v)
     self.prefix = self.prefix.rstrip("/")
 
@@ -62,15 +62,15 @@ class Api(object):
     if not req.path.startswith(self.prefix):
       return req.send(404, body="Unrecognized path: {0}".format(req.path))
     path = req.path.replace(self.prefix, "")
-    paths = self.endpoints.keys()
+    paths = list(self.endpoints.keys())
     paths.sort(lambda x, y: cmp(len(y), len(x)))
     for _p in paths:
       if path.startswith(_p):
         return self.endpoints[_p]
-      print("path {0} does not start with endpoint path {1}".format(path, _p))
+      print(("path {0} does not start with endpoint path {1}".format(path, _p)))
     return None
 
-  class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+  class RequestHandler(http.server.BaseHTTPRequestHandler):
     def send(self, code, body=None, content_type="text/html"):
       self.send_response(code)
       if body:
@@ -91,7 +91,7 @@ class Api(object):
       return self.do_ANY()
 
     def do_ANY(self):
-      print(self, dir(self))
+      print((self, dir(self)))
       endpoint = self.api.request_match(self)
       if endpoint:
         return endpoint["callback"](self)
@@ -104,7 +104,7 @@ class Api(object):
       def __init__(self, *a, **kw):
         self.api =  api
         Api.RequestHandler.__init__(self, *a, **kw)
-    BaseHTTPServer.HTTPServer((ip, port), ApiRequestHandler).serve_forever()
+    http.server.HTTPServer((ip, port), ApiRequestHandler).serve_forever()
 
 if __name__ == '__main__':
   unittest.main()
