@@ -1,7 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import api_server
-import BaseHTTPServer
+import http.server
 import json
 
 def run_api(ip, port, hawks):
@@ -22,13 +22,13 @@ def run_api(ip, port, hawks):
     if not parts:
       return req.send(200, body=json.dumps(hawks.settings.__dict__))
     if parts[0] == "presets":
-      return req.send(200, body=json.dumps(hawks.PRESETS.keys()))
+      return req.send(200, body=json.dumps(list(hawks.PRESETS.keys())))
     if parts[0] == "image":
       return self.send(200, body=hawks.get_image(), content_type="image/png")
     return req.send(404)
 
   def api_set(req, parts):
-    for key,value in parts.iteritems():
+    for key,value in parts.items():
       _val = hawks.settings.get(key)
       if _val is not None:
         if type(_val) is float:
@@ -57,7 +57,7 @@ def run_api(ip, port, hawks):
       return req.send(404, body="Unknown command: {0}".format(parts[0]))
 
   def do_GET(req):
-    parts = map(str.lower, req.path.strip('/').split('/'))
+    parts = list(map(str.lower, req.path.strip('/').split('/')))
     if not parts or len(parts) % 2 != 0:
       return req.send(400, body="Path must have non-zero, even number of elements")
 
@@ -75,7 +75,7 @@ def run_api(ip, port, hawks):
       return api_do(req, parts[2:])
 
   def do_POST(req):
-    parts = map(str.lower, req.path.strip('/').split('/'))
+    parts = list(map(str.lower, req.path.strip('/').split('/')))
 
     if not parts or len(parts) != 2:
       return req.send(404, body="Path {0} not found".format(req.path))

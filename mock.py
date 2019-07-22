@@ -4,7 +4,7 @@ import sys
 
 class RGBMatrix(object):
   def __init__(self, *args, **kwargs):
-    for k, v in kwargs.iteritems():
+    for k, v in kwargs.items():
       setattr(self, k, v)
 
   def text_as_color(self, text, rgb):
