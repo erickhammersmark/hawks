@@ -18,12 +18,45 @@ def run_api(ip, port, hawks):
         return dictionary.get(d_key)
     return None
 
+  def usage(req, msg=""):
+    body = """
+Hawks API usage:
+  /api/get                Return current settings
+  /api/get/presets/foo    Return a list of presets (last argument must be present and is ignored)
+  /api/set/key/value      Modify a current setting
+
+Settings:
+  disc                    Display is a 255-element DotStar disc
+  big                     Display is a chain of two 64x32 RGB LED matrices arranged to form a big square
+  mock_square             Display is a terminal mock up of an RGB LED matrix
+  file                    Image file to display (or "none")
+  text                    Text to render (if file is "none")
+  bgcolor                 Background color when rendering text
+  innercolor              Inner color of rendered text
+  outercolor              Outer color to use when rendering text
+  font                    Font to use when rendering text
+  y                       y position of rendered text (if autosize is false)
+  x                       x position of rendered text (if autosize is false)
+  autosize                When rendering text, automatically size the text to fit the display
+  textsize                Size of rendered text (if autosize is false)
+  margin                  Empty space to leave at bgcolor when autosizing text
+  thickness               The thickness of the outercolor of rendered text
+  animation               "none" or "waving"
+  fps                     How many frames per second of animation to render
+  period                  An input to the waving animation
+  amplitude               An input to the waving animation
+
+{0}
+""".format(msg)
+    return req.send(200, body=body)
+
   def api_get(req, parts):
     if not parts:
       return req.send(200, body=json.dumps(hawks.settings.__dict__))
     if parts[0] == "presets":
       return req.send(200, body=json.dumps(hawks.PRESETS.keys()))
-    return req.send(404)
+    #return req.send(404)
+    return usage(req)
 
   def api_set(req, parts):
     for key,value in parts.iteritems():
@@ -50,19 +83,19 @@ def run_api(ip, port, hawks):
           return req.send(200)
         return req.send(400, body="Unknown preset: {0}".format(parts[1]))
       else:
-        return req.send(400, body="Path must have non-zero, even number of elements")
+        return usage(req, msg="Path must have non-zero, even number of elements")
     else:
-      return req.send(404, body="Unknown command: {0}".format(parts[0]))
+      return usage(req, msg=="Unknown command: {0}".format(parts[0]))
 
   def do_GET(req):
     parts = map(str.lower, req.path.strip('/').split('/'))
     if not parts or len(parts) % 2 != 0:
-      return req.send(400, body="Path must have non-zero, even number of elements")
+      return usage(req, msg="Path must have non-zero, even number of elements")
 
     api, action = parts[0:2]
 
     if api != 'api' or action not in ["get", "set", "do"]:
-      return req.send(404, body="Unrecognized path: " + req.path)
+      return usage(req, msg="Unrecognized path: " + req.path)
 
     if action == 'set':
       settings = dict(tups(parts[2:]))
@@ -76,7 +109,7 @@ def run_api(ip, port, hawks):
     parts = map(str.lower, req.path.strip('/').split('/'))
 
     if not parts or len(parts) != 2:
-      return req.send(404, body="Path {0} not found".format(req.path))
+      return usage(req, msg="Path {0} not found".format(req.path))
 
     cl = ci_dict_get(req.headers, 'Content-Length')
     if not cl:
@@ -96,4 +129,5 @@ def run_api(ip, port, hawks):
   api.register_endpoint("/get", do_GET)
   api.register_endpoint("/set", do_GET)
   api.register_endpoint("/do", do_GET)
+  api.register_endpoint("default", do_GET)
   api.run(ip, port)
