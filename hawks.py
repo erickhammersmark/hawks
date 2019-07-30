@@ -109,7 +109,8 @@ class Hawks(object):
     if self.settings.disc:
       import board
       import adafruit_dotstar as dotstar
-      self.dots = dotstar.DotStar(board.SCK, board.MOSI, 255)
+      self.dots = dotstar.DotStar(board.SCK, board.MOSI, 255, auto_write=False)
+      #self.dots = dotstar.DotStar(board.SCK, board.MOSI, 255, auto_write=True)
 
     self.init_matrix()
 
@@ -181,7 +182,7 @@ class Hawks(object):
     self.disc = disc.Disc()
     pixels = self.disc.sample_image(image)
     for idx, pixel in enumerate(pixels):
-      self.dots[idx] = pixel[0:3]
+        self.dots[idx] = pixel[0:3]
     self.dots.show()
 
   def SetImage(self, image):
@@ -502,7 +503,8 @@ class Hawks(object):
 
     if self.settings.file and self.settings.file != "none":
       image = Image.open(self.settings.file).convert("RGB")
-      image = self.resize_image(image, cols, rows)
+      if not self.settings.disc:
+        image = self.resize_image(image, cols, rows)
       self.set_image(image)
       return
 
