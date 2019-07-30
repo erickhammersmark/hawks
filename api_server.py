@@ -19,7 +19,9 @@ class Api(object):
 
   This class is opinionated about slashes.  The api prefix will not end with
   one.  The endpoint paths will start with one.  You can do it right or the
-  code will make it right, but it WILL be right.
+  code will make it right, but it WILL be right.  "default" is special-cased, it
+  will be used if no other path matches the request.  NB: "default" is distinct
+  from "/default".  I am not stealing any paths from you.
 
   Call Api.register_endpoint(path, callback)
   Optionally, add methods=["GET", "POST", "DUCK"] to register_endpoint()
@@ -41,7 +43,8 @@ class Api(object):
   def __init__(self, *args, **kwargs):
     self.prefix = "/api/v1"
     self.endpoints = {}
-    for k, v in kwargs.items():
+    self.special_paths = ["default"]
+    for k, v in kwargs.iteritems():
       setattr(self, k, v)
     self.prefix = self.prefix.rstrip("/")
 
@@ -49,7 +52,7 @@ class Api(object):
     if not path or not callback:
       raise Exception("register_endpoint(path, callback)")
 
-    if not path.startswith("/"):
+    if not path.startswith("/") and path not in self.special_paths:
       path = "/" + path
 
     self.endpoints[path] = {
@@ -60,15 +63,15 @@ class Api(object):
 
   def request_match(self, req):
     if not req.path.startswith(self.prefix):
-      return req.send(404, body="Unrecognized path: {0}".format(req.path))
+      return req.send(404, body="Unrecognized path: {0}. Requests must start with {1}\n".format(req.path, self.prefix))
     path = req.path.replace(self.prefix, "")
     paths = list(self.endpoints.keys())
     paths.sort(lambda x, y: cmp(len(y), len(x)))
     for _p in paths:
       if path.startswith(_p):
         return self.endpoints[_p]
-      print(("path {0} does not start with endpoint path {1}".format(path, _p)))
-    return None
+      print("path {0} does not start with endpoint path {1}\n".format(path, _p))
+    return self.endpoints.get("default", None)
 
   class RequestHandler(http.server.BaseHTTPRequestHandler):
     def send(self, code, body=None, content_type="text/html"):
@@ -96,7 +99,7 @@ class Api(object):
       if endpoint:
         return endpoint["callback"](self)
       else:
-        return self.send(404, body="Unrecognized request: {0}".format(self.path))
+        return self.send(404, body="Unrecognized request: {0}\n".format(self.path))
 
   def run(self, ip, port):
     api = self
