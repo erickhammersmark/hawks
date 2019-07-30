@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import http.server
 import unittest
@@ -66,7 +66,8 @@ class Api(object):
       return req.send(404, body="Unrecognized path: {0}. Requests must start with {1}\n".format(req.path, self.prefix))
     path = req.path.replace(self.prefix, "")
     paths = list(self.endpoints.keys())
-    paths.sort(lambda x, y: cmp(len(y), len(x)))
+    #paths.sort(cmp=lambda x, y: cmp(len(y), len(x)))
+    paths.sort(key=len)
     for _p in paths:
       if path.startswith(_p):
         return self.endpoints[_p]
@@ -81,7 +82,7 @@ class Api(object):
         self.send_header("Content-Length", len(body))
       self.end_headers()
       if body:
-        self.wfile.write(body)
+        self.wfile.write(body.encode('utf-8'))
 
     def reply(self, message):
       '''
