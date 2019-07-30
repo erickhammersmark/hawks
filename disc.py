@@ -62,16 +62,16 @@ class Disc(object):
         if circles == None:
             # dotstar disc numbers, radius of and count of pixels in each circle
             circles = [
-                (0.0, 1),
-                (0.5, 6),
-                (1.0, 12),
-                (1.5, 20),
-                (2.0, 24),
-                (2.5, 28),
-                (3.0, 32),
-                (3.5, 40),
-                (4.0, 44),
                 (4.5, 48),
+                (4.0, 44),
+                (3.5, 40),
+                (3.0, 32),
+                (2.5, 28),
+                (2.0, 24),
+                (1.5, 20),
+                (1.0, 12),
+                (0.5, 6),
+                (0.0, 1),
             ]
         for (radius, num_pixels) in circles:
             for n in range(num_pixels):
@@ -103,7 +103,7 @@ class Disc(object):
 
         return (x, y)
 
-    def sample_image(self, image, radius=2):
+    def sample_image(self, image, radius=1):
         pixels = self.get_pixels(image.size)
         offsets = generate_offsets("circle", radius)
         return sample(image, pixels, offsets)
@@ -111,8 +111,9 @@ class Disc(object):
 
 if __name__ == "__main__":
     disc = Disc()
-    img = Image.open("xmas_hawks.png")
-    samples = sample(img, disc.get_pixels(img.size), generate_offsets("circle", 2))
+    img = Image.open("circle.jpg").convert("RGB")
+    samples = disc.sample_image(img)
+    #samples = sample(img, disc.get_pixels(img.size), generate_offsets("circle", 2))
     new_img = Image.new("RGB", img.size, "black")
     new_img_data = []
     new_img_data.extend(new_img.getdata())
@@ -121,7 +122,7 @@ if __name__ == "__main__":
         x, y = pos
         #print(x, y, y * cols + x)
         new_img_data[y * cols + x] = pixel
-    print(new_img_data)
+    #print(new_img_data)
     new_img.putdata(new_img_data)
     new_img.save("test.png")
 
