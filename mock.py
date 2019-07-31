@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import sys
 
@@ -23,7 +23,7 @@ class RGBMatrix(object):
     #\033[38;2;255;82;197;48;2;155;106;0mHello
     count = 0
     sys.stdout.write('\033[2J\033[H')
-    print
+    print()
     data = image.getdata()
     # filthy hack inside a kind of nice hack
     if len(data) == 1024:
@@ -36,8 +36,8 @@ class RGBMatrix(object):
       sys.stdout.write(self.text_as_color('  ', px))
       count += 1
       if count % cols == 0:
-        print
-    print
+        print()
+    print()
 
   def SetImage(self, image, *args, **kwargs):
     self.print_image(image)
