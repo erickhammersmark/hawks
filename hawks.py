@@ -65,6 +65,7 @@ class HawksSettings(Settings):
     self.set("tempfile", "tmp.png")
     self.set("capturefile", "image.png")
     self.set("disc", False)
+    self.set("brightness", 255)
 
 
 class AnimState(Settings):
@@ -178,6 +179,18 @@ class Hawks(object):
     self.debug_log(img)
     return img
 
+  def brighten(self, image):
+    if self.settings.brightness == 255:
+      return image
+
+    data = image.getdata()
+    newdata = []
+    brt = self.settings.brightness
+    for pixel in data:
+      newdata.append(tuple(int(c * brt / 255) for c in pixel))
+    image.putdata(newdata)
+    return image
+
   def set_disc_image(self, image):
     self.disc = disc.Disc()
     pixels = self.disc.sample_image(image)
@@ -192,10 +205,7 @@ class Hawks(object):
     This does live last-second post-processing before calling matrix.SetImage
     '''
     if self.settings.brightness != 255:
-      factor = float(self.settings.brightness) / 255
-      def set_brightness(p):
-        return tuple(int(c * factor) for c in p)
-      image = self.transform(image, set_brightness)
+      image = self.brighten(image)
 
     if self.settings.capture:
       image.save(os.path.join("/tmp", self.settings.tempfile))
