@@ -61,6 +61,7 @@ class HawksSettings(Settings):
     self.set("autosize", True)
     self.set("margin", 1)
     self.set("disc", False)
+    self.set("brightness", 255)
 
 
 class AnimState(Settings):
@@ -165,6 +166,18 @@ class Hawks(object):
     self.debug_log(img)
     return img
 
+  def brighten(self, image):
+    if self.settings.brightness == 255:
+      return image
+
+    data = image.getdata()
+    newdata = []
+    brt = self.settings.brightness
+    for pixel in data:
+      newdata.append(tuple(int(c * brt / 255) for c in pixel))
+    image.putdata(newdata)
+    return image
+
   def set_disc_image(self, image):
     self.disc = disc.Disc()
     pixels = self.disc.sample_image(image)
@@ -178,6 +191,9 @@ class Hawks(object):
     Distinct from set_image(), which sets self.image and kicks off animations if necessary.
     This does live last-second post-processing before calling matrix.SetImage
     '''
+    if self.settings.brightness != 255:
+      image = self.brighten(image)
+
     if self.settings.disc:
       self.set_disc_image(image)
       return

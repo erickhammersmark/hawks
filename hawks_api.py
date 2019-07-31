@@ -8,7 +8,7 @@ def run_api(ip, port, hawks):
   api = api_server.Api(prefix="/api")
 
   def tups(parts):
-    return ((parts[2*n], parts[2*n+1]) for n in range(0, len(parts)/2))
+    return ((parts[2*n], parts[2*n+1]) for n in range(0, int(len(parts)/2)))
 
   def ci_dict_get(dictionary, key):
     if key in dictionary:
