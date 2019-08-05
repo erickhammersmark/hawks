@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 '''
 Implements the math to map pixel positions in an Adafruit Dotstart Disc (or
