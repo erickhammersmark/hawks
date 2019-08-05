@@ -62,6 +62,7 @@ class HawksSettings(Settings):
     self.set("margin", 1)
     self.set("disc", False)
     self.set("brightness", 255)
+    self.set("file_path", "img")
 
 
 class AnimState(Settings):
@@ -489,7 +490,7 @@ class Hawks(object):
       cols = 64
 
     if self.settings.file and self.settings.file != "none":
-      image = Image.open(self.settings.file).convert("RGB")
+      image = Image.open(os.path.join(self.settings.file_path, self.settings.file)).convert("RGB")
       if not self.settings.disc:
         image = self.resize_image(image, cols, rows)
       self.set_image(image)

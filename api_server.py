@@ -91,6 +91,9 @@ class Api(object):
       '''
       self.send(200, body=message)
 
+    def do_PUT(self):
+      return self.do_ANY()
+
     def do_GET(self):
       return self.do_ANY()
 

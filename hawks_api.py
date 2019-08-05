@@ -3,6 +3,7 @@
 import api_server
 import http.server
 import json
+import os
 
 def run_api(ip, port, hawks):
   api = api_server.Api(prefix="/api")
@@ -50,6 +51,10 @@ Settings:
 """.format(msg)
     return req.send(200, body=body)
 
+  def write_file(name, body, hawks):
+    with open(os.path.join(hawks.settings.file_path, name), 'wb') as FILE:
+      FILE.write(body)
+
   def api_get(req, parts):
     if not parts:
       return req.send(200, body=json.dumps(hawks.settings.__dict__))
@@ -60,6 +65,8 @@ Settings:
 
   def api_set(req, parts):
     for key,value in parts.items():
+      if key == "file_path":
+        continue
       _val = hawks.settings.get(key)
       if _val is not None:
         if type(_val) is float:
@@ -126,8 +133,28 @@ Settings:
 
     return api_set(settings)
 
+  def do_PUT(req):
+    parts = list(map(str.lower, req.path.strip('/').split('/')))
+
+    if not parts or len(parts) < 4:
+      return usage(req, msg="PUT request must use path /api/put/file/filename")
+
+    api, action, _file, target = parts[0:4]
+
+    if api != "api" or action != "put" or _file != "file":
+      return usage(req, msg="PUT request must use path /api/put/file/filename")
+
+    cl = ci_dict_get(req.headers, 'Content-Length')
+    if not cl:
+      return req.send(400, body="POST body required")
+    body = req.rfile.read(int(cl))
+    write_file(target, body, hawks)
+    req.send(200)
+    
+
   api.register_endpoint("/get", do_GET)
   api.register_endpoint("/set", do_GET)
   api.register_endpoint("/do", do_GET)
   api.register_endpoint("default", do_GET)
+  api.register_endpoint("/put", do_PUT)
   api.run(ip, port)
