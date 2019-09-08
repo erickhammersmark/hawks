@@ -34,8 +34,6 @@ def run_api(ip, port, hawks):
         return self.send(200, body=json.dumps(hawks.settings.__dict__))
       if parts[0] == "presets":
         return self.send(200, body=json.dumps(hawks.PRESETS.keys()))
-      if parts[0] == "image":
-        return self.send(200, body=hawks.get_image(), content_type="image/png")
       return self.send(404)
 
     def api_set(self, parts):
