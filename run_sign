@@ -7,8 +7,8 @@ from hawks_api import run_api
 def parse_args():
   parser = argparse.ArgumentParser()
   parser.add_argument("--bgcolor", default="blue")
-  parser.add_argument("--outercolor", default="black")
-  parser.add_argument("--innercolor", default="green")
+  parser.add_argument("--outercolor", default="green")
+  parser.add_argument("--innercolor", default="black")
   parser.add_argument("--font", default="FreeSansBold")
   parser.add_argument("--x", type=int, default=0, help="left position of text")
   parser.add_argument("--y", type=int, default=2, help="top position of text")

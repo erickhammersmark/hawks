@@ -9,7 +9,7 @@ from threading import Timer
 from urllib import unquote
 
 def running_on_pi():
-  return os.uname()[1] == 'raspberrypi'
+  return os.uname()[1] == 'raspberrypi' or os.uname()[1] == 'hawks'
 
 if running_on_pi():
   from rgbmatrix import RGBMatrix, RGBMatrixOptions
@@ -59,6 +59,9 @@ class HawksSettings(Settings):
     self.set("autosize", True)
     self.set("margin", 1)
     self.set("brightness", 255)
+    self.set("capture", 0)
+    self.set("tempfile", "tmp.png")
+    self.set("capturefile", "image.png")
 
 
 class AnimState(Settings):
@@ -86,6 +89,8 @@ class Hawks(object):
     self.port = 1212
     self.debug = False
     self.timer = None
+    self.capture_image = False
+    self.image_filename = "tmp.png"
 
     preset = None
 
@@ -174,6 +179,9 @@ class Hawks(object):
       def set_brightness(p):
         return tuple(int(c * factor) for c in p)
       image = self.transform(image, set_brightness)
+    if self.settings.capture:
+      image.save(os.path.join("/tmp", self.settings.tempfile))
+      os.rename(os.path.join("/tmp", self.settings.tempfile), os.path.join("/tmp", self.settings.capturefile))
     if self.settings.big:
       if not running_on_pi() and self.settings.mock_square:
         setattr(self.matrix, "mock_square", True)
@@ -189,6 +197,13 @@ class Hawks(object):
       self.waving_start()
     else:
       self.SetImage(image)
+
+  def get_image(self):
+    if not os.path.exists(os.path.join("/tmp", self.settings.capturefile)):
+      return None
+    with open(os.path.join("/tmp", self.settings.capturefile), "rb") as CF:
+      bytes = CF.read()
+      return bytes
 
   def init_matrix(self):
     # Configuration for the matrix
