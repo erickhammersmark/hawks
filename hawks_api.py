@@ -61,7 +61,7 @@ Settings:
     if parts[0] == "presets":
       return req.send(200, body=json.dumps(list(hawks.PRESETS.keys())))
     if parts[0] == "image":
-      return self.send(200, body=hawks.get_image(), content_type="image/png")
+      return req.send(200, body=hawks.get_image(), content_type="image/png")
     return usage(req)
 
   def api_set(req, parts):

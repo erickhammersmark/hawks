@@ -11,7 +11,7 @@ from threading import Timer
 from urllib.parse import unquote
 
 def running_on_pi():
-  return os.uname()[1] == 'raspberrypi'
+  return os.uname()[1] == 'raspberrypi' or os.uname()[1] == 'hawks'
 
 if running_on_pi():
   from rgbmatrix import RGBMatrix, RGBMatrixOptions
@@ -67,6 +67,9 @@ class HawksSettings(Settings):
     self.set("disc", False)
     self.set("brightness", 255)
     self.set("file_path", "img")
+    self.set("capture", 0)
+    self.set("tempfile", "tmp.png")
+    self.set("capturefile", "image.png")
 
 
 class AnimState(Settings):
@@ -231,6 +234,13 @@ class Hawks(object):
       self.waving_start()
     else:
       self.SetImage(image)
+
+  def get_image(self):
+    if not os.path.exists(os.path.join("/tmp", self.settings.capturefile)):
+      return None
+    with open(os.path.join("/tmp", self.settings.capturefile), "rb") as CF:
+      bytes = CF.read()
+      return bytes
 
   def init_matrix(self):
     # Configuration for the matrix

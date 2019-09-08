@@ -44,7 +44,7 @@ class Api(object):
     self.prefix = "/api/v1"
     self.endpoints = {}
     self.special_paths = ["default"]
-    for k, v in kwargs.iteritems():
+    for k, v in kwargs.items():
       setattr(self, k, v)
     self.prefix = self.prefix.rstrip("/")
 
@@ -82,7 +82,10 @@ class Api(object):
         self.send_header("Content-Length", len(body))
       self.end_headers()
       if body:
-        self.wfile.write(body.encode('utf-8'))
+        if content_type.startswith("text"):
+            self.wfile.write(body.encode('utf-8'))
+        else:
+            self.wfile.write(body)
 
     def reply(self, message):
       '''
