@@ -55,7 +55,8 @@ Settings:
     with open(os.path.join(hawks.settings.file_path, name), 'wb') as FILE:
       FILE.write(body)
 
-  def api_get(req, parts):
+  def api_get(req):
+    parts = req.parts[2:]
     if not parts:
       return req.send(200, body=json.dumps(hawks.settings.__dict__))
     if parts[0] == "presets":
@@ -64,7 +65,8 @@ Settings:
       return req.send(200, body=hawks.get_image(), content_type="image/png")
     return usage(req)
 
-  def api_set(req, parts):
+  def api_set(req):
+    parts = dict(tups(req.parts[2:]))
     for key,value in parts.items():
       if key == "file_path":
         continue
@@ -82,7 +84,8 @@ Settings:
     hawks.draw_text()
     return req.send(200)
 
-  def api_do(req, parts):
+  def api_do(req):
+    parts = req.parts[2:]
     if not parts:
       return req.send(400, body="API action 'do' requires at least one command and argument")
     if parts[0] == "preset":
@@ -95,46 +98,7 @@ Settings:
     else:
       return usage(req, msg=="Unknown command: {0}".format(parts[0]))
 
-  def do_GET(req):
-    parts = list(map(str.lower, req.path.strip('/').split('/')))
-    if not parts or len(parts) % 2 != 0:
-      return usage(req, msg="Path must have non-zero, even number of elements")
-
-    api, action = parts[0:2]
-
-    if api != 'api' or action not in ["get", "set", "do"]:
-      return usage(req, msg="Unrecognized path: " + req.path)
-
-    if action == 'set':
-      settings = dict(tups(parts[2:]))
-      return api_set(req, settings)
-    elif action == 'get':
-      return api_get(req, parts[2:])
-    elif action == 'do':
-      return api_do(req, parts[2:])
-
-  def do_POST(req):
-    parts = list(map(str.lower, req.path.strip('/').split('/')))
-
-    if not parts or len(parts) != 2:
-      return usage(req, msg="Path {0} not found".format(req.path))
-
-    cl = ci_dict_get(req.headers, 'Content-Length')
-    if not cl:
-      return req.send(400, body="POST body required")
-    body = req.rfile.read(int(cl))
-
-    try:
-      settings = json.loads(body)
-    except Exception as e:
-      return req.send(400, body="Unable to decode POST body:  {0}".format(e))
-
-    if type(settings) != dict:
-      return req.send(400, body="JSON body must contain only a map of key, value pairs")
-
-    return api_set(settings)
-
-  def do_PUT(req):
+  def api_put(req):
     parts = list(map(str.lower, req.path.strip('/').split('/')))
 
     if not parts or len(parts) < 4:
@@ -153,9 +117,9 @@ Settings:
     req.send(200)
     
 
-  api.register_endpoint("/get", do_GET)
-  api.register_endpoint("/set", do_GET)
-  api.register_endpoint("/do", do_GET)
-  api.register_endpoint("default", do_GET)
-  api.register_endpoint("/put", do_PUT)
+  api.register_endpoint("default", usage)
+  api.register_endpoint("/get", api_get)
+  api.register_endpoint("/set", api_set)
+  api.register_endpoint("/do", api_do)
+  api.register_endpoint("/put", api_put)
   api.run(ip, port)

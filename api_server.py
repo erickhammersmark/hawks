@@ -102,6 +102,7 @@ class Api(object):
 
     def do_ANY(self):
       print((self, dir(self)))
+      self.parts = list(map(str.lower, self.path.strip('/').split('/')))
       endpoint = self.api.request_match(self)
       if endpoint:
         return endpoint["callback"](self)
