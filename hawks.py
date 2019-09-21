@@ -71,6 +71,7 @@ class HawksSettings(Settings):
     self.set("tempfile", "tmp.png")
     self.set("capturefile", "image.png")
     self.set("transpose", "none")
+    self.set("rotate", 0)
 
 
 class AnimState(Settings):
@@ -216,6 +217,9 @@ class Hawks(object):
       operation = getattr(Image, self.settings.transpose, None)
       if operation != None:
         image = image.transpose(operation)
+
+    if self.settings.rotate != 0:
+      image = image.rotate(self.settings.rotate)
 
     if self.settings.capture:
       image.save(os.path.join("/tmp", self.settings.tempfile))
