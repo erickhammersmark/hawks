@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import disc
+import io
 import math
 import os
 import sample
@@ -57,19 +58,12 @@ class HawksSettings(Settings):
     self.set("fps", 16)
     self.set("period", 2000)
     self.set("file", "none")
+    self.set("file_path", "img")
     self.set("mock_square", False)
     self.set("autosize", True)
     self.set("margin", 1)
     self.set("brightness", 255)
-    self.set("capture", 0)
-    self.set("tempfile", "tmp.png")
-    self.set("capturefile", "image.png")
     self.set("disc", False)
-    self.set("brightness", 255)
-    self.set("file_path", "img")
-    self.set("capture", 0)
-    self.set("tempfile", "tmp.png")
-    self.set("capturefile", "image.png")
     self.set("transpose", "none")
     self.set("rotate", 0)
 
@@ -99,8 +93,6 @@ class Hawks(object):
     self.port = 1212
     self.debug = False
     self.timer = None
-    self.capture_image = False
-    self.image_filename = "tmp.png"
     self.dots = None
 
     preset = None
@@ -210,21 +202,6 @@ class Hawks(object):
     Distinct from set_image(), which sets self.image and kicks off animations if necessary.
     This does live last-second post-processing before calling matrix.SetImage
     '''
-    if self.settings.brightness != 255:
-      image = self.brighten(image)
-
-    if self.settings.transpose != "none":
-      operation = getattr(Image, self.settings.transpose, None)
-      if operation != None:
-        image = image.transpose(operation)
-
-    if self.settings.rotate != 0:
-      image = image.rotate(self.settings.rotate)
-
-    if self.settings.capture:
-      image.save(os.path.join("/tmp", self.settings.tempfile))
-      os.rename(os.path.join("/tmp", self.settings.tempfile), os.path.join("/tmp", self.settings.capturefile))
-
     if self.settings.disc:
       self.set_disc_image(image)
       return
@@ -244,13 +221,6 @@ class Hawks(object):
       self.waving_start()
     else:
       self.SetImage(image)
-
-  def get_image(self):
-    if not os.path.exists(os.path.join("/tmp", self.settings.capturefile)):
-      return None
-    with open(os.path.join("/tmp", self.settings.capturefile), "rb") as CF:
-      bytes = CF.read()
-      return bytes
 
   def init_matrix(self):
     # Configuration for the matrix
@@ -517,9 +487,13 @@ class Hawks(object):
 
     self.settings.x = (target_size - width)/2 + self.settings.margin - 1
     self.settings.y = (target_size - height)/2 + self.settings.margin - 1
-    
 
-  def draw_text(self):
+  def make_png(self, image):
+    with io.BytesIO() as output:
+      image.save(output, format="PNG")
+      return output.getvalue()
+
+  def draw_text(self, return_image=False):
     rows = 32
     cols = 32
     if self.settings.big:
@@ -530,12 +504,24 @@ class Hawks(object):
       image = Image.open(os.path.join(self.settings.file_path, self.settings.file)).convert("RGB")
       if not self.settings.disc:
         image = self.resize_image(image, cols, rows)
-      self.set_image(image)
-      return
+    else:
+      if self.settings.autosize:
+        self.autosize()
+      image = self.render_text()
 
-    if self.settings.autosize:
-      self.autosize()
-    image = self.render_text()
+    if self.settings.brightness != 255:
+      image = self.brighten(image)
+
+    if self.settings.transpose != "none":
+      operation = getattr(Image, self.settings.transpose, None)
+      if operation != None:
+        image = image.transpose(operation)
+
+    if self.settings.rotate != 0:
+      image = image.rotate(self.settings.rotate)
+
+    if return_image:
+      return self.make_png(image)
     self.set_image(image)
 
 

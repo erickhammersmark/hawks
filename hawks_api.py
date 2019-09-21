@@ -61,8 +61,6 @@ Settings:
       return req.send(200, body=json.dumps(hawks.settings.__dict__))
     if parts[0] == "presets":
       return req.send(200, body=json.dumps(list(hawks.PRESETS.keys())))
-    if parts[0] == "image":
-      return req.send(200, body=hawks.get_image(), content_type="image/png")
     return usage(req)
 
   def api_set(req):
@@ -101,6 +99,8 @@ Settings:
         return req.send(400, body="Unknown preset: {0}".format(parts[1]))
       else:
         return usage(req, msg="Path must have non-zero, even number of elements")
+    elif parts[0] == "image":
+      return req.send(200, body=hawks.draw_text(return_image=True), content_type="image/png")
     else:
       return usage(req, msg=="Unknown command: {0}".format(parts[0]))
 
