@@ -70,6 +70,7 @@ class HawksSettings(Settings):
     self.set("capture", 0)
     self.set("tempfile", "tmp.png")
     self.set("capturefile", "image.png")
+    self.set("transpose", "none")
 
 
 class AnimState(Settings):
@@ -210,6 +211,11 @@ class Hawks(object):
     '''
     if self.settings.brightness != 255:
       image = self.brighten(image)
+
+    if self.settings.transpose != "none":
+      operation = getattr(Image, self.settings.transpose, None)
+      if operation != None:
+        image = image.transpose(operation)
 
     if self.settings.capture:
       image.save(os.path.join("/tmp", self.settings.tempfile))
