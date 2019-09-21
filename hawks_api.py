@@ -73,9 +73,15 @@ Settings:
       _val = hawks.settings.get(key)
       if _val is not None:
         if type(_val) is float:
-          value = float(value)
+          try:
+            value = float(value)
+          except:
+            return req.send(400, body="Value for key {0} must be of type float".format(key))
         elif type(_val) is int:
-          value = int(value)
+          try:
+            value = int(value)
+          except:
+            return req.send(400, body="Value for key {0} must be of type int".format(key))
         else:
           value = value
         hawks.settings.set(key, value)
