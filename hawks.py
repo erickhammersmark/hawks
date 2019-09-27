@@ -28,6 +28,17 @@ class Settings(object):
     return name in self.__dict__
 
   def set(self, name, value):
+    existing = self.get(name)
+    if type(existing) == int:
+      try:
+        value = int(value)
+      except:
+        pass
+    elif type(existing) == float:
+      try:
+        value = float(value)
+      except:
+        pass
     setattr(self, name, value)
 
   def get(self, name):

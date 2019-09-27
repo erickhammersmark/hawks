@@ -6,7 +6,7 @@ import json
 import os
 
 def run_api(ip, port, hawks):
-  api = api_server.Api(prefix="/api")
+  api = api_server.Api(prefix="/")
 
   def tups(parts):
     return ((parts[2*n], parts[2*n+1]) for n in range(0, int(len(parts)/2)))
@@ -121,11 +121,33 @@ Settings:
     body = req.rfile.read(int(cl))
     write_file(target, body, hawks)
     req.send(200)
+
+  def webui_form(req):
+    body = "<html><head>Hawks UI</head><body><H1>Hawks UI</H1>"
+    body = body + '<form method="get" action="/submit"><table>'
+    for setting, value in hawks.settings.__dict__.items():
+      body = body + "<tr><td>{0}</td><td><input name={0} value={1} type=text></input></td></tr>".format(setting, value)
+    body = body + "</table><br><input type=submit>"
+    body = body + "</form></body></html>"
+    req.send(200, body=body)
     
+  def webui_submit(req):
+    parts = req.path.split("?")[1].split("&")
+    for part in parts:
+      key, value = part.split("=")
+      if value in ["True", "true"]:
+        value = True
+      elif value in ["False", "false"]:
+        value = False
+      hawks.settings.set(key, value)
+    hawks.draw_text()
+    req.send(200, "Settings accepted")
 
   api.register_endpoint("default", usage)
-  api.register_endpoint("/get", api_get)
-  api.register_endpoint("/set", api_set)
-  api.register_endpoint("/do", api_do)
-  api.register_endpoint("/put", api_put)
+  api.register_endpoint("/api/get", api_get)
+  api.register_endpoint("/api/set", api_set)
+  api.register_endpoint("/api/do", api_do)
+  api.register_endpoint("/api/put", api_put)
+  api.register_endpoint("/", webui_form)
+  api.register_endpoint("/submit", webui_submit)
   api.run(ip, port)

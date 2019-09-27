@@ -68,6 +68,7 @@ class Api(object):
     paths = list(self.endpoints.keys())
     #paths.sort(cmp=lambda x, y: cmp(len(y), len(x)))
     paths.sort(key=len)
+    paths.reverse()
     for _p in paths:
       if path.startswith(_p):
         return self.endpoints[_p]
