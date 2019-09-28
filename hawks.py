@@ -64,7 +64,7 @@ class HawksSettings(Settings):
     self.set("text", "12")
     self.set("textsize", 27)
     self.set("thickness", 1)
-    self.set("animation", "")
+    self.set("animation", "none")
     self.set("amplitude", 0.4)
     self.set("fps", 16)
     self.set("period", 2000)
