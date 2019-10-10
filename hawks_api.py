@@ -5,6 +5,8 @@ import http.server
 import json
 import os
 
+from urllib.parse import unquote
+
 def run_api(ip, port, hawks):
   api = api_server.Api(prefix="/")
 
@@ -135,6 +137,8 @@ Settings:
     parts = req.path.split("?")[1].split("&")
     for part in parts:
       key, value = part.split("=")
+      if key == 'text':
+        value = unquote(value)
       if value in ["True", "true"]:
         value = True
       elif value in ["False", "false"]:
@@ -143,11 +147,16 @@ Settings:
     hawks.draw_text()
     req.send(200, "Settings accepted")
 
+  def api_help(req):
+    usage(req)
+
   api.register_endpoint("default", usage)
   api.register_endpoint("/api/get", api_get)
   api.register_endpoint("/api/set", api_set)
   api.register_endpoint("/api/do", api_do)
   api.register_endpoint("/api/put", api_put)
+  api.register_endpoint("/help", api_help)
+  api.register_endpoint("/api/help", api_help)
   api.register_endpoint("/", webui_form)
   api.register_endpoint("/submit", webui_submit)
   api.run(ip, port)
