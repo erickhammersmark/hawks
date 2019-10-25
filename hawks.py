@@ -12,8 +12,11 @@ from threading import Timer
 from urllib.parse import unquote
 
 def running_on_pi():
-  return os.uname()[1] == 'raspberrypi' or os.uname()[1] == 'hawks'
-
+  # Customize this for your setup. This is used for the
+  # below conditional import. If not on a pi, import the
+  # RGBMatrix stuff from a mock library that supports
+  # rendering to the console.
+  return os.uname()[1] == 'raspberrypi' or os.uname()[1] == 'hawks' 
 if running_on_pi():
   from rgbmatrix import RGBMatrix, RGBMatrixOptions
 else:
@@ -54,29 +57,29 @@ def db(*args):
 
 class HawksSettings(Settings):
   def __init__(self):
-    self.set("bgcolor", "blue")
-    self.set("outercolor", "black")
-    self.set("innercolor", "green")
-    self.set("font", "FreeSansBold")
-    self.set("x", 0)
-    self.set("y", 2)
-    self.set("big", False)
-    self.set("text", "12")
-    self.set("textsize", 27)
-    self.set("thickness", 1)
-    self.set("animation", "none")
-    self.set("amplitude", 0.4)
-    self.set("fps", 16)
-    self.set("period", 2000)
-    self.set("file", "none")
-    self.set("file_path", "img")
-    self.set("mock_square", False)
-    self.set("autosize", True)
-    self.set("margin", 1)
-    self.set("brightness", 255)
-    self.set("disc", False)
-    self.set("transpose", "none")
-    self.set("rotate", 0)
+    self.set("bgcolor", "blue")       # text background color
+    self.set("outercolor", "black")   # text outline color
+    self.set("innercolor", "green")   # text fill color
+    self.set("font", "FreeSansBold")  # fonts-freefont-ttf package
+    self.set("x", 0)                  # x offset
+    self.set("y", 2)                  # y offset
+    self.set("big", False)            # enable 64x32 x 2 support
+    self.set("text", "12")            # text to render
+    self.set("textsize", 27)          # only used if autosize=False
+    self.set("thickness", 1)          # text outercolor thickness
+    self.set("animation", "none")     # "waving" to wave sign like a flag
+    self.set("amplitude", 0.4)        # amplitude of waving
+    self.set("fps", 16)               # animation fps
+    self.set("period", 2000)          # period (in ms) of flag wave
+    self.set("file", "none")          # image file to display
+    self.set("file_path", "img")      # path to search for image file
+    self.set("mock_square", False)    # do not correct for panel arrangement in the mock case
+    self.set("autosize", True)        # autosize text
+    self.set("margin", 1)             # text margin
+    self.set("brightness", 255)       # 0-255
+    self.set("disc", False)           # rendering to a Dotstar disc
+    self.set("transpose", "none")     # see PIL for transpose options
+    self.set("rotate", 0)             # rotation in degrees
 
 
 class AnimState(Settings):
@@ -84,7 +87,7 @@ class AnimState(Settings):
     self.set("animation", None)
     self.set("start_time", None)
     self.set("period", None)
-    self.set("next_updat_time", None)
+    self.set("next_update_time", None)
 
 
 class Hawks(object):
@@ -120,7 +123,6 @@ class Hawks(object):
       import board
       import adafruit_dotstar as dotstar
       self.dots = dotstar.DotStar(board.SCK, board.MOSI, 255, auto_write=False)
-      #self.dots = dotstar.DotStar(board.SCK, board.MOSI, 255, auto_write=True)
 
     self.init_matrix()
 

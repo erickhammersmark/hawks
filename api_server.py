@@ -66,13 +66,11 @@ class Api(object):
       return req.send(404, body="Unrecognized path: {0}. Requests must start with {1}\n".format(req.path, self.prefix))
     path = req.path.replace(self.prefix, "")
     paths = list(self.endpoints.keys())
-    #paths.sort(cmp=lambda x, y: cmp(len(y), len(x)))
     paths.sort(key=len)
     paths.reverse()
     for _p in paths:
       if path.startswith(_p):
         return self.endpoints[_p]
-      print("path {0} does not start with endpoint path {1}\n".format(path, _p))
     return self.endpoints.get("default", None)
 
   class RequestHandler(http.server.BaseHTTPRequestHandler):
@@ -102,8 +100,6 @@ class Api(object):
       return self.do_ANY()
 
     def do_ANY(self):
-      print((self, dir(self)))
-      #self.parts = list(map(str.lower, self.path.strip('/').split('/')))
       self.parts = list(self.path.strip('/').split('/'))
       endpoint = self.api.request_match(self)
       if endpoint:
