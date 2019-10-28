@@ -422,7 +422,7 @@ class Hawks(object):
 
   def col_only_bgcolor(self, image_data, col):
     if col < 0 or col >= self.settings.cols:
-      raise Exception("Column {0} is out of bounds (0, {1})".format(col, self.settings.col))
+      raise Exception("Column {0} is out of bounds (0, {1})".format(col, self.settings.cols))
 
     bgcolor = ImageColor.getrgb(self.settings.bgcolor)
     px_no = col
@@ -434,7 +434,7 @@ class Hawks(object):
 
   def row_only_bgcolor(self, image_data, row):
     if row < 0 or row >= self.settings.rows:
-      raise Exception("Column {0} is out of bounds (0, {1})".format(col, self.settings.col))
+      raise Exception("Column {0} is out of bounds (0, {1})".format(row, self.settings.rows))
 
     bgcolor = ImageColor.getrgb(self.settings.bgcolor)
     px_no = row * self.settings.cols
@@ -446,54 +446,64 @@ class Hawks(object):
 
   def measure_left_margin(self, image_data):
     col = 0
-    while self.col_only_bgcolor(image_data, col):
+    while col < self.settings.cols and self.col_only_bgcolor(image_data, col):
       col += 1
     return col
 
   def measure_right_margin(self, image_data):
     col = self.settings.cols - 1
-    while self.col_only_bgcolor(image_data, col):
+    while col >= 0 and self.col_only_bgcolor(image_data, col):
       col -= 1
     return self.settings.cols - col - 1
 
   def measure_top_margin(self, image_data):
     row = 0
-    while self.row_only_bgcolor(image_data, row):
+    while row < self.settings.rows and self.row_only_bgcolor(image_data, row):
       row += 1
     return row
 
   def measure_bottom_margin(self, image_data):
     row = self.settings.rows - 1
-    while self.row_only_bgcolor(image_data, row):
+    while row >= 0 and self.row_only_bgcolor(image_data, row):
       row -= 1
     return self.settings.rows - row - 1
+
+  def align_and_measure(self):
+    image_data = self.render_text().getdata()
+
+    left_margin = self.measure_left_margin(image_data)
+    self.settings.x += self.settings.margin - left_margin
+
+    top_margin = self.measure_top_margin(image_data)
+    self.settings.y += self.settings.margin - top_margin
+
+    if self.settings.margin != left_margin or self.settings.margin != top_margin:
+      image = self.render_text()
+      image_data = image.getdata()
+    
+    right_margin = self.measure_right_margin(image_data)
+    bottom_margin = self.measure_bottom_margin(image_data)
+
+    return (left_margin, right_margin, top_margin, bottom_margin)
 
   def autosize(self):
     self.settings.x = 0
     self.settings.y = 0
-    self.settings.textsize = 4
-    done = False
-    while not done:
-      image = self.render_text()
-      image_data = image.getdata()
+    self.settings.textsize = 50
 
-      left_margin = self.measure_left_margin(image_data)
-      self.settings.x += self.settings.margin - left_margin
+    left_margin, right_margin, top_margin, bottom_margin = self.align_and_measure()
 
-      top_margin = self.measure_top_margin(image_data)
-      self.settings.y += self.settings.margin - top_margin
+    # make the text big enough
+    while right_margin > self.settings.margin and bottom_margin > self.settings.margin:
+      self.settings.textsize += min(right_margin, bottom_margin)
+      left_margin, right_margin, top_margin, bottom_margin = self.align_and_measure()
 
-      if self.settings.margin != left_margin or self.settings.margin != top_margin:
-        image = self.render_text()
-        image_data = image.getdata()
-      
-      right_margin = self.measure_right_margin(image_data)
-      bottom_margin = self.measure_bottom_margin(image_data)
+    # make sure it is not too big
+    while right_margin < self.settings.margin or bottom_margin < self.settings.margin:
+      self.settings.textsize -= 1
+      left_margin, right_margin, top_margin, bottom_margin = self.align_and_measure()
 
-      if right_margin > self.settings.margin and bottom_margin > self.settings.margin:
-        self.settings.textsize += 1
-      else:
-        done = True
+    # center the text in both dimensions
     self.settings.x += int((right_margin - left_margin) / 2)
     self.settings.y += int((bottom_margin - top_margin) / 2)
 
