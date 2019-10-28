@@ -12,8 +12,11 @@ from threading import Timer
 from urllib.parse import unquote
 
 def running_on_pi():
-  return os.uname()[1] == 'raspberrypi' or os.uname()[1] == 'hawks'
-
+  # Customize this for your setup. This is used for the
+  # below conditional import. If not on a pi, import the
+  # RGBMatrix stuff from a mock library that supports
+  # rendering to the console.
+  return os.uname()[1] == 'raspberrypi' or os.uname()[1] == 'hawks' 
 if running_on_pi():
   from rgbmatrix import RGBMatrix, RGBMatrixOptions
 else:
@@ -86,7 +89,7 @@ class AnimState(Settings):
     self.set("animation", None)
     self.set("start_time", None)
     self.set("period", None)
-    self.set("next_updat_time", None)
+    self.set("next_update_time", None)
 
 
 class Hawks(object):
@@ -122,7 +125,6 @@ class Hawks(object):
       import board
       import adafruit_dotstar as dotstar
       self.dots = dotstar.DotStar(board.SCK, board.MOSI, 255, auto_write=False)
-      #self.dots = dotstar.DotStar(board.SCK, board.MOSI, 255, auto_write=True)
 
     self.init_matrix()
 
