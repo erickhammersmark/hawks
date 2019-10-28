@@ -30,7 +30,7 @@ Hawks API usage:
 
 Settings:
   disc                    Display is a 255-element DotStar disc
-  big                     Display is a chain of two 64x32 RGB LED matrices arranged to form a big square
+  decompose               Display is a chain of two 64x32 RGB LED matrices arranged to form a big square
   mock_square             Display is a terminal mock up of an RGB LED matrix
   file                    Image file to display (or "none")
   text                    Text to render (if file is "none")
