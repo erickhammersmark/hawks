@@ -18,6 +18,7 @@ def parse_args():
   parser.add_argument("--text", default="12")
   parser.add_argument("--textsize", type=int, default=27)
   parser.add_argument("--thickness", type=int, default=1)
+  parser.add_argument("--margin", type=int, default=1)
   parser.add_argument("--preset", default="none", choices=Hawks.PRESETS.keys())
   parser.add_argument("--port", type=int, default=1212)
   parser.add_argument("--file", default="none", help="PNG or JPG to load.  Overrides most other settings.")

@@ -481,6 +481,8 @@ class Hawks(object):
       image = self.render_text()
       image_data = image.getdata()
     
+    left_margin = self.measure_left_margin(image_data)
+    top_margin = self.measure_top_margin(image_data)
     right_margin = self.measure_right_margin(image_data)
     bottom_margin = self.measure_bottom_margin(image_data)
 
@@ -489,7 +491,7 @@ class Hawks(object):
   def autosize(self):
     self.settings.x = 0
     self.settings.y = 0
-    self.settings.textsize = 50
+    self.settings.textsize = 10
 
     left_margin, right_margin, top_margin, bottom_margin = self.align_and_measure()
 
