@@ -22,6 +22,7 @@ def run_api(ip, port, hawks):
     return None
 
   def usage(req, msg=""):
+    settings_help = "\n".join(["  {0}{1}{2}".format(k, " " * (24 - len(k)), v) for k, v in hawks.settings.helptext.items()])
     body = """
 Hawks API usage:
   /api/get                Return current settings
@@ -29,28 +30,10 @@ Hawks API usage:
   /api/set/key/value      Modify a current setting
 
 Settings:
-  disc                    Display is a 255-element DotStar disc
-  decompose               Display is a chain of two 64x32 RGB LED matrices arranged to form a big square
-  mock_square             Display is a terminal mock up of an RGB LED matrix
-  file                    Image file to display (or "none")
-  text                    Text to render (if file is "none")
-  bgcolor                 Background color when rendering text
-  innercolor              Inner color of rendered text
-  outercolor              Outer color to use when rendering text
-  font                    Font to use when rendering text
-  y                       y position of rendered text (if autosize is false)
-  x                       x position of rendered text (if autosize is false)
-  autosize                When rendering text, automatically size the text to fit the display
-  textsize                Size of rendered text (if autosize is false)
-  margin                  Empty space to leave at bgcolor when autosizing text
-  thickness               The thickness of the outercolor of rendered text
-  animation               "none" or "waving"
-  fps                     How many frames per second of animation to render
-  period                  An input to the waving animation
-  amplitude               An input to the waving animation
-
 {0}
-""".format(msg)
+
+{1}
+""".format(settings_help, msg)
     return req.send(200, body=body)
 
   def write_file(name, body, hawks):
@@ -106,6 +89,12 @@ Settings:
     else:
       return usage(req, msg=="Unknown command: {0}".format(parts[0]))
 
+  def only_alpha(name):
+    for c in name:
+      if c not in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.-_":
+        return False
+    return True
+
   def api_put(req):
     parts = list(map(str.lower, req.path.strip('/').split('/')))
 
@@ -121,6 +110,8 @@ Settings:
     if not cl:
       return req.send(400, body="POST body required")
     body = req.rfile.read(int(cl))
+    if not only_alpha(target):
+      return req.send(400, body="filename must be only alphanumeric (period, dash, underscore permited)")
     write_file(target, body, hawks)
     req.send(200)
 

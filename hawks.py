@@ -11,26 +11,23 @@ from PIL import Image, ImageDraw, ImageFont, ImageColor
 from threading import Timer
 from urllib.parse import unquote
 
-def running_on_pi():
-  # Customize this for your setup. This is used for the
-  # below conditional import. If not on a pi, import the
-  # RGBMatrix stuff from a mock library that supports
-  # rendering to the console.
-  return os.uname()[1] == 'raspberrypi' or os.uname()[1] == 'hawks' 
-if running_on_pi():
+try:
   from rgbmatrix import RGBMatrix, RGBMatrixOptions
-else:
+except ImportError:
   from mock import RGBMatrix, RGBMatrixOptions
 
 class Settings(object):
   def __init__(self, *args, **kwargs):
+    self.helptext = {}
     for k,v in kwargs.items():
       self.set(k, v)
 
   def __contains__(self, name):
     return name in self.__dict__
 
-  def set(self, name, value):
+  def set(self, name, value, helptext=None):
+    if helptext:
+      self.helptext[name] = helptext
     existing = self.get(name)
     if type(existing) == int:
       try:
@@ -57,31 +54,32 @@ def db(*args):
 
 class HawksSettings(Settings):
   def __init__(self):
-    self.set("bgcolor", "blue")
-    self.set("outercolor", "black")
-    self.set("innercolor", "green")
-    self.set("font", "FreeSansBold")
+    super().__init__(self)
+    self.set("bgcolor", "blue", helptext="Background color when rendering text")
+    self.set("outercolor", "black", helptext="Outer color of rendered text")
+    self.set("innercolor", "green", helptext="Inner color of rendered text")
+    self.set("font", "FreeSansBold", helptext="Font to use when rendering text")
     self.set("x", 0)
-    self.set("y", 2)
-    self.set("rows", 32)
-    self.set("cols", 32)
-    self.set("decompose", False)
-    self.set("text", "12")
+    self.set("y", 0)
+    self.set("rows", 32, helptext="Image height")
+    self.set("cols", 32, helptext="Image width")
+    self.set("decompose", False, helptext="Display is a chain of two 64x32 RGB LED matrices arranged to form a big square")
+    self.set("text", "12", helptext="Text to render (if file is \"none\")")
     self.set("textsize", 27)
-    self.set("thickness", 1)
-    self.set("animation", "none")
-    self.set("amplitude", 0.4)
-    self.set("fps", 16)
-    self.set("period", 2000)
-    self.set("file", "none")
-    self.set("file_path", "img")
-    self.set("mock_square", False)
+    self.set("thickness", 1, helptext="Thickness of outercolor border around text")
+    self.set("animation", "none", helptext="Options are \"waving\" or \"none\"")
+    self.set("amplitude", 0.4, helptext="Amplitude of waving animation")
+    self.set("fps", 16, helptext="FPS of waving animation")
+    self.set("period", 2000, helptext="Period of waving animation")
+    self.set("file", "none", helptext="Image file to display (or \"none\")")
+    self.set("file_path", "img", helptext="Directory in which to find files")
     self.set("autosize", True)
-    self.set("margin", 1)
-    self.set("brightness", 255)
-    self.set("disc", False)
-    self.set("transpose", "none")
-    self.set("rotate", 0)
+    self.set("margin", 2, helptext="Margin of background color around text")
+    self.set("brightness", 255, helptext="Image brighness, full bright = 255")
+    self.set("disc", False, helptext="Display is a 255-element DotStar disc")
+    self.set("transpose", "none", helptext="PIL transpose operations are supported")
+    self.set("rotate", 0, helptext="Rotation in degrees")
+    self.set("mock", False, helptext="Display is mock rgbmatrix")
 
 
 class AnimState(Settings):
@@ -125,6 +123,9 @@ class Hawks(object):
       import board
       import adafruit_dotstar as dotstar
       self.dots = dotstar.DotStar(board.SCK, board.MOSI, 255, auto_write=False)
+
+    if self.settings.mock:
+      from mock import RGBMatrix, RGBMatrixOptions
 
     self.init_matrix()
 
@@ -223,7 +224,7 @@ class Hawks(object):
       return
 
     if self.settings.decompose:
-      if not running_on_pi() and self.settings.mock_square:
+      if self.settings.mock:
         setattr(self.matrix, "mock_square", True)
         self.matrix.SetImage(image)
       else:
