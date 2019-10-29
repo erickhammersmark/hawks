@@ -154,7 +154,7 @@ class Hawks(object):
     for px in image.getdata():
       sys.stdout.write(self.text_as_color('  ', px))
       count += 1
-      if count % 32 == 0:
+      if count % self.settings.cols == 0:
         print
     print
 
@@ -167,7 +167,8 @@ class Hawks(object):
 
   def reshape(self, image):
     '''
-    Map image of size 64x64 to fit a 32x128 display
+    Map image of size rows x cols to fit a rows/2 xc ols*2 display
+    For example:
 
     rows = 64
     cols = 64
@@ -178,8 +179,8 @@ class Hawks(object):
     put first panel_rows rows of original image in to new image,
     repeat with next panel_rows rows of original image, but shifted cols to the right.
     '''
-    rows, cols = 64, 64
-    p_rows, p_cols = 32, 128
+    rows, cols = self.settings.rows, self.settings.cols
+    p_rows, p_cols = int(rows/2), int(cols * 2)
     img = Image.new("RGB", (p_cols, p_rows), "black")
     orig_data = image.getdata()
     img_data = []
@@ -242,7 +243,7 @@ class Hawks(object):
     options = RGBMatrixOptions()
     options.cols = self.settings.cols
     if self.settings.decompose:
-      options.rows = self.settings.rows / 2
+      options.rows = int(self.settings.rows / 2)
       options.chain_length = 2
     else:
       options.rows = self.settings.rows
@@ -399,10 +400,7 @@ class Hawks(object):
     return False
 
   def render_text(self):
-    rows = self.settings.rows
-    cols = self.settings.cols
-
-    image = Image.new("RGB", (cols, rows), self.settings.bgcolor)
+    image = Image.new("RGB", (self.settings.cols, self.settings.rows), self.settings.bgcolor)
     draw = ImageDraw.Draw(image)
     text = unquote(self.settings.text.upper())
     font = ImageFont.truetype(self.settings.font, self.settings.textsize)
@@ -515,13 +513,10 @@ class Hawks(object):
       return output.getvalue()
 
   def draw_text(self, return_image=False):
-    rows = self.settings.rows
-    cols = self.settings.cols
-
     if self.settings.file and self.settings.file != "none":
       image = Image.open(os.path.join(self.settings.file_path, self.settings.file)).convert("RGB")
       if not self.settings.disc:
-        image = self.resize_image(image, cols, rows)
+        image = self.resize_image(image, self.settings.cols, self.settings.rows)
     else:
       if self.settings.autosize:
         self.autosize()
