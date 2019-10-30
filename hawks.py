@@ -168,30 +168,34 @@ class Hawks(object):
 
   def reshape(self, image):
     '''
-    Map image of size rows x cols to fit a rows/2 xc ols*2 display
-    For example:
+    Map image of size rows x cols to fit a
+    rows/2 x cols*2 display. For example:
 
     rows = 64
     cols = 64
     panel_rows = 32
     panel_cols = 128
 
-    Build a new Image of panel_rows x panel_cols
-    put first panel_rows rows of original image in to new image,
-    repeat with next panel_rows rows of original image, but shifted cols to the right.
+    Build a new Image of panel_rows x panel_cols,
+    put first panel_rows rows of original image
+    in to new image, repeat with next panel_rows
+    rows of original image, but shifted cols to
+    the right.
     '''
+
     rows, cols = self.settings.rows, self.settings.cols
-    p_rows, p_cols = int(rows/2), int(cols * 2)
+    p_rows, p_cols = int(rows/2), cols * 2
     img = Image.new("RGB", (p_cols, p_rows), "black")
     orig_data = image.getdata()
     img_data = []
     for row in range(0, p_rows):
+      r = row * cols
       for col in range(0, cols):
-        img_data.append(orig_data[row * cols + col])
+        img_data.append(orig_data[r + col])
+      r = (row * p_rows - 1) * cols
       for col in range(cols, p_cols):
-        img_data.append(orig_data[(row + p_rows - 1) * cols + col])
+        img_data.append(orig_data[r + col])
     img.putdata(img_data)
-    self.debug_log(img)
     return img
 
   def brighten(self, image):

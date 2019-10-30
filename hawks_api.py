@@ -26,8 +26,9 @@ def run_api(ip, port, hawks):
     body = """
 Hawks API usage:
   /api/get                Return current settings
-  /api/get/presets/foo    Return a list of presets (last argument must be present and is ignored)
+  /api/get/presets        Return a list of presets
   /api/set/key/value      Modify a current setting
+  /api/do/image           Returns a PNG of the current image
 
 Settings:
 {0}
