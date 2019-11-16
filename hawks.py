@@ -80,6 +80,7 @@ class HawksSettings(Settings):
     self.set("transpose", "none", helptext="PIL transpose operations are supported")
     self.set("rotate", 0, helptext="Rotation in degrees")
     self.set("mock", False, helptext="Display is mock rgbmatrix")
+    self.set("mode", "text", helptext="Valid modes are 'text', 'file', and 'network_weather'")
 
 
 class AnimState(Settings):
@@ -129,6 +130,9 @@ class Hawks(object):
 
     self.init_matrix()
 
+    self.network_weather_image = Image.new("RGB", (self.settings.cols, self.settings.rows), "black")
+
+    self.gcp_logo_pixels = [14, 15, 16, 17, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 136, 137, 138, 139, 140, 141, 147, 148, 149, 150, 151, 168, 169, 170, 171, 181, 182, 183, 184, 199, 200, 201, 202, 203, 204, 213, 214, 215, 216, 230, 231, 232, 233, 234, 235, 236, 237, 238, 245, 246, 247, 248, 262, 263, 264, 265, 266, 267, 268, 269, 270, 271, 278, 279, 280, 281, 293, 294, 295, 296, 297, 298, 299, 300, 301, 302, 310, 311, 312, 313, 314, 324, 325, 326, 327, 328, 332, 333, 343, 344, 345, 346, 347, 356, 357, 358, 359, 376, 377, 378, 379, 388, 389, 390, 391, 408, 409, 410, 411, 420, 421, 422, 423, 440, 441, 442, 443, 452, 453, 454, 455, 472, 473, 474, 475, 484, 485, 486, 487, 488, 503, 504, 505, 506, 507, 517, 518, 519, 520, 521, 522, 523, 524, 525, 526, 527, 528, 529, 530, 531, 532, 533, 534, 535, 536, 537, 538, 550, 551, 552, 553, 554, 555, 556, 557, 558, 559, 560, 561, 562, 563, 564, 565, 566, 567, 568, 569, 583, 584, 585, 586, 587, 588, 589, 590, 591, 592, 593, 594, 595, 596, 597, 598, 599, 600, 617, 618, 619, 620, 621, 622, 623, 624, 625, 626, 627, 628, 629, 630]
     if preset:
       self.apply_preset(preset)
 
@@ -202,11 +206,14 @@ class Hawks(object):
     if self.settings.brightness == 255:
       return image
 
-    data = image.getdata()
+    data = list(image.getdata())
     newdata = []
     brt = self.settings.brightness
-    for pixel in data:
-      newdata.append(tuple(int(c * brt / 255) for c in pixel))
+    for idx, pixel in enumerate(data):
+      if idx in self.gcp_logo_pixels:
+        newdata.append(pixel)
+      else:
+        newdata.append(tuple(int(c * brt / 255) for c in pixel))
     image.putdata(newdata)
     return image
 
@@ -512,16 +519,36 @@ class Hawks(object):
     self.settings.x += int((right_margin - left_margin) / 2)
     self.settings.y += int((bottom_margin - top_margin) / 2)
 
+  def mirror_x(self, pixel_no):
+    x_pos = pixel_no % self.settings.cols
+    new_x_pos = self.settings.cols - x_pos
+    delta_x = new_x_pos - x_pos - 1
+    return pixel_no + delta_x
+
+  def network_weather(self):
+    #not_gcp_logo_pixels = [p for p in range(0, 1023) if p not in gcp_logo_pixels]
+
+    self.network_color = "red"
+    img = Image.new("RGB", (self.settings.cols, self.settings.rows), self.network_color)
+    img_data = list(img.getdata())
+    for p in self.gcp_logo_pixels:
+      img_data[p] = (255, 255, 255)
+    
+    self.network_weather_image.putdata(img_data)
+    return self.network_weather_image
+
   def make_png(self, image):
     with io.BytesIO() as output:
       image.save(output, format="PNG")
       return output.getvalue()
 
   def draw_text(self, return_image=False):
-    if self.settings.file and self.settings.file != "none":
+    if self.settings.mode == "file" and self.settings.file != "none":
       image = Image.open(os.path.join(self.settings.file_path, self.settings.file)).convert("RGB")
       if not self.settings.disc:
         image = self.resize_image(image, self.settings.cols, self.settings.rows)
+    elif self.settings.mode == "network_weather":
+        image = self.network_weather()
     else:
       if self.settings.autosize:
         self.autosize()
