@@ -182,6 +182,17 @@ class Hawks(object):
                                617, 618, 619, 620, 621, 622, 623, 624, 625, 626, 627, 628, 629, 630
     ]
 
+    self.gcp_logo_pixels.sort()
+
+    self.not_gcp_logo_pixels = []
+    p = 0
+    g = 0
+    for p in range(0, 1024):
+      if p < self.gcp_logo_pixels[g] or p > self.gcp_logo_pixels[-1]:
+        self.not_gcp_logo_pixels.append(p)
+      else:
+        g = min(g+1, len(self.gcp_logo_pixels)-1)
+
     if preset:
       self.apply_preset(preset)
 
@@ -568,18 +579,12 @@ class Hawks(object):
     self.settings.x += int((right_margin - left_margin) / 2)
     self.settings.y += int((bottom_margin - top_margin) / 2)
 
-  def mirror_x(self, pixel_no):
-    x_pos = pixel_no % self.settings.cols
-    new_x_pos = self.settings.cols - x_pos
-    delta_x = new_x_pos - x_pos - 1
-    return pixel_no + delta_x
-
   def network_weather(self):
-    #not_gcp_logo_pixels = [p for p in range(0, 1023) if p not in gcp_logo_pixels]
-
-    self.network_color = "red"
+    self.network_color = "black"
     img = Image.new("RGB", (self.settings.cols, self.settings.rows), self.network_color)
     img_data = list(img.getdata())
+    for p in self.not_gcp_logo_pixels:
+      img_data[p] = (255, 0, 0)
     for p in self.gcp_logo_pixels:
       img_data[p] = (255, 255, 255)
     
