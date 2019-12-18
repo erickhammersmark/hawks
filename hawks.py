@@ -192,7 +192,7 @@ class Hawks(object):
       r = row * cols
       for col in range(0, cols):
         img_data.append(orig_data[r + col])
-      r = (row * p_rows - 1) * cols
+      r = (row + p_rows - 1) * cols
       for col in range(cols, p_cols):
         img_data.append(orig_data[r + col])
     img.putdata(img_data)
