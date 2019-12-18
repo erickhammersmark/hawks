@@ -43,10 +43,23 @@ Settings:
 
   def api_get(req):
     parts = req.parts[2:]
-    if not parts:
+    if not parts or parts[0] == "settings":
+      # GET /api or /api/settings, return a dump of all of the settings
       return req.send(200, body=json.dumps(hawks.settings.__dict__))
     if parts[0] == "presets":
+      # GET /api/presets, dump the list of available presets
       return req.send(200, body=json.dumps(list(hawks.PRESETS.keys())))
+    if parts[0] == "setting":
+      # GET /api/setting/foo, return setting foo or 404 if setting foo does not exist
+      # use this instead of GET /api/foo if you want a 404 when you screw up
+      if hawks.settings.get(parts[1]):
+        return req.send(200, body=json.dumps(hawks.settings.get(parts[1])))
+      return req.send(404, body="No such setting {}".format(parts[1]))
+    if hawks.settings.get(parts[0]):
+      # GET /api/foo, return setting foo if it exists, otherwise, fall through to a 200 from usage()
+      # use this when you want the get/set sematics to be the same and you don't care about getting
+      # a 404 when you screw up
+      return req.send(200, body=json.dumps(hawks.settings.get(parts[0])))
     return usage(req)
 
   def api_set(req):
