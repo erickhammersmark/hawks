@@ -2,8 +2,10 @@
 
 import disc
 import io
+import json
 import math
 import os
+import requests
 import sample
 import sys
 import time
@@ -89,6 +91,7 @@ class AnimState(Settings):
     self.set("start_time", None)
     self.set("period", None)
     self.set("next_update_time", None)
+    self.set("frames", None)
 
 
 class Hawks(object):
@@ -128,8 +131,7 @@ class Hawks(object):
     if self.settings.mock:
       from mock import RGBMatrix, RGBMatrixOptions
 
-    self.init_matrix()
-
+    self.network_weather_data = None
     self.network_weather_image = Image.new("RGB", (self.settings.cols, self.settings.rows), "black")
 
     #
@@ -192,6 +194,8 @@ class Hawks(object):
         self.not_gcp_logo_pixels.append(p)
       else:
         g = min(g+1, len(self.gcp_logo_pixels)-1)
+
+    self.init_matrix()
 
     if preset:
       self.apply_preset(preset)
@@ -304,9 +308,17 @@ class Hawks(object):
       self.matrix.SetImage(image)
 
   def set_image(self, image):
+    """
+    This is called every time something changes, like run_sign starting or
+    a settings change via the API.  This is what the API calls to ensure
+    that the changes it just set are acted upon.
+    """
     self.image = image
     if self.settings.animation == "waving":
       self.waving_start()
+    elif self.settings.mode == "network_weather":
+      self.settings.animation = "network_weather"
+      self.network_weather_anim_start()
     else:
       self.SetImage(image)
 
@@ -453,6 +465,60 @@ class Hawks(object):
     self.anim_state.set("fps", self.settings.fps)
     self.waving_setup()
     self.waving_do()
+
+  def network_weather_update(self):
+    """
+    Fetch the data needed to render the network weather.
+    If the data has changed, call network_weather_anim_setup()
+    """
+    try:
+      response = requests.get("https://status.cloud.google.com/incidents.json")
+      if response.status_code == 200:
+        new_network_weather_data = json.loads(response.text)
+        if new_network_weather_data != self.network_weather_data:
+          self.network_weather_data = new_network_weather_data
+          self.network_weather_anim_setup()
+    except ConnectionError as e:
+      # Couldn't connect, try again next time
+      pass
+
+  def network_weather_anim_setup(self):
+    """
+    Setup the anim_state to reflect the current network_weather
+    """
+    self.anim_state.ms_per_frame = int(1000.0 / self.anim_state.fps)
+    self.anim_state.frame_no = 0
+    self.anim_state.frames = [self.network_weather()]
+    self.anim_state.next_data_update_time_ms = time.time() * 1000
+
+  def network_weather_anim_do(self):
+    """
+    If the animation setting is still this one
+      SetImage() the correct frame.
+      Set a timer for when we'll call this function again
+    """ 
+    if self.settings.mode == "network_weather":
+      if self.timer:
+        self.timer.cancel()
+      self.timer = Timer(self.anim_state.ms_per_frame / 1000.0, self.network_weather_anim_do)
+      self.timer.start()
+      if self.anim_state.frames:
+        self.SetImage(self.anim_state.frames[self.anim_state.frame_no])
+        self.anim_state.frame_no += 1
+        if self.anim_state.frame_no >= len(self.anim_state.frames):
+          self.anim_state.frame_no = 0
+      if time.time() * 1000 > self.anim_state.next_data_update_time_ms:
+        self.anim_state.next_data_update_time_ms += 5 * 1000
+        self.network_weather_update() # might need to spawn a thread for this
+
+  def network_weather_anim_start(self):
+    setattr(self, "anim_state", AnimState())
+    self.anim_state.set("start_time", time.time()*1000)
+    self.anim_state.set("next_update_time", self.anim_state.start_time)
+    self.anim_state.set("fps", self.settings.fps)
+    self.network_weather_update()
+    self.network_weather_anim_setup()
+    self.network_weather_anim_do()
 
   def resize_image(self, image, cols, rows):
     orig_c, orig_r = image.size
