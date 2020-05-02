@@ -459,12 +459,14 @@ class Hawks(object):
 
   def gif_init_frames(self):
     self.anim_state.frames = []
+    self.anim_state.set("gif_times", [])
     for n in range(0, self.gif.n_frames):
       self.gif.seek(n)
       image = self.gif.convert("RGB")
       image = self.resize_image(image, self.settings.cols, self.settings.rows)
       image = self.apply_transformations(image)
       self.anim_state.frames.append(image)
+      self.anim_state.gif_times.append(int(self.gif.info["duration"]))
 
   def gif_setup(self):
     if self.timer:
@@ -472,14 +474,15 @@ class Hawks(object):
     cols = self.settings.cols
     self.gif_init_frames()
     saf = self.anim_state.frames
-    self.anim_state.set("ms_per_frame", self.settings.period / self.anim_state.fps)
     self.anim_state.set("frame_no", 0)
+    # gif uses a unique time per frame, this is not used in the gif case
+    self.anim_state.set("ms_per_frame", int(self.gif.info["duration"]))
 
   def gif_do(self):
     print("gif_do at {0}".format(time.time()))
     if self.settings.animation == "gif" and time.time()*1000 >= self.anim_state.next_update_time:
       print("gif_do {0} is later than {1}".format(time.time()*1000, self.anim_state.next_update_time))
-      self.anim_state.next_update_time += self.anim_state.ms_per_frame
+      self.anim_state.next_update_time += self.anim_state.gif_times[self.anim_state.frame_no]
       self.SetImage(self.anim_state.frames[self.anim_state.frame_no])
       self.anim_state.frame_no += 1
       if self.anim_state.frame_no >= len(self.anim_state.frames):
@@ -500,6 +503,28 @@ class Hawks(object):
     self.gif_setup()
     self.gif_do()
 
+  def fill_out(self, image):
+    cols, rows = image.size
+    if cols >= self.settings.cols and rows >= self.settings.rows:
+      return image
+
+    new_image = Image.new("RGB", (self.settings.cols, self.settings.rows), "black")
+    x = int((self.settings.cols - cols) / 2)
+    y = int((self.settings.rows - rows) / 2)
+ 
+    data = list(image.getdata())
+    new_data = list(new_image.getdata())
+    old_pixels = cols * rows
+    new_pixels = self.settings.cols * self.settings.rows
+    pos = 0
+    new_pos = self.settings.cols * y + x
+    while new_pos < new_pixels and pos < old_pixels:
+      new_data[new_pos:new_pos+cols] = data[pos:pos+cols]
+      pos += cols
+      new_pos += self.settings.cols
+    new_image.putdata(new_data)
+    return new_image
+
   def resize_image(self, image, cols, rows):
     orig_c, orig_r = image.size
     new_c, new_r = cols, rows
@@ -507,7 +532,10 @@ class Hawks(object):
       new_r = new_r * float(orig_r) / orig_c
     elif orig_r > orig_c:
       new_c = new_c * float(orig_c) / orig_r
-    return image.resize((int(new_c), int(new_r)))
+    image = image.resize((int(new_c), int(new_r)))
+    if new_c < self.settings.cols or new_r < self.settings.rows:
+      image = self.fill_out(image)
+    return image
 
   def apply_preset(self, preset):
     if preset in Hawks.PRESETS:
