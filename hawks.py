@@ -9,7 +9,7 @@ import requests
 import sample
 import sys
 import time
-from PIL import Image, ImageDraw, ImageFont, ImageColor
+from PIL import Image, ImageDraw, ImageFont, ImageColor, GifImagePlugin
 from threading import Timer
 from urllib.parse import unquote
 
@@ -112,6 +112,7 @@ class Hawks(object):
     self.debug = False
     self.timer = None
     self.dots = None
+    self.gif = None
 
     preset = None
 
@@ -260,7 +261,7 @@ class Hawks(object):
       r = row * cols
       for col in range(0, cols):
         img_data.append(orig_data[r + col])
-      r = (row * p_rows - 1) * cols
+      r = (row + p_rows - 1) * cols
       for col in range(cols, p_cols):
         img_data.append(orig_data[r + col])
     img.putdata(img_data)
@@ -274,7 +275,7 @@ class Hawks(object):
     newdata = []
     brt = self.settings.brightness
     for idx, pixel in enumerate(data):
-      if idx in self.gcp_logo_pixels:
+      if self.settings.mode == "network_weather" and idx in self.gcp_logo_pixels:
         newdata.append(pixel)
       else:
         newdata.append(tuple(int(c * brt / 255) for c in pixel))
@@ -314,11 +315,13 @@ class Hawks(object):
     that the changes it just set are acted upon.
     """
     self.image = image
-    if self.settings.animation == "waving":
-      self.waving_start()
-    elif self.settings.mode == "network_weather":
+    if self.settings.mode == "network_weather":
       self.settings.animation = "network_weather"
       self.network_weather_anim_start()
+    elif self.settings.animation == "waving":
+      self.waving_start()
+    elif self.settings.animation == "gif":
+      self.gif_start()
     else:
       self.SetImage(image)
 
@@ -512,13 +515,77 @@ class Hawks(object):
         self.network_weather_update() # might need to spawn a thread for this
 
   def network_weather_anim_start(self):
+    self.network_weather_update()
+    self.network_weather_anim_setup()
+    self.network_weather_anim_do()
+
+  def gif_init_frames(self):
+    self.anim_state.frames = []
+    self.anim_state.set("gif_times", [])
+    for n in range(0, self.gif.n_frames):
+      self.gif.seek(n)
+      image = self.gif.convert("RGB")
+      image = self.resize_image(image, self.settings.cols, self.settings.rows)
+      image = self.apply_transformations(image)
+      self.anim_state.frames.append(image)
+      self.anim_state.gif_times.append(int(self.gif.info["duration"]))
+
+  def gif_setup(self):
+    if self.timer:
+      self.timer.cancel()
+    cols = self.settings.cols
+    self.gif_init_frames()
+    saf = self.anim_state.frames
+    self.anim_state.set("frame_no", 0)
+    # gif uses a unique time per frame, this is not used in the gif case
+    self.anim_state.set("ms_per_frame", int(self.gif.info["duration"]))
+
+  def gif_do(self):
+    print("gif_do at {0}".format(time.time()))
+    if self.settings.animation == "gif" and time.time()*1000 >= self.anim_state.next_update_time:
+      print("gif_do {0} is later than {1}".format(time.time()*1000, self.anim_state.next_update_time))
+      self.anim_state.next_update_time += self.anim_state.gif_times[self.anim_state.frame_no]
+      self.SetImage(self.anim_state.frames[self.anim_state.frame_no])
+      self.anim_state.frame_no += 1
+      if self.anim_state.frame_no >= len(self.anim_state.frames):
+        self.anim_state.frame_no = 0
+      print("setting timer for {0} seconds".format(self.anim_state.ms_per_frame / 1000.0))
+      if self.timer:
+        self.timer.cancel()
+      self.timer = Timer(self.anim_state.ms_per_frame / 1000.0, self.gif_do)
+      self.timer.start()
+
+  def gif_start(self):
+    if not self.gif or not hasattr(self.gif, "n_frames"):
+      return
     setattr(self, "anim_state", AnimState())
     self.anim_state.set("start_time", time.time()*1000)
     self.anim_state.set("next_update_time", self.anim_state.start_time)
     self.anim_state.set("fps", self.settings.fps)
-    self.network_weather_update()
-    self.network_weather_anim_setup()
-    self.network_weather_anim_do()
+    self.gif_setup()
+    self.gif_do()
+
+  def fill_out(self, image):
+    cols, rows = image.size
+    if cols >= self.settings.cols and rows >= self.settings.rows:
+      return image
+
+    new_image = Image.new("RGB", (self.settings.cols, self.settings.rows), "black")
+    x = int((self.settings.cols - cols) / 2)
+    y = int((self.settings.rows - rows) / 2)
+ 
+    data = list(image.getdata())
+    new_data = list(new_image.getdata())
+    old_pixels = cols * rows
+    new_pixels = self.settings.cols * self.settings.rows
+    pos = 0
+    new_pos = self.settings.cols * y + x
+    while new_pos < new_pixels and pos < old_pixels:
+      new_data[new_pos:new_pos+cols] = data[pos:pos+cols]
+      pos += cols
+      new_pos += self.settings.cols
+    new_image.putdata(new_data)
+    return new_image
 
   def resize_image(self, image, cols, rows):
     orig_c, orig_r = image.size
@@ -527,7 +594,10 @@ class Hawks(object):
       new_r = new_r * float(orig_r) / orig_c
     elif orig_r > orig_c:
       new_c = new_c * float(orig_c) / orig_r
-    return image.resize((int(new_c), int(new_r)))
+    image = image.resize((int(new_c), int(new_r)))
+    if new_c < self.settings.cols or new_r < self.settings.rows:
+      image = self.fill_out(image)
+    return image
 
   def apply_preset(self, preset):
     if preset in Hawks.PRESETS:
@@ -662,18 +732,21 @@ class Hawks(object):
       image.save(output, format="PNG")
       return output.getvalue()
 
-  def draw_text(self, return_image=False):
-    if self.settings.mode == "file" and self.settings.file != "none":
-      image = Image.open(os.path.join(self.settings.file_path, self.settings.file)).convert("RGB")
+  def make_gif_happen(self, image):
+    self.gif = image
+    self.settings.animation = "gif"
+    return image.convert("RGB")
+
+  def make_file_happen(self, filepath):
+    image = Image.open(os.path.join(self.settings.file_path, self.settings.file))
+    if not hasattr(image, "n_frames"):
+      image = image.convert("RGB")
       if not self.settings.disc:
         image = self.resize_image(image, self.settings.cols, self.settings.rows)
-    elif self.settings.mode == "network_weather":
-        image = self.network_weather()
-    else:
-      if self.settings.autosize:
-        self.autosize()
-      image = self.render_text()
+      return image
+    return self.make_gif_happen(image)
 
+  def apply_transformations(self, image):
     if self.settings.brightness != 255:
       image = self.brighten(image)
 
@@ -684,6 +757,20 @@ class Hawks(object):
 
     if self.settings.rotate != 0:
       image = image.rotate(self.settings.rotate)
+
+    return image
+
+  def draw_text(self, return_image=False):
+    if self.settings.mode == "file" and self.settings.file != "none":
+      image = self.make_file_happen(os.path.join(self.settings.file_path, self.settings.file))
+    elif self.settings.mode == "network_weather":
+        image = self.network_weather()
+    else:
+      if self.settings.autosize:
+        self.autosize()
+      image = self.render_text()
+
+    image = self.apply_transformations(image)
 
     if return_image:
       return self.make_png(image)
