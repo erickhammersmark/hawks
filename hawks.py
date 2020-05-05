@@ -18,122 +18,322 @@ try:
 except ImportError:
   from mock import RGBMatrix, RGBMatrixOptions
 
-class Settings(object):
-  def __init__(self, *args, **kwargs):
-    self.helptext = {}
-    for k,v in kwargs.items():
-      self.set(k, v)
-
-  def __contains__(self, name):
-    return name in self.__dict__
-
-  def set(self, name, value, helptext=None):
-    if helptext:
-      self.helptext[name] = helptext
-    existing = self.get(name)
-    if type(existing) == int:
-      try:
-        value = int(value)
-      except:
-        pass
-    elif type(existing) == float:
-      try:
-        value = float(value)
-      except:
-        pass
-    setattr(self, name, value)
-
-  def get(self, name):
-    if name in self.__dict__:
-      return self.__dict__[name]
-    return None
-
 DEBUG = False
 def db(*args):
   if DEBUG:
     sys.stderr.write(' '.join([str(arg) for arg in args]) + '\n')
 
 
-class HawksSettings(Settings):
-  def __init__(self):
-    super().__init__(self)
-    self.set("bgcolor", "blue", helptext="Background color when rendering text")
-    self.set("outercolor", "black", helptext="Outer color of rendered text")
-    self.set("innercolor", "green", helptext="Inner color of rendered text")
-    self.set("font", "FreeSansBold", helptext="Font to use when rendering text")
-    self.set("x", 0)
-    self.set("y", 0)
-    self.set("rows", 32, helptext="Image height")
-    self.set("cols", 32, helptext="Image width")
-    self.set("decompose", False, helptext="Display is a chain of two 64x32 RGB LED matrices arranged to form a big square")
-    self.set("text", "12", helptext="Text to render (if file is \"none\")")
-    self.set("textsize", 27)
-    self.set("thickness", 1, helptext="Thickness of outercolor border around text")
-    self.set("animation", "none", helptext="Options are \"waving\" or \"none\"")
-    self.set("amplitude", 0.4, helptext="Amplitude of waving animation")
-    self.set("fps", 16, helptext="FPS of waving animation")
-    self.set("period", 2000, helptext="Period of waving animation")
-    self.set("file", "none", helptext="Image file to display (or \"none\")")
-    self.set("file_path", "img", helptext="Directory in which to find files")
-    self.set("autosize", True)
-    self.set("margin", 2, helptext="Margin of background color around text")
-    self.set("brightness", 255, helptext="Image brighness, full bright = 255")
-    self.set("disc", False, helptext="Display is a 255-element DotStar disc")
-    self.set("transpose", "none", helptext="PIL transpose operations are supported")
-    self.set("rotate", 0, helptext="Rotation in degrees")
-    self.set("mock", False, helptext="Display is mock rgbmatrix")
-    self.set("mode", "text", helptext="Valid modes are 'text', 'file', and 'network_weather'")
-
-
-class AnimState(Settings):
-  def __init__(self):
-    self.set("animation", None)
-    self.set("start_time", None)
-    self.set("period", None)
-    self.set("next_update_time", None)
-    self.set("frames", None)
-
-
-class Hawks(object):
-  PRESETS = {
-      "dark": {"bgcolor": "black", "innercolor": "blue", "outercolor": "green"},
-      "bright": {"bgcolor": "blue", "innercolor": "black", "outercolor": "green"},
-      "blue_on_green": {"bgcolor": "green", "innercolor": "blue", "outercolor": "black"},
-      "green_on_blue": {"bgcolor": "blue", "innercolor": "green", "outercolor": "black"},
-      "christmas": {"bgcolor": "green", "innercolor": "red", "outercolor": "black", "text": "12", "textsize": 27, "x": 0, "y": 2, "animation": "none", "thickness": 1},
-      "none": {},
-  }
-
-  ANIMATIONS = [ "waving" ]
+class ImageController(object):
+  """
+  Image Controller renders a list of tuples of RGB PIL.Image objects and
+  durations in ms. Configure it with a reference to a Matrix Controller that
+  provides the properties() method, so that the Image Controller can learn
+  the properties of the display (width, height). Matrix Controller should also
+  offer a brightness_mask() method, allowing the Image Controller to pass in a
+  list of integers representing an image bitmask. Where the brightness mask is
+  non-negative, the matrix must leave pixels at the specified brightness.
+  """
 
   def __init__(self, *args, **kwargs):
-    self.settings = HawksSettings()
-    self.port = 1212
-    self.debug = False
-    self.timer = None
-    self.dots = None
-    self.gif = None
+    """
+    ImageController objects should not pre-render images in __init__, as
+    some properties of the ImageController will be assigned by the
+    MatrixController. MatrixController will only call ImageController.render()
+    at MatrixController.show() time, which is infrequent. It is OK to to
+    expensive calculations in render().
+    """
+    self._brightness_mask = None
+    self.cols = 32
+    self.rows = 32
+    self.period = 1000
+    self.fps = 16
+    for k, v in kwargs:
+      setattr(self, k, v)
 
-    preset = None
+  def render(self):
+    return [()]
 
-    for k,v in kwargs.items():
-      if k in self.settings:
-        self.settings.set(k, v)
-      elif k == "preset":
-        preset = v
-      else:
-        setattr(self, k, v)
+  @property
+  def image(self):
+    try:
+      return self.render()[0][0]
+    except TypeError or IndexError:
+      return None
 
-    if self.settings.disc:
-      import board
-      import adafruit_dotstar as dotstar
-      self.dots = dotstar.DotStar(board.SCK, board.MOSI, 255, auto_write=False)
+  @property
+  def brightness_mask(self):
+    return self._brightness_mask
 
-    if self.settings.mock:
-      from mock import RGBMatrix, RGBMatrixOptions
+  @brightness_mask.setter
+  def brightness_mask(self, mask):
+    self._brightness_mask = mask
 
+  def shift_column(self, image, column, delta):
+    rows = self.rows
+    if delta == 0:
+      return image
+    if delta > 0:
+      # positive == up
+      # from 0 to rows-delta, pull from row+delta.
+      # from rows-delta to rows-1, black
+      for n in range(0, rows - delta):
+        image.putpixel((column, n), image.getpixel((column, n + delta)))
+      for n in range(rows - delta, rows):
+        image.putpixel((column, n), (0, 0, 0))
+    else:
+      # negative == down
+      # make delta positive
+      # from rows-1 to delta, pull from row-delta
+      # from delta to 0, black
+      delta = 0 - delta
+      for n in range(rows - 1, delta, -1):
+        image.putpixel((column, n), image.getpixel((column, n - delta)))
+      for n in range(0, delta):
+        image.putpixel((column, n), (0, 0, 0))
+
+  def frames_equal(self, one, two):
+    if not one or not two:
+      return False
+    for o,t in zip(one.getdata(), two.getdata()):
+      if o != t:
+        return False
+    return True
+
+  def multiply_pixel(self, pixel, value):
+    return tuple([int(c * value) for c in pixel])
+
+  def average_anim_frames(self, group):
+    '''
+    group is a list of indices of self.frames
+    The frames should represent repetitions of the first image
+    and one instnace of the next image, a set of duplicate
+    frames and one instance of what the next frame will be.  This
+    method should leave the first and last frames untouched and
+    replace each of the intermediate frames with a combination of the two.
+    '''
+
+    if not group:
+      return
+    num_frames = len(group)
+    if num_frames <= 2:
+      return
+    num_frames -= 1
+
+    saf = self.frames
+    # we can redo this to only fetch the first and last.  we compute the ones in the middle.
+    group_data = [saf[n].getdata() for n in group]
+    new_data = [[] for n in group]
+    num_pixels = len(list(group_data[0]))
+
+    for pixel_no in range(0, num_pixels):
+      first = group_data[0][pixel_no]
+      last = group_data[-1][pixel_no]
+      for idx, frame_no in enumerate(group):
+        left = self.multiply_pixel(
+            group_data[0][pixel_no],
+            float(num_frames - idx) / num_frames)
+        right = self.multiply_pixel(
+            group_data[-1][pixel_no],
+            float(idx) / num_frames)
+        new_data[idx].append(tuple([l + r for l, r in zip(left, right)]))
+    for idx, frame_no in enumerate(group):
+      if idx == 0 or idx == num_frames:
+        continue
+      saf[frame_no].putdata(new_data[idx])
+
+  def init_anim_frames(self, image):
+    return [image.copy() for n in range(0, self.fps)]
+
+  def generate_waving_frames(self, image):
+    cols = self.cols
+    frames = init_anim_frames(image)
+    ms_per_frame = self.period / self.fps
+    wavelength_radians = math.pi * 2.0
+    phase_step_per_frame = wavelength_radians / self.fps
+    radians_per_pixel = wavelength_radians / cols
+    phase = 0.0
+    amplitude = self.amplitude
+    # first pass
+    for n in range(0, self.fps):
+      for c in range(0, cols):
+        radians = radians_per_pixel * c + phase
+        delta_y = int(round((math.sin(radians) * amplitude) / radians_per_pixel)) # assumes rows == cols!
+        self.shift_column(frames[n], c, delta_y)
+      phase -= phase_step_per_frame
+    # second pass
+    group = []
+    for n in range(0, self.fps):
+      group.append(n)
+      if not self.frames_equal(frames[group[0]], frames[n]):
+        self.average_anim_frames(group)
+        group = [n]
+    frame_times = [ms_per_frame for frame in frames]
+    return list(zip(frames, frame_times))
+
+
+class TextImageController(ImageController):
+  def __init__(self, *args, **kwargs):
+    self.bgcolor = "blue"
+    self.outercolor = "black"
+    self.innercolor = "white"
+    self.font = "FreeSansBold"
+    self.text = "12"
+    self.textsize = 27
+    self.thickness = 1
+    self.autosize = True
+    self.margin = 2
+    self.x = 0
+    self.y = 0
+    super().__init__(*args, **kwargs)
+
+  def render(self, autosize=True):
+    image = Image.new("RGB", (self.cols, self.rows), self.bgcolor)
+    draw = ImageDraw.Draw(image)
+    text = unquote(self.text.upper())
+    font = ImageFont.truetype(self.font, self.textsize)
+
+    if autosize and self.autosize:
+      self._autosize()
+
+    x = self.x
+    y = self.y
+
+    for dx in range(0 - self.thickness, self.thickness + 1):
+      for dy in range(0 - self.thickness, self.thickness + 1):
+        draw.text((x-dx, y-dy), text, fill=self.outercolor, font=font)
+        draw.text((x+dx, y-dy), text, fill=self.outercolor, font=font)
+        draw.text((x-dx, y+dy), text, fill=self.outercolor, font=font)
+        draw.text((x+dx, y+dy), text, fill=self.outercolor, font=font)
+
+    draw.text((x, y), text, fill=self.innercolor, font=font)
+
+    return [(image, 0)]
+
+  def col_only_bgcolor(self, image_data, col):
+    if col < 0 or col >= self.cols:
+      raise Exception("Column {0} is out of bounds (0, {1})".format(col, self.cols))
+
+    bgcolor = ImageColor.getrgb(self.bgcolor)
+    px_no = col
+    while px_no < len(image_data):
+      if image_data[px_no] != bgcolor:
+        return False
+      px_no += self.cols
+    return True
+
+  def row_only_bgcolor(self, image_data, row):
+    if row < 0 or row >= self.rows:
+      raise Exception("Column {0} is out of bounds (0, {1})".format(row, self.rows))
+
+    bgcolor = ImageColor.getrgb(self.bgcolor)
+    px_no = row * self.cols
+    while px_no < (row + 1) * self.cols and px_no < len(image_data):
+      if image_data[px_no] != bgcolor:
+        return False
+      px_no += 1
+    return True
+
+  def measure_left_margin(self, image_data):
+    col = 0
+    while col < self.cols and self.col_only_bgcolor(image_data, col):
+      col += 1
+    return col
+
+  def measure_right_margin(self, image_data):
+    col = self.cols - 1
+    while col >= 0 and self.col_only_bgcolor(image_data, col):
+      col -= 1
+    return self.cols - col - 1
+
+  def measure_top_margin(self, image_data):
+    row = 0
+    while row < self.rows and self.row_only_bgcolor(image_data, row):
+      row += 1
+    return row
+
+  def measure_bottom_margin(self, image_data):
+    row = self.rows - 1
+    while row >= 0 and self.row_only_bgcolor(image_data, row):
+      row -= 1
+    return self.rows - row - 1
+
+  def align_and_measure(self):
+    image_data = self.render(autosize=False)[0][0].getdata()
+
+    left_margin = self.measure_left_margin(image_data)
+    self.x += self.margin - left_margin
+
+    top_margin = self.measure_top_margin(image_data)
+    self.y += self.margin - top_margin
+
+    if self.margin != left_margin or self.margin != top_margin:
+      image = self.render(autosize=False)
+      image_data = image[0][0].getdata()
+    
+    left_margin = self.measure_left_margin(image_data)
+    top_margin = self.measure_top_margin(image_data)
+    right_margin = self.measure_right_margin(image_data)
+    bottom_margin = self.measure_bottom_margin(image_data)
+
+    return (left_margin, right_margin, top_margin, bottom_margin)
+
+  def _autosize(self):
+    self.x = 0
+    self.y = 0
+    self.textsize = 10
+
+    left_margin, right_margin, top_margin, bottom_margin = self.align_and_measure()
+
+    # make the text big enough
+    while right_margin > self.margin and bottom_margin > self.margin:
+      self.textsize += min(right_margin, bottom_margin)
+      left_margin, right_margin, top_margin, bottom_margin = self.align_and_measure()
+
+    # make sure it is not too big
+    while right_margin < self.margin or bottom_margin < self.margin:
+      self.textsize -= 1
+      left_margin, right_margin, top_margin, bottom_margin = self.align_and_measure()
+
+    # center the text in both dimensions
+    self.x += int((right_margin - left_margin) / 2)
+    self.y += int((bottom_margin - top_margin) / 2)
+
+
+class FileImageController(ImageController):
+  def __init__(self, filename):
+    self.filename = filename
+    super().__init__()
+
+  def render(self):
+    image = Image.open(self.filename)
+    image = image.convert("RGB")
+    return [(image, 0)]
+
+
+class GifFileImageController(FileImageController):
+  def __init__(self, *args, **kwargs):
+    super().__init__(*args, **kwargs)
+
+    self.init_frames()
+
+  def init_frames(self):
+    self.frames = []
+    with Image.open(self.filename) as gif:
+      for n in range(0, gif.n_frames):
+        gif.seek(n)
+        image = gif.convert("RGB")
+        self.frames.append((image, int(gif.info["duration"])))
+
+  def render(self):
+    return self.frames
+
+
+class NetworkWeatherImageController(ImageController):
+  def __init__(self, ctrl, *args, **kwargs):
+    super().__init__(ctrl, *args, **kwargs)
     self.network_weather_data = None
-    self.network_weather_image = Image.new("RGB", (self.settings.cols, self.settings.rows), "black")
+    self.network_weather_image = Image.new("RGB", (self.cols, self.rows), "black")
 
     #
     # on a 32x32 6mm pitch LED matrix
@@ -187,6 +387,22 @@ class Hawks(object):
 
     self.gcp_logo_pixels.sort()
 
+    # ImageControllers shouldn't render things in __init__, but the gcp
+    # logo pixels only work for 32x32, so nothing the MatrixController
+    # sets later is going to change this.
+
+    n = 0
+    p = 0
+    mask = []
+    while n < 32*32:
+      if self.gcp_logo_pixels[p] == n:
+        p += 1
+        mask.append(255)
+      else:
+        mask.append(-1)
+      n += 1
+    self.brightness_mask = mask
+
     self.not_gcp_logo_pixels = []
     p = 0
     g = 0
@@ -196,44 +412,131 @@ class Hawks(object):
       else:
         g = min(g+1, len(self.gcp_logo_pixels)-1)
 
-    self.init_matrix()
+    super().__init__(*args, **kwargs)
 
-    if preset:
-      self.apply_preset(preset)
+  def render(self):
+    self.network_color = "black"
+    img = Image.new("RGB", (self.cols, self.rows), self.network_color)
+    img_data = list(img.getdata())
+    for p in self.not_gcp_logo_pixels:
+      img_data[p] = (255, 0, 0)
+    for p in self.gcp_logo_pixels:
+      img_data[p] = (255, 255, 255)
+    
+    self.network_weather_image.putdata(img_data)
+    return [(self.network_weather_image, 0)]
+
+  def network_weather_update(self):
+    """
+    Fetch the data needed to render the network weather.
+    If the data has changed, call network_weather_anim_setup()
+    """
+    try:
+      response = requests.get("https://status.cloud.google.com/incidents.json")
+      if response.status_code == 200:
+        new_network_weather_data = json.loads(response.text)
+        if new_network_weather_data != self.network_weather_data:
+          self.network_weather_data = new_network_weather_data
+          self.network_weather_anim_setup()
+    except ConnectionError as e:
+      # Couldn't connect, try again next time
+      pass
+
+
+class MatrixController(object):
+  def __init__(self, *args, **kwargs):
+    self.port = 1212
+    self.debug = False
+    self.dots = None
+    self.animation = None
+    self.x = 0
+    self.y = 0
+    self.rows = 32
+    self.cols = 32
+    self.decompose = False
+    self.file = "none"
+    self.file_path = "img"
+    self.brightness = 255
+    self.brightness_mask = None
+    self.disc = False
+    self.transpose = "none"
+    self.rotate = 0
+    self.mock = False
+    self._image_controller = TextImageController(self)
+    self.image = None
+    self.frames = []
+    self.frame_times = []
+    self.frame_no = 0
+    self.timer = None
+
+    for k,v in kwargs.items():
+      setattr(self, k, v)
+
+    if self.disc:
+      import board
+      import adafruit_dotstar as dotstar
+      self.dots = dotstar.DotStar(board.SCK, board.MOSI, 255, auto_write=False)
+
+    if self.mock:
+      from mock import RGBMatrix, RGBMatrixOptions
+
+    self.init_matrix()
 
   def debug_log(self, obj):
     if self.debug:
       sys.stderr.write(str(obj) + "\n")
 
-  def text_as_color(self, text, rgb):
-    '''
-    Return string with text prefixed by ANSI escape
-    code to set the backgorund to the color specified
-    by 'rgb' (a tuple of r, g, b bytes).  The string
-    also include the escape sequence to set the terminal
-    back to its default colors.
-    '''
-    escape_seq = '\033[48;2;{0};{1};{2}m{3}\033[10;m'
-    r, g, b = rgb
-    return escape_seq.format(r, g, b, text)
+  def properties(self):
+    return {
+      "cols": self.cols,
+      "rows": self.rows,
+    }
 
-  def print_image(self, image):
-    #\033[38;2;255;82;197;48;2;155;106;0mHello
-    count = 0
-    print
-    for px in image.getdata():
-      sys.stdout.write(self.text_as_color('  ', px))
-      count += 1
-      if count % self.settings.cols == 0:
-        print
-    print
+  @property
+  def image_controller(self):
+    return self._image_controller
 
-  def transform(self, image, func):
-    img = Image.new("RGB", image.size, "black")
-    orig_data = image.getdata()
-    img_data = [func(p) for p in orig_data]
-    img.putdata(img_data)
-    return img
+  @image_controller.setter
+  def image_controller(self, image_controller):
+    self._image_controller = image_controller
+    image_controller.cols = self.cols
+    image_controller.rows = self.rows
+    self.brightness_mask = None
+    self.show()
+
+  def fill_out(self, image):
+    cols, rows = image.size
+    if cols >= self.cols and rows >= self.rows:
+      return image
+
+    new_image = Image.new("RGB", (self.cols, self.rows), "black")
+    x = int((self.cols - cols) / 2)
+    y = int((self.rows - rows) / 2)
+ 
+    data = list(image.getdata())
+    new_data = list(new_image.getdata())
+    old_pixels = cols * rows
+    new_pixels = self.cols * self.rows
+    pos = 0
+    new_pos = self.cols * y + x
+    while new_pos < new_pixels and pos < old_pixels:
+      new_data[new_pos:new_pos+cols] = data[pos:pos+cols]
+      pos += cols
+      new_pos += self.cols
+    new_image.putdata(new_data)
+    return new_image
+
+  def resize_image(self, image, cols, rows):
+    orig_c, orig_r = image.size
+    new_c, new_r = cols, rows
+    if orig_c > orig_r:
+      new_r = new_r * float(orig_r) / orig_c
+    elif orig_r > orig_c:
+      new_c = new_c * float(orig_c) / orig_r
+    image = image.resize((int(new_c), int(new_r)))
+    if new_c < self.cols or new_r < self.rows:
+      image = self.fill_out(image)
+    return image
 
   def reshape(self, image):
     '''
@@ -252,7 +555,7 @@ class Hawks(object):
     the right.
     '''
 
-    rows, cols = self.settings.rows, self.settings.cols
+    rows, cols = self.rows, self.cols
     p_rows, p_cols = int(rows/2), cols * 2
     img = Image.new("RGB", (p_cols, p_rows), "black")
     orig_data = image.getdata()
@@ -268,17 +571,18 @@ class Hawks(object):
     return img
 
   def brighten(self, image):
-    if self.settings.brightness == 255:
+    if self.brightness == 255:
       return image
 
     data = list(image.getdata())
     newdata = []
-    brt = self.settings.brightness
     for idx, pixel in enumerate(data):
-      if self.settings.mode == "network_weather" and idx in self.gcp_logo_pixels:
-        newdata.append(pixel)
-      else:
-        newdata.append(tuple(int(c * brt / 255) for c in pixel))
+      brt = self.brightness
+      if self.brightness_mask:
+        brt = self.brightness_mask[idx]
+        if brt < 0:
+          brt = self.brightness
+      newdata.append(tuple(int(c * brt / 255) for c in pixel))
     image.putdata(newdata)
     return image
 
@@ -295,12 +599,12 @@ class Hawks(object):
     Distinct from set_image(), which sets self.image and kicks off animations if necessary.
     This does live last-second post-processing before calling matrix.SetImage
     '''
-    if self.settings.disc:
+    if self.disc:
       self.set_disc_image(image)
       return
 
-    if self.settings.decompose:
-      if self.settings.mock:
+    if self.decompose:
+      if self.mock:
         setattr(self.matrix, "mock_square", True)
         self.matrix.SetImage(image)
       else:
@@ -308,482 +612,106 @@ class Hawks(object):
     else:
       self.matrix.SetImage(image)
 
-  def set_image(self, image):
-    """
-    This is called every time something changes, like run_sign starting or
-    a settings change via the API.  This is what the API calls to ensure
-    that the changes it just set are acted upon.
-    """
-    self.image = image
-    if self.settings.mode == "network_weather":
-      self.settings.animation = "network_weather"
-      self.network_weather_anim_start()
-    elif self.settings.animation == "waving":
-      self.waving_start()
-    elif self.settings.animation == "gif":
-      self.gif_start()
-    else:
-      self.SetImage(image)
+  def render(self):
+    if self.timer:
+      self.timer.cancel()
+      self.timer = None
+
+    if not self.frames:
+      return
+
+    self.SetImage(self.frames[self.frame_no][0])
+
+    duration = self.frames[self.frame_no][1]
+
+    self.frame_no += 1
+    if self.frame_no >= len(self.frames):
+      self.frame_no = 0
+
+    if duration:
+      self.timer = Timer(duration / 1000.0, self.render)
+      self.timer.start()
 
   def init_matrix(self):
     # Configuration for the matrix
     options = RGBMatrixOptions()
-    options.cols = self.settings.cols
-    if self.settings.decompose:
-      options.rows = int(self.settings.rows / 2)
+    options.cols = self.cols
+    if self.decompose:
+      options.rows = int(self.rows / 2)
       options.chain_length = 2
     else:
-      options.rows = self.settings.rows
+      options.rows = self.rows
       options.chain_length = 1
     options.parallel = 1
     options.gpio_slowdown = 2
     options.hardware_mapping = 'adafruit-hat'  # If you have an Adafruit HAT: 'adafruit-hat'
-    if not self.settings.disc:
+    if not self.disc:
       self.matrix = RGBMatrix(options = options)
-    self.set_image(Image.new("RGB", (self.settings.cols, self.settings.rows), "black"))
-
-  def init_anim_frames(self):
-    self.anim_state.frames = [self.image.copy() for n in range(0, self.anim_state.fps)]
-
-  def shift_column(self, image, column, delta):
-    rows = self.settings.rows
-    if delta == 0:
-      return image
-    if delta > 0:
-      # positive == up
-      # from 0 to rows-delta, pull from row+delta.
-      # from rows-delta to rows-1, black
-      for n in range(0, rows - delta):
-        image.putpixel((column, n), image.getpixel((column, n + delta)))
-      for n in range(rows - delta, rows):
-        image.putpixel((column, n), (0, 0, 0))
-    else:
-      # negative == down
-      # make delta positive
-      # from rows-1 to delta, pull from row-delta
-      # from delta to 0, black
-      delta = 0 - delta
-      for n in range(rows - 1, delta, -1):
-        image.putpixel((column, n), image.getpixel((column, n - delta)))
-      for n in range(0, delta):
-        image.putpixel((column, n), (0, 0, 0))
-
-  def frames_equal(self, one, two):
-    if not one or not two:
-      return False
-    for o,t in zip(one.getdata(), two.getdata()):
-      if o != t:
-        return False
-    return True
-
-  def multiply_pixel(self, pixel, value):
-    return tuple([int(c * value) for c in pixel])
-
-  def average_anim_frames(self, group):
-    '''
-    group is a list of indices of self.anim_stat.frames
-    The frames should represent repetitions of the first image
-    and one instnace of the next image, a set of duplicate
-    frames and one instance of what the next frame will be.  This
-    method should leave the first and last frames untouched and
-    replace each of the intermediate frames with a combination of the two.
-    '''
-
-    if not group:
-      return
-    num_frames = len(group)
-    if num_frames <= 2:
-      return
-    num_frames -= 1
-
-    saf = self.anim_state.frames
-    # we can redo this to only fetch the first and last.  we compute the ones in the middle.
-    group_data = [saf[n].getdata() for n in group]
-    new_data = [[] for n in group]
-    num_pixels = len(list(group_data[0]))
-
-    for pixel_no in range(0, num_pixels):
-      first = group_data[0][pixel_no]
-      last = group_data[-1][pixel_no]
-      for idx, frame_no in enumerate(group):
-        left = self.multiply_pixel(
-            group_data[0][pixel_no],
-            float(num_frames - idx) / num_frames)
-        right = self.multiply_pixel(
-            group_data[-1][pixel_no],
-            float(idx) / num_frames)
-        new_data[idx].append(tuple([l + r for l, r in zip(left, right)]))
-    for idx, frame_no in enumerate(group):
-      if idx == 0 or idx == num_frames:
-        continue
-      saf[frame_no].putdata(new_data[idx])
-
-  def waving_setup(self):
-    if self.timer:
-      self.timer.cancel()
-    cols = self.settings.cols
-    self.init_anim_frames()
-    saf = self.anim_state.frames
-    self.anim_state.set("ms_per_frame", self.settings.period / self.anim_state.fps)
-    wavelength_radians = math.pi * 2.0
-    phase_step_per_frame = wavelength_radians / self.anim_state.fps
-    radians_per_pixel = wavelength_radians / cols
-    phase = 0.0
-    amplitude = self.settings.amplitude
-    # first pass
-    for n in range(0, self.anim_state.fps):
-      for c in range(0, cols):
-        radians = radians_per_pixel * c + phase
-        delta_y = int(round((math.sin(radians) * amplitude) / radians_per_pixel)) # assumes rows == cols!
-        self.shift_column(saf[n], c, delta_y)
-      phase -= phase_step_per_frame
-    # second pass
-    group = []
-    for n in range(0, self.anim_state.fps):
-      group.append(n)
-      if not self.frames_equal(saf[group[0]], saf[n]):
-        self.average_anim_frames(group)
-        group = [n]
-    self.anim_state.set("frame_no", 0)
-
-  def waving_do(self):
-    print("waving_do at {0}".format(time.time()))
-    if self.settings.animation == "waving" and time.time()*1000 >= self.anim_state.next_update_time:
-      print("waving_do {0} is later than {1}".format(time.time()*1000, self.anim_state.next_update_time))
-      self.anim_state.next_update_time += self.anim_state.ms_per_frame
-      self.SetImage(self.anim_state.frames[self.anim_state.frame_no])
-      self.anim_state.frame_no += 1
-      if self.anim_state.frame_no >= len(self.anim_state.frames):
-        self.anim_state.frame_no = 0
-      print("setting timer for {0} seconds".format(self.anim_state.ms_per_frame / 1000.0))
-      if self.timer:
-        self.timer.cancel()
-      self.timer = Timer(self.anim_state.ms_per_frame / 1000.0, self.waving_do)
-      self.timer.start()
-
-  def waving_start(self):
-    setattr(self, "anim_state", AnimState())
-    self.anim_state.set("start_time", time.time()*1000)
-    self.anim_state.set("next_update_time", self.anim_state.start_time)
-    self.anim_state.set("fps", self.settings.fps)
-    self.waving_setup()
-    self.waving_do()
-
-  def network_weather_update(self):
-    """
-    Fetch the data needed to render the network weather.
-    If the data has changed, call network_weather_anim_setup()
-    """
-    try:
-      response = requests.get("https://status.cloud.google.com/incidents.json")
-      if response.status_code == 200:
-        new_network_weather_data = json.loads(response.text)
-        if new_network_weather_data != self.network_weather_data:
-          self.network_weather_data = new_network_weather_data
-          self.network_weather_anim_setup()
-    except ConnectionError as e:
-      # Couldn't connect, try again next time
-      pass
-
-  def network_weather_anim_setup(self):
-    """
-    Setup the anim_state to reflect the current network_weather
-    """
-    self.anim_state.ms_per_frame = int(1000.0 / self.anim_state.fps)
-    self.anim_state.frame_no = 0
-    self.anim_state.frames = [self.network_weather()]
-    self.anim_state.next_data_update_time_ms = time.time() * 1000
-
-  def network_weather_anim_do(self):
-    """
-    If the animation setting is still this one
-      SetImage() the correct frame.
-      Set a timer for when we'll call this function again
-    """ 
-    if self.settings.mode == "network_weather":
-      if self.timer:
-        self.timer.cancel()
-      self.timer = Timer(self.anim_state.ms_per_frame / 1000.0, self.network_weather_anim_do)
-      self.timer.start()
-      if self.anim_state.frames:
-        self.SetImage(self.anim_state.frames[self.anim_state.frame_no])
-        self.anim_state.frame_no += 1
-        if self.anim_state.frame_no >= len(self.anim_state.frames):
-          self.anim_state.frame_no = 0
-      if time.time() * 1000 > self.anim_state.next_data_update_time_ms:
-        self.anim_state.next_data_update_time_ms += 5 * 1000
-        self.network_weather_update() # might need to spawn a thread for this
-
-  def network_weather_anim_start(self):
-    self.network_weather_update()
-    self.network_weather_anim_setup()
-    self.network_weather_anim_do()
-
-  def gif_init_frames(self):
-    self.anim_state.frames = []
-    self.anim_state.set("gif_times", [])
-    for n in range(0, self.gif.n_frames):
-      self.gif.seek(n)
-      image = self.gif.convert("RGB")
-      image = self.resize_image(image, self.settings.cols, self.settings.rows)
-      image = self.apply_transformations(image)
-      self.anim_state.frames.append(image)
-      self.anim_state.gif_times.append(int(self.gif.info["duration"]))
-
-  def gif_setup(self):
-    if self.timer:
-      self.timer.cancel()
-    cols = self.settings.cols
-    self.gif_init_frames()
-    saf = self.anim_state.frames
-    self.anim_state.set("frame_no", 0)
-    # gif uses a unique time per frame, this is not used in the gif case
-    self.anim_state.set("ms_per_frame", int(self.gif.info["duration"]))
-
-  def gif_do(self):
-    print("gif_do at {0}".format(time.time()))
-    if self.settings.animation == "gif" and time.time()*1000 >= self.anim_state.next_update_time:
-      print("gif_do {0} is later than {1}".format(time.time()*1000, self.anim_state.next_update_time))
-      self.anim_state.next_update_time += self.anim_state.gif_times[self.anim_state.frame_no]
-      self.SetImage(self.anim_state.frames[self.anim_state.frame_no])
-      self.anim_state.frame_no += 1
-      if self.anim_state.frame_no >= len(self.anim_state.frames):
-        self.anim_state.frame_no = 0
-      print("setting timer for {0} seconds".format(self.anim_state.ms_per_frame / 1000.0))
-      if self.timer:
-        self.timer.cancel()
-      self.timer = Timer(self.anim_state.ms_per_frame / 1000.0, self.gif_do)
-      self.timer.start()
-
-  def gif_start(self):
-    if not self.gif or not hasattr(self.gif, "n_frames"):
-      return
-    setattr(self, "anim_state", AnimState())
-    self.anim_state.set("start_time", time.time()*1000)
-    self.anim_state.set("next_update_time", self.anim_state.start_time)
-    self.anim_state.set("fps", self.settings.fps)
-    self.gif_setup()
-    self.gif_do()
-
-  def fill_out(self, image):
-    cols, rows = image.size
-    if cols >= self.settings.cols and rows >= self.settings.rows:
-      return image
-
-    new_image = Image.new("RGB", (self.settings.cols, self.settings.rows), "black")
-    x = int((self.settings.cols - cols) / 2)
-    y = int((self.settings.rows - rows) / 2)
- 
-    data = list(image.getdata())
-    new_data = list(new_image.getdata())
-    old_pixels = cols * rows
-    new_pixels = self.settings.cols * self.settings.rows
-    pos = 0
-    new_pos = self.settings.cols * y + x
-    while new_pos < new_pixels and pos < old_pixels:
-      new_data[new_pos:new_pos+cols] = data[pos:pos+cols]
-      pos += cols
-      new_pos += self.settings.cols
-    new_image.putdata(new_data)
-    return new_image
-
-  def resize_image(self, image, cols, rows):
-    orig_c, orig_r = image.size
-    new_c, new_r = cols, rows
-    if orig_c > orig_r:
-      new_r = new_r * float(orig_r) / orig_c
-    elif orig_r > orig_c:
-      new_c = new_c * float(orig_c) / orig_r
-    image = image.resize((int(new_c), int(new_r)))
-    if new_c < self.settings.cols or new_r < self.settings.rows:
-      image = self.fill_out(image)
-    return image
-
-  def apply_preset(self, preset):
-    if preset in Hawks.PRESETS:
-      for k,v in Hawks.PRESETS[preset].items():
-        self.settings.set(k, v)
-      self.draw_text()
-      return True
-    return False
-
-  def render_text(self):
-    image = Image.new("RGB", (self.settings.cols, self.settings.rows), self.settings.bgcolor)
-    draw = ImageDraw.Draw(image)
-    text = unquote(self.settings.text.upper())
-    font = ImageFont.truetype(self.settings.font, self.settings.textsize)
-
-    (x, y) = (self.settings.x, self.settings.y)
-
-    for dx in range(0 - self.settings.thickness, self.settings.thickness + 1):
-      for dy in range(0 - self.settings.thickness, self.settings.thickness + 1):
-        draw.text((x-dx, y-dy), text, fill=self.settings.outercolor, font=font)
-        draw.text((x+dx, y-dy), text, fill=self.settings.outercolor, font=font)
-        draw.text((x-dx, y+dy), text, fill=self.settings.outercolor, font=font)
-        draw.text((x+dx, y+dy), text, fill=self.settings.outercolor, font=font)
-
-    draw.text((x, y), text, fill=self.settings.innercolor, font=font)
-
-    return image
-
-  def col_only_bgcolor(self, image_data, col):
-    if col < 0 or col >= self.settings.cols:
-      raise Exception("Column {0} is out of bounds (0, {1})".format(col, self.settings.cols))
-
-    bgcolor = ImageColor.getrgb(self.settings.bgcolor)
-    px_no = col
-    while px_no < len(image_data):
-      if image_data[px_no] != bgcolor:
-        return False
-      px_no += self.settings.cols
-    return True
-
-  def row_only_bgcolor(self, image_data, row):
-    if row < 0 or row >= self.settings.rows:
-      raise Exception("Column {0} is out of bounds (0, {1})".format(row, self.settings.rows))
-
-    bgcolor = ImageColor.getrgb(self.settings.bgcolor)
-    px_no = row * self.settings.cols
-    while px_no < (row + 1) * self.settings.cols and px_no < len(image_data):
-      if image_data[px_no] != bgcolor:
-        return False
-      px_no += 1
-    return True
-
-  def measure_left_margin(self, image_data):
-    col = 0
-    while col < self.settings.cols and self.col_only_bgcolor(image_data, col):
-      col += 1
-    return col
-
-  def measure_right_margin(self, image_data):
-    col = self.settings.cols - 1
-    while col >= 0 and self.col_only_bgcolor(image_data, col):
-      col -= 1
-    return self.settings.cols - col - 1
-
-  def measure_top_margin(self, image_data):
-    row = 0
-    while row < self.settings.rows and self.row_only_bgcolor(image_data, row):
-      row += 1
-    return row
-
-  def measure_bottom_margin(self, image_data):
-    row = self.settings.rows - 1
-    while row >= 0 and self.row_only_bgcolor(image_data, row):
-      row -= 1
-    return self.settings.rows - row - 1
-
-  def align_and_measure(self):
-    image_data = self.render_text().getdata()
-
-    left_margin = self.measure_left_margin(image_data)
-    self.settings.x += self.settings.margin - left_margin
-
-    top_margin = self.measure_top_margin(image_data)
-    self.settings.y += self.settings.margin - top_margin
-
-    if self.settings.margin != left_margin or self.settings.margin != top_margin:
-      image = self.render_text()
-      image_data = image.getdata()
-    
-    left_margin = self.measure_left_margin(image_data)
-    top_margin = self.measure_top_margin(image_data)
-    right_margin = self.measure_right_margin(image_data)
-    bottom_margin = self.measure_bottom_margin(image_data)
-
-    return (left_margin, right_margin, top_margin, bottom_margin)
-
-  def autosize(self):
-    self.settings.x = 0
-    self.settings.y = 0
-    self.settings.textsize = 10
-
-    left_margin, right_margin, top_margin, bottom_margin = self.align_and_measure()
-
-    # make the text big enough
-    while right_margin > self.settings.margin and bottom_margin > self.settings.margin:
-      self.settings.textsize += min(right_margin, bottom_margin)
-      left_margin, right_margin, top_margin, bottom_margin = self.align_and_measure()
-
-    # make sure it is not too big
-    while right_margin < self.settings.margin or bottom_margin < self.settings.margin:
-      self.settings.textsize -= 1
-      left_margin, right_margin, top_margin, bottom_margin = self.align_and_measure()
-
-    # center the text in both dimensions
-    self.settings.x += int((right_margin - left_margin) / 2)
-    self.settings.y += int((bottom_margin - top_margin) / 2)
-
-  def network_weather(self):
-    self.network_color = "black"
-    img = Image.new("RGB", (self.settings.cols, self.settings.rows), self.network_color)
-    img_data = list(img.getdata())
-    for p in self.not_gcp_logo_pixels:
-      img_data[p] = (255, 0, 0)
-    for p in self.gcp_logo_pixels:
-      img_data[p] = (255, 255, 255)
-    
-    self.network_weather_image.putdata(img_data)
-    return self.network_weather_image
+    self.frames = [(Image.new("RGB", (self.cols, self.rows), "black"), 0)]
+    self.frame_times = 0
+    self.render()
 
   def make_png(self, image):
     with io.BytesIO() as output:
       image.save(output, format="PNG")
       return output.getvalue()
 
-  def make_gif_happen(self, image):
-    self.gif = image
-    self.settings.animation = "gif"
-    return image.convert("RGB")
-
-  def make_file_happen(self, filepath):
-    image = Image.open(os.path.join(self.settings.file_path, self.settings.file))
-    if not hasattr(image, "n_frames"):
-      image = image.convert("RGB")
-      if not self.settings.disc:
-        image = self.resize_image(image, self.settings.cols, self.settings.rows)
-      return image
-    return self.make_gif_happen(image)
-
   def apply_transformations(self, image):
-    if self.settings.brightness != 255:
+    if not self.disc:
+      image = self.resize_image(image, self.cols, self.rows)
+
+    if self.brightness != 255:
       image = self.brighten(image)
 
-    if self.settings.transpose != "none":
-      operation = getattr(Image, self.settings.transpose, None)
+    if self.transpose != "none":
+      operation = getattr(Image, self.transpose, None)
       if operation != None:
         image = image.transpose(operation)
 
-    if self.settings.rotate != 0:
-      image = image.rotate(self.settings.rotate)
+    if self.rotate != 0:
+      image = image.rotate(self.rotate)
 
     return image
 
-  def draw_text(self, return_image=False):
-    if self.settings.mode == "file" and self.settings.file != "none":
-      image = self.make_file_happen(os.path.join(self.settings.file_path, self.settings.file))
-    elif self.settings.mode == "network_weather":
-        image = self.network_weather()
-    else:
-      if self.settings.autosize:
-        self.autosize()
-      image = self.render_text()
+  def show(self, return_image=False):
+    """
+    This is called every time something changes, like run_sign starting or
+    a settings change via the API.  This is what the API calls to ensure
+    that the changes it just set are acted upon.
+    """
 
-    image = self.apply_transformations(image)
+    tups = self._image_controller.render()
+    if not tups:
+      return
 
+    if self._image_controller.brightness_mask:
+      self.brightness_mask = self._image_controller.brightness_mask
+
+    self.frames = [(self.apply_transformations(img), duration) for img, duration in tups]
+    self.frame_no = 0
+    
     if return_image:
-      return self.make_png(image)
-    self.set_image(image)
+      if not self.frames:
+        return None
+      return self.make_png(self.frames[0][0])
+
+    self.render()
 
 
 def main():
-  h = Hawks()
-  h.debug = True
-  h.settings.decompose = True
+  ctrl = MatrixController()
+  ctrl.debug = True
+  ctrl.mock = True
   if len(sys.argv) > 1:
-    h.settings.file = sys.argv[1]
-  h.draw_text()
+    if sys.argv[1].endswith(".gif"):
+      ctrl.image_controller = GifFileImageController(sys.argv[1])
+    else:
+      ctrl.image_controller = FileImageController(sys.argv[1])
+  else:
+    ctrl.image_controller = TextImageController()
+  ctrl.show()
+  while True:
+    time.sleep(1000)
 
 if __name__ == '__main__':
   main()
