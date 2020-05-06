@@ -48,7 +48,7 @@ class ImageController(object):
     self.rows = 32
     self.period = 1000
     self.fps = 16
-    for k, v in kwargs:
+    for (k, v) in kwargs.items():
       setattr(self, k, v)
 
   def render(self):
@@ -195,6 +195,8 @@ class TextImageController(ImageController):
 
     if autosize and self.autosize:
       self._autosize()
+
+    font = ImageFont.truetype(self.font, self.textsize)
 
     x = self.x
     y = self.y
@@ -462,14 +464,14 @@ class MatrixController(object):
     self.transpose = "none"
     self.rotate = 0
     self.mock = False
-    self._image_controller = TextImageController(self)
+    self._image_controller = None
     self.image = None
     self.frames = []
     self.frame_times = []
     self.frame_no = 0
     self.timer = None
 
-    for k,v in kwargs.items():
+    for (k,v) in kwargs.items():
       setattr(self, k, v)
 
     if self.disc:
