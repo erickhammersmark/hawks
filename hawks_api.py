@@ -41,15 +41,11 @@ Settings:
 """.format(settings_help, msg)
     return req.send(200, body=body)
 
-  def write_file(name, body, hawks):
-    with open(os.path.join(hawks.settings.file_path, name), 'wb') as FILE:
-      FILE.write(body)
-
   def api_get(req):
     parts = req.parts[2:]
     if not parts or parts[0] == "settings":
       # GET /api or /api/settings, return a dump of all of the settings
-      return req.send(200, body=json.dumps(hawks.settings.__dict__))
+      return req.send(200, body=json.dumps(dict((k,v) for k,v in hawks.settings.__dict__.items() if k != "controller")))
     if parts[0] == "presets":
       # GET /api/presets, dump the list of available presets
       return req.send(200, body=json.dumps(list(hawks.PRESETS.keys())))
@@ -69,8 +65,9 @@ Settings:
   def api_set(req):
     parts = dict(tups(req.parts[2:]))
     for key,value in parts.items():
-      if key == "file_path":
-        continue
+      if key == "filename":
+        if not only_alpha(value):
+          continue
       _val = hawks.settings.get(key)
       if _val is not None:
         if type(_val) is float:
@@ -108,30 +105,15 @@ Settings:
       return usage(req, msg=="Unknown command: {0}".format(parts[0]))
 
   def only_alpha(name):
+    name = unquote(name)
+    if name.startswith("/"):
+      return False
+    if ".." in name:
+      return False
     for c in name:
-      if c not in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.-_":
+      if c not in "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.-_/":
         return False
     return True
-
-  def api_put(req):
-    parts = list(map(str.lower, req.path.strip('/').split('/')))
-
-    if not parts or len(parts) < 4:
-      return usage(req, msg="PUT request must use path /api/put/file/filename")
-
-    api, action, _file, target = parts[0:4]
-
-    if api != "api" or action != "put" or _file != "file":
-      return usage(req, msg="PUT request must use path /api/put/file/filename")
-
-    cl = ci_dict_get(req.headers, 'Content-Length')
-    if not cl:
-      return req.send(400, body="POST body required")
-    body = req.rfile.read(int(cl))
-    if not only_alpha(target):
-      return req.send(400, body="filename must be only alphanumeric (period, dash, underscore permited)")
-    write_file(target, body, hawks)
-    req.send(200)
 
   def webui_form(req):
     body = "<html><head>Hawks UI</head><body><H1>Hawks UI</H1>"
@@ -163,7 +145,6 @@ Settings:
   api.register_endpoint("/api/get", api_get)
   api.register_endpoint("/api/set", api_set)
   api.register_endpoint("/api/do", api_do)
-  api.register_endpoint("/api/put", api_put)
   api.register_endpoint("/help", api_help)
   api.register_endpoint("/api/help", api_help)
   api.register_endpoint("/", webui_form)
