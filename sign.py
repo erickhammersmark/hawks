@@ -21,7 +21,7 @@ except ImportError:
 DEBUG = False
 def db(*args):
   if DEBUG:
-    sys.stderr.write(' '.join([str(arg) for arg in args]) + '\n')
+    sys.stderr.write(" ".join([str(arg) for arg in args]) + "\n")
 
 
 class ImageController(object):
@@ -34,6 +34,13 @@ class ImageController(object):
   list of integers representing an image bitmask. Where the brightness mask is
   non-negative, the matrix must leave pixels at the specified brightness.
   """
+
+  settings = [
+    "cols",
+    "rows",
+    "period",
+    "fps",
+  ]
 
   def __init__(self, *args, **kwargs):
     """
@@ -104,14 +111,14 @@ class ImageController(object):
     return tuple([int(c * value) for c in pixel])
 
   def average_anim_frames(self, group):
-    '''
+    """
     group is a list of indices of self.frames
     The frames should represent repetitions of the first image
     and one instnace of the next image, a set of duplicate
     frames and one instance of what the next frame will be.  This
     method should leave the first and last frames untouched and
     replace each of the intermediate frames with a combination of the two.
-    '''
+    """
 
     if not group:
       return
@@ -173,6 +180,20 @@ class ImageController(object):
 
 
 class TextImageController(ImageController):
+  settings = ImageController.settings + [
+    "bgcolor",
+    "outercolor",
+    "innercolor",
+    "font",
+    "text",
+    "textsize",
+    "thickness",
+    "autosize",
+    "margin",
+    "x",
+    "y",
+  ]
+    
   def __init__(self, *args, **kwargs):
     self.bgcolor = "blue"
     self.outercolor = "black"
@@ -303,12 +324,22 @@ class TextImageController(ImageController):
 
 
 class FileImageController(ImageController):
-  def __init__(self, filename):
-    self.filename = filename
-    super().__init__()
+  settings = ImageController.settings + ["filename"]
+
+  def __init__(self, filename, **kwargs):
+    self._filename = unquote(filename)
+    super().__init__(**kwargs)
+
+  @property
+  def filename(self):
+    return self._filename
+
+  @filename.setter
+  def filename(self, value):
+    self._filename = unquote(value)
 
   def render(self):
-    image = Image.open(self.filename)
+    image = Image.open(self._filename)
     image = image.convert("RGB")
     return [(image, 0)]
 
@@ -321,7 +352,7 @@ class GifFileImageController(FileImageController):
 
   def init_frames(self):
     self.frames = []
-    with Image.open(self.filename) as gif:
+    with Image.open(self._filename) as gif:
       for n in range(0, gif.n_frames):
         gif.seek(n)
         image = gif.convert("RGB")
@@ -446,6 +477,21 @@ class NetworkWeatherImageController(ImageController):
 
 
 class MatrixController(object):
+  settings = [
+    "animation",
+    "x",
+    "y",
+    "rows",
+    "cols",
+    "decompose",
+    "file",
+    "brightness",
+    "disc",
+    "transpose",
+    "rotate",
+    "mock",
+  ]
+
   def __init__(self, *args, **kwargs):
     self.port = 1212
     self.debug = False
@@ -457,7 +503,6 @@ class MatrixController(object):
     self.cols = 32
     self.decompose = False
     self.file = "none"
-    self.file_path = "img"
     self.brightness = 255
     self.brightness_mask = None
     self.disc = False
@@ -470,6 +515,7 @@ class MatrixController(object):
     self.frame_times = []
     self.frame_no = 0
     self.timer = None
+    self.image_controller_settings = []
 
     for (k,v) in kwargs.items():
       setattr(self, k, v)
@@ -504,9 +550,38 @@ class MatrixController(object):
     image_controller.cols = self.cols
     image_controller.rows = self.rows
     self.brightness_mask = None
+    self.image_controller_settings = image_controller.settings
+    for name in self.image_controller_settings:
+      if hasattr(self, name):
+        setattr(image_controller, name, getattr(self, name))
     self.show()
 
+  def set(self, name, value):
+    """
+    Lets clients configure any available settings without worrying
+    about which belong to the MatrixController or which belong to
+    an ImageController.
+    """
+    if name in self.image_controller_settings:
+      setattr(self.image_controller, name, value)
+    if hasattr(self, name):
+      setattr(self, name, value)
+
+  def get(self, name):
+    """
+    Lets clients read any available setting without worrying
+    about which belong to the MatrixController or which belong to
+    an ImageController
+    """
+    if name in self.image_controller_settings:
+      return getattr(self.image_controller, name)
+    return getattr(self, name, None)
+
   def fill_out(self, image):
+    """
+    If an image doesn't have enough rows or columsn to fill the matrix,
+    fill it in with black rows or columns.
+    """
     cols, rows = image.size
     if cols >= self.cols and rows >= self.rows:
       return image
@@ -541,21 +616,21 @@ class MatrixController(object):
     return image
 
   def reshape(self, image):
-    '''
+    """
     Map image of size rows x cols to fit a
     rows/2 x cols*2 display. For example:
 
-    rows = 64
-    cols = 64
-    panel_rows = 32
-    panel_cols = 128
+    rows = 64           AAAAAAAA  -->
+    cols = 64           AAAAAAAA  -->  AAAAAAAABBBBBBBB
+    panel_rows = 32     BBBBBBBB  -->  AAAAAAAABBBBBBBB
+    panel_cols = 128    BBBBBBBB  -->
 
     Build a new Image of panel_rows x panel_cols,
     put first panel_rows rows of original image
     in to new image, repeat with next panel_rows
     rows of original image, but shifted cols to
     the right.
-    '''
+    """
 
     rows, cols = self.rows, self.cols
     p_rows, p_cols = int(rows/2), cols * 2
@@ -573,6 +648,9 @@ class MatrixController(object):
     return img
 
   def brighten(self, image):
+    """
+    Fun fact: this will only ever darken.
+    """
     if self.brightness == 255:
       return image
 
@@ -589,6 +667,11 @@ class MatrixController(object):
     return image
 
   def set_disc_image(self, image):
+    """
+    Renders a square/rectangular image for a DotStart disc.
+    sample_image() maps the disc's circular coordinates to
+    locations in the image and samples it.
+    """
     self.disc = disc.Disc()
     pixels = self.disc.sample_image(image)
     for idx, pixel in enumerate(pixels):
@@ -596,11 +679,10 @@ class MatrixController(object):
     self.dots.show()
 
   def SetImage(self, image):
-    '''
+    """
     Use instead of matrix.SetImage
-    Distinct from set_image(), which sets self.image and kicks off animations if necessary.
     This does live last-second post-processing before calling matrix.SetImage
-    '''
+    """
     if self.disc:
       self.set_disc_image(image)
       return
@@ -646,7 +728,7 @@ class MatrixController(object):
       options.chain_length = 1
     options.parallel = 1
     options.gpio_slowdown = 2
-    options.hardware_mapping = 'adafruit-hat'  # If you have an Adafruit HAT: 'adafruit-hat'
+    options.hardware_mapping = "adafruit-hat"  # If you have an Adafruit HAT: "adafruit-hat"
     if not self.disc:
       self.matrix = RGBMatrix(options = options)
     self.frames = [(Image.new("RGB", (self.cols, self.rows), "black"), 0)]
@@ -715,6 +797,6 @@ def main():
   while True:
     time.sleep(1000)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
   main()
 
