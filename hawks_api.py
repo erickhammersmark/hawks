@@ -85,7 +85,7 @@ Settings:
         hawks.settings.set(key, value)
       else:
         return req.send(404, body="Unknown attribute: {0}".format(key))
-    hawks.draw_text()
+    hawks.show()
     return req.send(200)
 
   def api_do(req):
@@ -100,7 +100,7 @@ Settings:
       else:
         return usage(req, msg="Path must have non-zero, even number of elements")
     elif parts[0] == "image":
-      return req.send(200, body=hawks.draw_text(return_image=True), content_type="image/png")
+      return req.send(200, body=hawks.show(return_image=True), content_type="image/png")
     else:
       return usage(req, msg=="Unknown command: {0}".format(parts[0]))
 
@@ -135,7 +135,7 @@ Settings:
       elif value in ["False", "false"]:
         value = False
       hawks.settings.set(key, value)
-    hawks.draw_text()
+    hawks.show()
     req.send(200, "Settings accepted")
 
   def api_help(req):

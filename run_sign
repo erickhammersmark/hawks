@@ -32,7 +32,7 @@ def main():
   hawks_args = dict(args._get_kwargs())
   hawks_args.pop("port")
   hawks = Hawks(**hawks_args)
-  hawks.draw_text()
+  hawks.show()
   run_api('', args.port, hawks)
 
 
