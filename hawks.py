@@ -1,65 +1,17 @@
 #!/usr/bin/env python3
 
-import disc
-import io
-import json
-import math
-import os
-import requests
-import sample
 import sys
 import time
-from collections import defaultdict
-from PIL import Image, ImageDraw, ImageFont, ImageColor, GifImagePlugin
-from sign import MatrixController, TextImageController, FileImageController, GifFileImageController, NetworkWeatherImageController
-from threading import Timer
-from urllib.parse import unquote
-
-try:
-  from rgbmatrix import RGBMatrix, RGBMatrixOptions
-except ImportError:
-  from mock import RGBMatrix, RGBMatrixOptions
-
-class Settings(object):
-  def __init__(self, *args, **kwargs):
-    self.helptext = {}
-    for k,v in kwargs.items():
-      self.set(k, v)
-
-  def __contains__(self, name):
-    return name in self.__dict__
-
-  def set(self, name, value, helptext=None):
-    if helptext:
-      self.helptext[name] = helptext
-    existing = self.get(name)
-    if type(existing) == int:
-      try:
-        value = int(value)
-      except:
-        pass
-    elif type(existing) == float:
-      try:
-        value = float(value)
-      except:
-        pass
-    setattr(self, name, value)
-
-  def get(self, name):
-    if name in self.__dict__:
-      return self.__dict__[name]
-    return None
-
-DEBUG = False
-def db(*args):
-  if DEBUG:
-    sys.stderr.write(' '.join([str(arg) for arg in args]) + '\n')
+#from PIL import Image, ImageDraw, ImageFont, ImageColor, GifImagePlugin
+from settings import Settings
+from matrixcontroller import MatrixController
+from imagecontroller import TextImageController, FileImageController, GifFileImageController, NetworkWeatherImageController
 
 
 class HawksSettings(Settings):
   def __init__(self):
     super().__init__(self)
-    self.controller = None
+    self.hawks = None
     self.set("bgcolor", "blue", helptext="Background color when rendering text")
     self.set("outercolor", "black", helptext="Outer color of rendered text")
     self.set("innercolor", "green", helptext="Inner color of rendered text")
@@ -88,8 +40,10 @@ class HawksSettings(Settings):
 
   def set(self, name, value, **kwargs):
     super().set(name, value, **kwargs)
-    if self.controller:
-      self.controller.set(name, self.get(name))
+    if self.hawks:
+      if name in self.hawks.ctrl.settings:
+        setattr(self.hawks.ctrl, name, self.get(name))
+      self.hawks.show()
 
   def render(self, names):
     """
@@ -114,14 +68,9 @@ class Hawks(object):
   }
 
   ANIMATIONS = [ "waving" ]
-
+  
   def __init__(self, *args, **kwargs):
     self.settings = HawksSettings()
-    self.port = 1212
-    self.debug = False
-    self.timer = None
-    self.dots = None
-    self.gif = None
 
     preset = None
 
@@ -134,7 +83,7 @@ class Hawks(object):
         setattr(self, k, v)
 
     self.ctrl = MatrixController(**self.settings.render(MatrixController.settings))
-    self.settings.controller = self.ctrl
+    self.settings.hawks = self
 
     if preset:
       self.apply_preset(preset)
@@ -143,32 +92,35 @@ class Hawks(object):
     if preset in Hawks.PRESETS:
       for k,v in Hawks.PRESETS[preset].items():
         self.settings.set(k, v)
-      self.draw_text()
+      self.show()
       return True
     return False
 
-  def draw_text(self, return_image=False):
+  def show(self, return_image=False):
+    img_ctrl = None
     if self.settings.mode == "file" and self.settings.filename != "none":
       if self.settings.filename.lower().endswith(".gif"):
-        self.ctrl.image_controller = GifFileImageController(**self.settings.render(GifFileImageController.settings))
+        img_ctrl = GifFileImageController(**self.settings.render(GifFileImageController.settings))
       else:
-        self.ctrl.image_controller = FileImageController(**self.settings.render(FileImageController.settings))
+        img_ctrl = FileImageController(**self.settings.render(FileImageController.settings))
     elif self.settings.mode == "network_weather":
-        self.ctrl.image_controller = NetworkWeatherImageController(**self.settings.render(NetworkWeatherImageController.settings))
+        img_ctrl = NetworkWeatherImageController(**self.settings.render(NetworkWeatherImageController.settings))
     else:
-      self.ctrl.image_controller = TextImageController(**self.settings.render(TextImageController.settings))
+      img_ctrl = TextImageController(**self.settings.render(TextImageController.settings))
+
+    if img_ctrl:
+      self.ctrl.set_frames(img_ctrl.render())
       
     return self.ctrl.show(return_image=return_image)
 
 
 def main():
-  h = Hawks()
-  h.debug = True
+  h = Hawks(mock=True)
   h.settings.decompose = True
   if len(sys.argv) > 1:
     h.settings.filename = sys.argv[1]
-  h.draw_text()
+    h.settings.mode = "file"
+  h.show()
 
 if __name__ == '__main__':
   main()
-
