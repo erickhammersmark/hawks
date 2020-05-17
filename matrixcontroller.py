@@ -243,6 +243,7 @@ class MatrixController(object):
 
 
   def render(self):
+    start_time = time.time()
     if self.timer:
       self.timer.cancel()
       self.timer = None
@@ -259,6 +260,8 @@ class MatrixController(object):
       self.frame_no = 0
 
     if duration:
+      end_time = time.time()
+      duration = duration - (end_time - start_time)
       self.timer = Timer(duration / 1000.0, self.render)
       self.timer.start()
 
