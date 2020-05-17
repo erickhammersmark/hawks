@@ -45,7 +45,7 @@ Settings:
     parts = req.parts[2:]
     if not parts or parts[0] == "settings":
       # GET /api or /api/settings, return a dump of all of the settings
-      return req.send(200, body=json.dumps(dict((k,v) for k,v in hawks.settings.__dict__.items() if k != "controller")))
+      return req.send(200, body=json.dumps(dict((k,v) for k,v in hawks.settings.__dict__.items() if k != "hawks")))
     if parts[0] == "presets":
       # GET /api/presets, dump the list of available presets
       return req.send(200, body=json.dumps(list(hawks.PRESETS.keys())))
@@ -119,7 +119,8 @@ Settings:
     body = "<html><head>Hawks UI</head><body><H1>Hawks UI</H1>"
     body = body + '<form method="get" action="/submit"><table>'
     for setting, value in hawks.settings.__dict__.items():
-      body = body + "<tr><td>{0}</td><td><input name={0} value={1} type=text></input></td></tr>".format(setting, value)
+      if setting != "hawks":
+        body = body + "<tr><td>{0}</td><td><input name={0} value={1} type=text></input></td></tr>".format(setting, value)
     body = body + "</table><br><input type=submit>"
     body = body + "</form></body></html>"
     req.send(200, body=body)
