@@ -44,6 +44,7 @@ class MatrixController(object):
     self.orig_frames = []
     self.frames = []
     self.frame_no = 0
+    self.next_time = 0
     self.timer = None
     self.image_controller_settings = []
 
@@ -243,7 +244,6 @@ class MatrixController(object):
 
 
   def render(self):
-    start_time = time.time()
     if self.timer:
       self.timer.cancel()
       self.timer = None
@@ -260,9 +260,9 @@ class MatrixController(object):
       self.frame_no = 0
 
     if duration:
-      end_time = time.time()
-      duration = duration - (end_time - start_time)
-      self.timer = Timer(duration / 1000.0, self.render)
+      self.next_time += duration / 1000.0
+      duration = self.next_time - time.time()
+      self.timer = Timer(duration, self.render)
       self.timer.start()
 
 
@@ -281,6 +281,7 @@ class MatrixController(object):
         return None
       return self.make_png(self.frames[0][0])
 
+    self.next_time = time.time()
     self.render()
 
 
