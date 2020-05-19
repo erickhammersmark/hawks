@@ -38,12 +38,13 @@ class HawksSettings(Settings):
     self.set("mock", False, helptext="Display is mock rgbmatrix")
     self.set("mode", "text", helptext="Valid modes are 'text', 'file', and 'network_weather'")
 
-  def set(self, name, value, **kwargs):
+  def set(self, name, value, show=True, **kwargs):
     super().set(name, value, **kwargs)
     if self.hawks:
       if name in self.hawks.ctrl.settings:
         setattr(self.hawks.ctrl, name, self.get(name))
-      self.hawks.show()
+      if show:
+        self.hawks.show()
 
   def render(self, names):
     """
