@@ -301,7 +301,7 @@ class TextImageController(ImageController):
 
     return (left_margin, right_margin, top_margin, bottom_margin)
 
-  def _autosize(self):
+  def _autosize_broken_maybe_some_day(self):
     self.textsize = 10
 
     max_height = self.rows - (self.margin * 2)
@@ -312,21 +312,17 @@ class TextImageController(ImageController):
 
     while width < max_width and height < max_height:
       self.textsize += 1
-      #print(self.textsize)
       font = ImageFont.truetype(self.font, self.textsize)
       width, height = TextSize(font, self.text).getsize()
     while width > max_width or height > max_height:
       self.textsize -= 1
-      #print(self.textsize)
       font = ImageFont.truetype(self.font, self.textsize)
       font = ImageFont.truetype(self.font, self.textsize)
       width, height = TextSize(font, self.text).getsize()
     self.x = int((self.cols - width) / 2)
     self.y = int((self.rows - height) / 2)
-    #print(width, height)
-    #print(self.x, self.y)
 
-  def _autosize_old(self):
+  def _autosize(self):
     self.x = 0
     self.y = 0
     self.textsize = 10
