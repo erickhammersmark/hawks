@@ -62,7 +62,7 @@ Settings:
       return req.send(200, body=json.dumps(hawks.settings.get(parts[0])))
     return usage(req)
 
-  def api_set(req):
+  def api_set(req, msg=None):
     parts = dict(tups(req.parts[2:]))
     for key,value in parts.items():
       if key == "filename":
@@ -80,12 +80,19 @@ Settings:
             value = int(value)
           except:
             return req.send(400, body="Value for key {0} must be of type int".format(key))
+        elif type(_val) is bool:
+            try:
+              value = bool(value)
+            except:
+              return req.send(400, body="Value for key {0} must be of type bool".format(key))
         else:
           value = value
-        hawks.settings.set(key, value)
+        hawks.settings.set(key, value, show=False)
       else:
         return req.send(404, body="Unknown attribute: {0}".format(key))
     hawks.show()
+    if msg:
+      return req.send(200, msg)
     return req.send(200)
 
   def api_do(req):
@@ -126,18 +133,16 @@ Settings:
     req.send(200, body=body)
     
   def webui_submit(req):
+    req.parts = ['api', 'set'] 
     parts = req.path.split("?")[1].split("&")
     for part in parts:
       key, value = part.split("=")
-      if key == 'text':
-        value = unquote(value)
       if value in ["True", "true"]:
         value = True
       elif value in ["False", "false"]:
         value = False
-      hawks.settings.set(key, value)
-    hawks.show()
-    req.send(200, "Settings accepted")
+      req.parts.extend([key, value])
+    return api_set(req, msg="Settings accepted")
 
   def api_help(req):
     usage(req)
