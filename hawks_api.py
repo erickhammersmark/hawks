@@ -68,6 +68,8 @@ Settings:
       if key == "filename":
         if not only_alpha(value):
           continue
+      if key == "text":
+        value = unquote(value)
       _val = hawks.settings.get(key)
       if _val is not None:
         if type(_val) is float:
