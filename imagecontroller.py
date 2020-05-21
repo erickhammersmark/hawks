@@ -10,6 +10,19 @@ from PIL import Image, ImageDraw, ImageFont, ImageColor, GifImagePlugin
 from urllib.parse import unquote
 
 
+class TextSize(object):
+  def __init__(self, font, text):
+    self.ascent, self.descent = font.getmetrics()
+    (self.width, self.baseline), (self.offset_x, self.offset_y) = font.font.getsize(unquote(text).upper())
+    self.height = self.ascent - self.offset_y
+
+  def getsize(self):
+    return (self.width, self.height)
+
+  def __repr__(self):
+    return f"Ascent: {self.ascent}, Descent: {self.descent}\nOffset_x: {self.offset_x}, Offset_y: {self.offset_y}\nWidth: {self.width}, Height: {self.height}"
+
+
 class ImageController(object):
   """
   Image Controller renders a list of tuples of RGB PIL.Image objects and
@@ -197,6 +210,7 @@ class TextImageController(ImageController):
     text = unquote(self.text.upper())
     font = ImageFont.truetype(self.font, self.textsize)
 
+
     if autosize and self.autosize:
       self._autosize()
 
@@ -253,7 +267,7 @@ class TextImageController(ImageController):
     col = self.cols - 1
     while col >= 0 and self.col_only_bgcolor(image_data, col):
       col -= 1
-    return self.cols - col - 1
+    return (self.cols - 1) - col
 
   def measure_top_margin(self, image_data):
     row = 0
@@ -265,7 +279,7 @@ class TextImageController(ImageController):
     row = self.rows - 1
     while row >= 0 and self.row_only_bgcolor(image_data, row):
       row -= 1
-    return self.rows - row - 1
+    return (self.rows - 1) - row
 
   def align_and_measure(self):
     image_data = self.render(autosize=False)[0][0].getdata()
@@ -288,6 +302,31 @@ class TextImageController(ImageController):
     return (left_margin, right_margin, top_margin, bottom_margin)
 
   def _autosize(self):
+    self.textsize = 10
+
+    max_height = self.rows - (self.margin * 2)
+    max_width = self.cols - (self.margin * 2)
+
+    font = ImageFont.truetype(self.font, self.textsize)
+    width, height = TextSize(font, self.text).getsize()
+
+    while width < max_width and height < max_height:
+      self.textsize += 1
+      #print(self.textsize)
+      font = ImageFont.truetype(self.font, self.textsize)
+      width, height = TextSize(font, self.text).getsize()
+    while width > max_width or height > max_height:
+      self.textsize -= 1
+      #print(self.textsize)
+      font = ImageFont.truetype(self.font, self.textsize)
+      font = ImageFont.truetype(self.font, self.textsize)
+      width, height = TextSize(font, self.text).getsize()
+    self.x = int((self.cols - width) / 2)
+    self.y = int((self.rows - height) / 2)
+    #print(width, height)
+    #print(self.x, self.y)
+
+  def _autosize_old(self):
     self.x = 0
     self.y = 0
     self.textsize = 10
@@ -296,7 +335,8 @@ class TextImageController(ImageController):
 
     # make the text big enough
     while right_margin > self.margin and bottom_margin > self.margin:
-      self.textsize += min(right_margin, bottom_margin)
+      self.textsize += 1
+      #self.textsize += int(min(right_margin, bottom_margin) / 2)
       left_margin, right_margin, top_margin, bottom_margin = self.align_and_measure()
 
     # make sure it is not too big
