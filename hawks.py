@@ -7,7 +7,6 @@ from settings import Settings
 from matrixcontroller import MatrixController
 from imagecontroller import TextImageController, FileImageController, GifFileImageController, NetworkWeatherImageController
 
-
 class HawksSettings(Settings):
   def __init__(self):
     super().__init__(self)
