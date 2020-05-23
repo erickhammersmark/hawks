@@ -204,7 +204,7 @@ class TextImageController(ImageController):
     self.y = 0
     super().__init__(*args, **kwargs)
 
-  def render(self, autosize=True):
+  def render(self, autosize=True, ignore_animation=False):
     image = Image.new("RGB", (self.cols, self.rows), self.bgcolor)
     draw = ImageDraw.Draw(image)
     text = unquote(self.text.upper())
@@ -228,8 +228,9 @@ class TextImageController(ImageController):
 
     draw.text((x, y), text, fill=self.innercolor, font=font)
 
-    if self.animation == "waving":
-      return self.generate_waving_frames(image)
+    if not ignore_animation:
+      if self.animation == "waving":
+        return self.generate_waving_frames(image)
 
     return [(image, 0)]
 
@@ -282,16 +283,18 @@ class TextImageController(ImageController):
     return (self.rows - 1) - row
 
   def align_and_measure(self):
-    image_data = self.render(autosize=False)[0][0].getdata()
+    image_data = self.render(autosize=False, ignore_animation=True)[0][0].getdata()
 
     left_margin = self.measure_left_margin(image_data)
-    self.x += self.margin - left_margin
+    #self.x += self.margin - left_margin
+    self.x = 0
 
     top_margin = self.measure_top_margin(image_data)
-    self.y += self.margin - top_margin
+    #self.y += self.margin - top_margin
+    self.y = 0
 
     if self.margin != left_margin or self.margin != top_margin:
-      image = self.render(autosize=False)
+      image = self.render(autosize=False, ignore_animation=True)
       image_data = image[0][0].getdata()
     
     left_margin = self.measure_left_margin(image_data)
@@ -330,13 +333,15 @@ class TextImageController(ImageController):
     left_margin, right_margin, top_margin, bottom_margin = self.align_and_measure()
 
     # make the text big enough
+    count = 0
     while right_margin > self.margin and bottom_margin > self.margin:
       self.textsize += 1
       #self.textsize += int(min(right_margin, bottom_margin) / 2)
       left_margin, right_margin, top_margin, bottom_margin = self.align_and_measure()
+      count += 1
 
     # make sure it is not too big
-    while right_margin < self.margin or bottom_margin < self.margin:
+    while (right_margin < self.margin or bottom_margin < self.margin) and self.textsize > 0:
       self.textsize -= 1
       left_margin, right_margin, top_margin, bottom_margin = self.align_and_measure()
 
