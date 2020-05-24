@@ -346,6 +346,9 @@ class GifFileImageController(FileImageController):
 
 
 class NetworkWeatherImageController(ImageController):
+  """
+  WIP
+  """
   def __init__(self, *args, **kwargs):
     super().__init__(*args, **kwargs)
     self.network_weather_data = None
@@ -409,24 +412,16 @@ class NetworkWeatherImageController(ImageController):
 
     n = 0
     p = 0
-    mask = []
+    self.brightness_mask = []
+    self.not_gcp_logo_pixels = []
     while n < 32*32:
       if self.gcp_logo_pixels[p] == n:
         p += 1
-        mask.append(255)
+        self.brightness_mask.append(255)
       else:
-        mask.append(-1)
+        self.brightness_mask.append(-1)
+        self.not_gcp_logo_pixels.append(n)
       n += 1
-    self.brightness_mask = mask
-
-    self.not_gcp_logo_pixels = []
-    p = 0
-    g = 0
-    for p in range(0, 1024):
-      if p < self.gcp_logo_pixels[g] or p > self.gcp_logo_pixels[-1]:
-        self.not_gcp_logo_pixels.append(p)
-      else:
-        g = min(g+1, len(self.gcp_logo_pixels)-1)
 
     super().__init__(*args, **kwargs)
 
@@ -453,7 +448,6 @@ class NetworkWeatherImageController(ImageController):
         new_network_weather_data = json.loads(response.text)
         if new_network_weather_data != self.network_weather_data:
           self.network_weather_data = new_network_weather_data
-          self.network_weather_anim_setup()
     except ConnectionError as e:
       # Couldn't connect, try again next time
       pass
