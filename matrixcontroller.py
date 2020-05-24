@@ -10,12 +10,10 @@ from threading import Timer
 
 class MatrixController(object):
   """
-  Implements and RGB Matrix and Dotstar Disc controller
+  Implements an RGB Matrix and Dotstar Disc controller
   """
 
   settings = [
-    "x",
-    "y",
     "rows",
     "cols",
     "decompose",
@@ -27,10 +25,7 @@ class MatrixController(object):
   ]
 
   def __init__(self, *args, **kwargs):
-    self.debug = False
     self.dots = None
-    self.x = 0
-    self.y = 0
     self.rows = 32
     self.cols = 32
     self.decompose = False
@@ -46,7 +41,6 @@ class MatrixController(object):
     self.frame_no = 0
     self.next_time = 0
     self.timer = None
-    self.image_controller_settings = []
 
     for (k,v) in kwargs.items():
       setattr(self, k, v)
@@ -60,7 +54,9 @@ class MatrixController(object):
 
 
   def init_matrix(self):
-    # Configuration for the matrix
+    """
+    The Matrix has you
+    """
 
     if self.mock:
       from mock import RGBMatrix, RGBMatrixOptions
