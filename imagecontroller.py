@@ -323,6 +323,10 @@ class FileImageController(ImageController):
 
   def render(self):
     image = Image.open(unquote(self.filename))
+
+    if hasattr(image, "is_animated") and image.is_animated:
+      return GifFileImageController(self.filename).render()
+
     image = image.convert("RGB")
     return [(image, 0)]
 
@@ -330,7 +334,6 @@ class FileImageController(ImageController):
 class GifFileImageController(FileImageController):
   def __init__(self, *args, **kwargs):
     super().__init__(*args, **kwargs)
-
     self.init_frames()
 
   def init_frames(self):

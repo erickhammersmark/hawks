@@ -16,7 +16,7 @@ class RGBMatrix(object):
     back to its default colors.
     """
     escape_seq = "\033[48;2;{0};{1};{2}m{3}\033[10;m"
-    return escape_seq.format(*rgb, text)
+    return escape_seq.format(*rgb[0:3], text)
 
   def print_image(self, image):
     count = 0

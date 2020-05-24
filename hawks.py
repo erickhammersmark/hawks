@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 
 import time
-#from PIL import Image, ImageDraw, ImageFont, ImageColor, GifImagePlugin
 from settings import Settings
 from matrixcontroller import MatrixController
-from imagecontroller import TextImageController, FileImageController, GifFileImageController, NetworkWeatherImageController
+from imagecontroller import TextImageController, FileImageController, NetworkWeatherImageController
 
 
 class HawksSettings(Settings):
@@ -111,9 +110,6 @@ class Hawks(object):
   def show(self, return_image=False):
     img_ctrl = None
     if self.settings.mode == "file" and self.settings.filename != "none":
-      if self.settings.filename.lower().endswith(".gif"):
-        img_ctrl = GifFileImageController(**self.settings.render(GifFileImageController.settings))
-      else:
         img_ctrl = FileImageController(**self.settings.render(FileImageController.settings))
     elif self.settings.mode == "network_weather":
         img_ctrl = NetworkWeatherImageController(**self.settings.render(NetworkWeatherImageController.settings))

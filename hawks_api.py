@@ -13,14 +13,6 @@ def run_api(ip, port, hawks):
   def tups(parts):
     return ((parts[2*n], parts[2*n+1]) for n in range(0, int(len(parts)/2)))
 
-  def ci_dict_get(dictionary, key):
-    if key in dictionary:
-      return dictionary.get(key)
-    for d_key in dictionary:
-      if key.lower() == d_key.lower():
-        return dictionary.get(d_key)
-    return None
-
   def usage(req, msg=""):
     settings_help = "\n".join(["  {0}{1}{2}".format(k, " " * (24 - len(k)), v) for k, v in hawks.settings.helptext.items()])
     body = """
