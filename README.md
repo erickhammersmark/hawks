@@ -2,6 +2,8 @@
 
 hawks, a system for running an electronic sign on an RGB LED matrix.
 
+You can find information about building the hardware for this project at https://ninetypercentfinished.com/2019/10/29/12-sign-redux/.
+
 "run_sign" is the main executable.
 
 Depends on PIL (Python Image Library), which you may need to install via your OS's package manager.  python3-pil 
