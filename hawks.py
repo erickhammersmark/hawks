@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
-import sys
 import time
 #from PIL import Image, ImageDraw, ImageFont, ImageColor, GifImagePlugin
 from settings import Settings
 from matrixcontroller import MatrixController
 from imagecontroller import TextImageController, FileImageController, GifFileImageController, NetworkWeatherImageController
+
 
 class HawksSettings(Settings):
   def __init__(self):
@@ -38,6 +38,15 @@ class HawksSettings(Settings):
     self.set("mode", "text", helptext="Valid modes are 'text', 'file', and 'network_weather'")
 
   def set(self, name, value, show=True, **kwargs):
+    """
+    Write the value to ourself.
+    If we are configured with a reference to a Hawks object, check the settings of its
+    MatrixController. If the MatrixController has this setting, write it there, too.
+    Some of our settings are intended for ImageControllers, but since ImageControllers are not
+    persistent, we have nowhere to write to them at this time.  We interrogate the ImageController
+    classes at create time to understand which settings to pass to their constructors.
+    """
+
     super().set(name, value, **kwargs)
     if self.hawks:
       if name in self.hawks.ctrl.settings:
@@ -47,7 +56,8 @@ class HawksSettings(Settings):
 
   def render(self, names):
     """
-    Renders the named stats only
+    Renders the named settings only. This is used to pass only the relevant settings to the
+    constructors of Controllers.
     """
 
     return dict((name, self.get(name)) for name in names)
@@ -55,7 +65,9 @@ class HawksSettings(Settings):
 
 class Hawks(object):
   """
-  A shim layer providing the old library's interface but implemented with the new library.
+  Implements the base logic of the sign. Passes the right parameters to the ImageController's constrctor,
+  interprets the settings enough to understand which ImageController to use and which settings to
+  pass it.
   """
 
   PRESETS = {
@@ -91,7 +103,7 @@ class Hawks(object):
   def apply_preset(self, preset):
     if preset in Hawks.PRESETS:
       for k,v in Hawks.PRESETS[preset].items():
-        self.settings.set(k, v)
+        self.settings.set(k, v, show=False)
       self.show()
       return True
     return False
@@ -113,14 +125,3 @@ class Hawks(object):
       
     return self.ctrl.show(return_image=return_image)
 
-
-def main():
-  h = Hawks(mock=True)
-  h.settings.decompose = True
-  if len(sys.argv) > 1:
-    h.settings.filename = sys.argv[1]
-    h.settings.mode = "file"
-  h.show()
-
-if __name__ == '__main__':
-  main()
