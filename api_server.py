@@ -14,7 +14,7 @@ class ApiTest(unittest.TestCase):
     self.assertTrue(api.endpoints["/foo"]["callback"] is foo_callback)
 
 class Api(object):
-  '''
+  """
   Create an Api instance with Api(prefix="/whatever"), defaults to "/api/v1".
 
   This class is opinionated about slashes.  The api prefix will not end with
@@ -28,17 +28,17 @@ class Api(object):
   Start serving with Api.run(ip, port)
 
   Your callback will get one argument, a ApiRequestHandler object, a child of
-  BaseHTTPRequestHandler.  It has attributes like 'address_string', 'api',
-  'client_address', 'close_connection', 'command', 'connection', 'date_time_string',
-  'default_request_version', 'disable_nagle_algorithm', 'end_headers',
-  'error_content_type', 'error_message_format', 'finish', 'handle',
-  'handle_one_request', 'headers', 'log_date_time_string', 'log_error', 'log_message',
-  'log_request', 'monthname', 'parse_request', 'path', 'protocol_version',
-  'raw_requestline', 'rbufsize', 'request', 'request_version', 'requestline',
-  'responses', 'rfile', 'send', 'send_error', 'send_header', 'send_response',
-  'server', 'server_version', 'setup', 'sys_version', 'timeout', 'version_string',
-  'wbufsize', 'weekdayname', and 'wfile'.
-  '''
+  BaseHTTPRequestHandler.  It has attributes like "address_string", "api",
+  "client_address", "close_connection", "command", "connection", "date_time_string",
+  "default_request_version", "disable_nagle_algorithm", "end_headers",
+  "error_content_type", "error_message_format", "finish", "handle",
+  "handle_one_request", "headers", "log_date_time_string", "log_error", "log_message",
+  "log_request", "monthname", "parse_request", "path", "protocol_version",
+  "raw_requestline", "rbufsize", "request", "request_version", "requestline",
+  "responses", "rfile", "send", "send_error", "send_header", "send_response",
+  "server", "server_version", "setup", "sys_version", "timeout", "version_string",
+  "wbufsize", "weekdayname", and "wfile".
+  """
 
   def __init__(self, *args, **kwargs):
     self.prefix = "/api/v1"
@@ -82,15 +82,15 @@ class Api(object):
       self.end_headers()
       if body:
         if content_type.startswith("text"):
-            self.wfile.write(body.encode('utf-8'))
+            self.wfile.write(body.encode("utf-8"))
         else:
             self.wfile.write(body)
 
     def reply(self, message):
-      '''
+      """
       Respond with 200 OK + your message as the text/html body of the response.
       Use send() to send a different response code or content-type.
-      '''
+      """
       self.send(200, body=message)
 
     def do_PUT(self):
@@ -100,7 +100,7 @@ class Api(object):
       return self.do_ANY()
 
     def do_ANY(self):
-      self.parts = list(self.path.strip('/').split('/'))
+      self.parts = list(self.path.strip("/").split("/"))
       endpoint = self.api.request_match(self)
       if endpoint:
         return endpoint["callback"](self)
@@ -115,5 +115,5 @@ class Api(object):
         Api.RequestHandler.__init__(self, *a, **kw)
     http.server.HTTPServer((ip, port), ApiRequestHandler).serve_forever()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
   unittest.main()
