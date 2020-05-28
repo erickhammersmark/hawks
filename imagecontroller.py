@@ -12,14 +12,14 @@ from urllib.parse import unquote
 
 class ImageController(object):
     """
-  Image Controller renders a list of tuples of RGB PIL.Image objects and
-  durations in ms. Configure it with a reference to a Matrix Controller that
-  provides the properties() method, so that the Image Controller can learn
-  the properties of the display (width, height). Matrix Controller should also
-  offer a brightness_mask() method, allowing the Image Controller to pass in a
-  list of integers representing an image bitmask. Where the brightness mask is
-  non-negative, the matrix must leave pixels at the specified brightness.
-  """
+    Image Controller renders a list of tuples of RGB PIL.Image objects and
+    durations in ms. Configure it with a reference to a Matrix Controller that
+    provides the properties() method, so that the Image Controller can learn
+    the properties of the display (width, height). Matrix Controller should also
+    offer a brightness_mask() method, allowing the Image Controller to pass in a
+    list of integers representing an image bitmask. Where the brightness mask is
+    non-negative, the matrix must leave pixels at the specified brightness.
+    """
 
     settings = [
         "cols",
@@ -32,12 +32,12 @@ class ImageController(object):
 
     def __init__(self, *args, **kwargs):
         """
-    ImageController objects should not pre-render images in __init__, as
-    some properties of the ImageController will be assigned by the
-    MatrixController. MatrixController will only call ImageController.render()
-    at MatrixController.show() time, which is infrequent. It is OK to to
-    expensive calculations in render().
-    """
+        ImageController objects should not pre-render images in __init__, as
+        some properties of the ImageController will be assigned by the
+        MatrixController. MatrixController will only call ImageController.render()
+        at MatrixController.show() time, which is infrequent. It is OK to to
+        expensive calculations in render().
+        """
         self.brightness_mask = None
         self.cols = 32
         self.rows = 32
@@ -95,13 +95,13 @@ class ImageController(object):
 
     def average_anim_frames(self, group):
         """
-    group is a list of indices of self.frames
-    The frames should represent repetitions of the first image
-    and one instnace of the next image, a set of duplicate
-    frames and one instance of what the next frame will be.  This
-    method should leave the first and last frames untouched and
-    replace each of the intermediate frames with a combination of the two.
-    """
+        group is a list of indices of self.frames
+        The frames should represent repetitions of the first image
+        and one instnace of the next image, a set of duplicate
+        frames and one instance of what the next frame will be.  This
+        method should leave the first and last frames untouched and
+        replace each of the intermediate frames with a combination of the two.
+        """
 
         if not group:
             return
@@ -366,8 +366,8 @@ class GifFileImageController(FileImageController):
 
 class NetworkWeatherImageController(ImageController):
     """
-  WIP
-  """
+    WIP
+    """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -659,9 +659,9 @@ class NetworkWeatherImageController(ImageController):
 
     def network_weather_update(self):
         """
-    Fetch the data needed to render the network weather.
-    If the data has changed, call network_weather_anim_setup()
-    """
+        Fetch the data needed to render the network weather.
+        If the data has changed, call network_weather_anim_setup()
+        """
         try:
             response = requests.get("https://status.cloud.google.com/incidents.json")
             if response.status_code == 200:

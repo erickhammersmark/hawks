@@ -19,30 +19,30 @@ class ApiTest(unittest.TestCase):
 
 class Api(object):
     """
-  Create an Api instance with Api(prefix="/whatever"), defaults to "/api/v1".
+    Create an Api instance with Api(prefix="/whatever"), defaults to "/api/v1".
 
-  This class is opinionated about slashes.  The api prefix will not end with
-  one.  The endpoint paths will start with one.  You can do it right or the
-  code will make it right, but it WILL be right.  "default" is special-cased, it
-  will be used if no other path matches the request.  NB: "default" is distinct
-  from "/default".  I am not stealing any paths from you.
+    This class is opinionated about slashes.  The api prefix will not end with
+    one.  The endpoint paths will start with one.  You can do it right or the
+    code will make it right, but it WILL be right.  "default" is special-cased, it
+    will be used if no other path matches the request.  NB: "default" is distinct
+    from "/default".  I am not stealing any paths from you.
 
-  Call Api.register_endpoint(path, callback)
-  Optionally, add methods=["GET", "POST", "DUCK"] to register_endpoint()
-  Start serving with Api.run(ip, port)
+    Call Api.register_endpoint(path, callback)
+    Optionally, add methods=["GET", "POST", "DUCK"] to register_endpoint()
+    Start serving with Api.run(ip, port)
 
-  Your callback will get one argument, a ApiRequestHandler object, a child of
-  BaseHTTPRequestHandler.  It has attributes like "address_string", "api",
-  "client_address", "close_connection", "command", "connection", "date_time_string",
-  "default_request_version", "disable_nagle_algorithm", "end_headers",
-  "error_content_type", "error_message_format", "finish", "handle",
-  "handle_one_request", "headers", "log_date_time_string", "log_error", "log_message",
-  "log_request", "monthname", "parse_request", "path", "protocol_version",
-  "raw_requestline", "rbufsize", "request", "request_version", "requestline",
-  "responses", "rfile", "send", "send_error", "send_header", "send_response",
-  "server", "server_version", "setup", "sys_version", "timeout", "version_string",
-  "wbufsize", "weekdayname", and "wfile".
-  """
+    Your callback will get one argument, a ApiRequestHandler object, a child of
+    BaseHTTPRequestHandler.  It has attributes like "address_string", "api",
+    "client_address", "close_connection", "command", "connection", "date_time_string",
+    "default_request_version", "disable_nagle_algorithm", "end_headers",
+    "error_content_type", "error_message_format", "finish", "handle",
+    "handle_one_request", "headers", "log_date_time_string", "log_error", "log_message",
+    "log_request", "monthname", "parse_request", "path", "protocol_version",
+    "raw_requestline", "rbufsize", "request", "request_version", "requestline",
+    "responses", "rfile", "send", "send_error", "send_header", "send_response",
+    "server", "server_version", "setup", "sys_version", "timeout", "version_string",
+    "wbufsize", "weekdayname", and "wfile".
+    """
 
     def __init__(self, *args, **kwargs):
         self.prefix = "/api/v1"
@@ -97,9 +97,9 @@ class Api(object):
 
         def reply(self, message):
             """
-      Respond with 200 OK + your message as the text/html body of the response.
-      Use send() to send a different response code or content-type.
-      """
+            Respond with 200 OK + your message as the text/html body of the response.
+            Use send() to send a different response code or content-type.
+            """
             self.send(200, body=message)
 
         def do_PUT(self):

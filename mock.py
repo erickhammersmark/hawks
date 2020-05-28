@@ -10,12 +10,12 @@ class RGBMatrix(object):
 
     def text_as_color(self, text, rgb):
         """
-    Return string with text prefixed by ANSI escape
-    code to set the backgorund to the color specified
-    by "rgb" (a tuple of r, g, b bytes).  The string
-    also include the escape sequence to set the terminal
-    back to its default colors.
-    """
+        Return string with text prefixed by ANSI escape
+        code to set the backgorund to the color specified
+        by "rgb" (a tuple of r, g, b bytes).  The string
+        also include the escape sequence to set the terminal
+        back to its default colors.
+        """
         escape_seq = "\033[48;2;{0};{1};{2}m{3}\033[10;m"
         return escape_seq.format(*rgb[0:3], text)
 

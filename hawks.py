@@ -50,13 +50,13 @@ class HawksSettings(Settings):
 
     def set(self, name, value, show=True, **kwargs):
         """
-    Write the value to ourself.
-    If we are configured with a reference to a Hawks object, check the settings of its
-    MatrixController. If the MatrixController has this setting, write it there, too.
-    Some of our settings are intended for ImageControllers, but since ImageControllers are not
-    persistent, we have nowhere to write to them at this time.  We interrogate the ImageController
-    classes at create time to understand which settings to pass to their constructors.
-    """
+        Write the value to ourself.
+        If we are configured with a reference to a Hawks object, check the settings of its
+        MatrixController. If the MatrixController has this setting, write it there, too.
+        Some of our settings are intended for ImageControllers, but since ImageControllers are not
+        persistent, we have nowhere to write to them at this time.  We interrogate the ImageController
+        classes at create time to understand which settings to pass to their constructors.
+        """
 
         super().set(name, value, **kwargs)
         if self.hawks:
@@ -67,19 +67,19 @@ class HawksSettings(Settings):
 
     def render(self, names):
         """
-    Renders the named settings only. This is used to pass only the relevant settings to the
-    constructors of Controllers.
-    """
+        Renders the named settings only. This is used to pass only the relevant settings to the
+        constructors of Controllers.
+        """
 
         return dict((name, self.get(name)) for name in names)
 
 
 class Hawks(object):
     """
-  Implements the base logic of the sign. Passes the right parameters to the ImageController's constrctor,
-  interprets the settings enough to understand which ImageController to use and which settings to
-  pass it.
-  """
+    Implements the base logic of the sign. Passes the right parameters to the ImageController's constrctor,
+    interprets the settings enough to understand which ImageController to use and which settings to
+    pass it.
+    """
 
     PRESETS = {
         "dark": {"bgcolor": "black", "innercolor": "blue", "outercolor": "green"},

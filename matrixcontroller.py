@@ -10,8 +10,8 @@ from threading import Timer
 
 class MatrixController(object):
     """
-  Implements an RGB Matrix and Dotstar Disc controller
-  """
+    Implements an RGB Matrix and Dotstar Disc controller
+    """
 
     settings = [
         "rows",
@@ -55,8 +55,8 @@ class MatrixController(object):
 
     def init_matrix(self):
         """
-    The Matrix has you
-    """
+        The Matrix has you
+        """
 
         if self.mock:
             from mock import RGBMatrix, RGBMatrixOptions
@@ -91,9 +91,9 @@ class MatrixController(object):
 
     def fill_out(self, image):
         """
-    If an image doesn't have enough rows or columsn to fill the matrix,
-    fill it in with black rows or columns.
-    """
+        If an image doesn't have enough rows or columsn to fill the matrix,
+        fill it in with black rows or columns.
+        """
         cols, rows = image.size
         if cols >= self.cols and rows >= self.rows:
             return image
@@ -129,20 +129,20 @@ class MatrixController(object):
 
     def reshape(self, image):
         """
-    Map image of size rows x cols to fit a
-    rows/2 x cols*2 display. For example:
+        Map image of size rows x cols to fit a
+        rows/2 x cols*2 display. For example:
 
-    rows = 64           AAAAAAAA  -->
-    cols = 64           AAAAAAAA  -->  AAAAAAAABBBBBBBB
-    panel_rows = 32     BBBBBBBB  -->  AAAAAAAABBBBBBBB
-    panel_cols = 128    BBBBBBBB  -->
+        rows = 64           AAAAAAAA  -->
+        cols = 64           AAAAAAAA  -->  AAAAAAAABBBBBBBB
+        panel_rows = 32     BBBBBBBB  -->  AAAAAAAABBBBBBBB
+        panel_cols = 128    BBBBBBBB  -->
 
-    Build a new Image of panel_rows x panel_cols,
-    put first panel_rows rows of original image
-    in to new image, repeat with next panel_rows
-    rows of original image, but shifted cols to
-    the right.
-    """
+        Build a new Image of panel_rows x panel_cols,
+        put first panel_rows rows of original image
+        in to new image, repeat with next panel_rows
+        rows of original image, but shifted cols to
+        the right.
+        """
 
         rows, cols = self.rows, self.cols
         p_rows, p_cols = int(rows / 2), cols * 2
@@ -161,8 +161,8 @@ class MatrixController(object):
 
     def brighten(self, image):
         """
-    Fun fact: this will only ever darken.
-    """
+        Fun fact: this will only ever darken.
+        """
         if self.brightness == 255:
             return image
 
@@ -180,10 +180,10 @@ class MatrixController(object):
 
     def set_disc_image(self, image):
         """
-    Renders a square/rectangular image for a DotStart disc.
-    sample_image() maps the disc's circular coordinates to
-    locations in the image and samples it.
-    """
+        Renders a square/rectangular image for a DotStart disc.
+        sample_image() maps the disc's circular coordinates to
+        locations in the image and samples it.
+        """
         self.disc = disc.Disc()
         pixels = self.disc.sample_image(image)
         for idx, pixel in enumerate(pixels):
@@ -214,9 +214,9 @@ class MatrixController(object):
 
     def SetImage(self, image):
         """
-    Use instead of matrix.SetImage
-    This does live last-second post-processing before calling matrix.SetImage
-    """
+        Use instead of matrix.SetImage
+        This does live last-second post-processing before calling matrix.SetImage
+        """
         if self.disc:
             self.set_disc_image(image)
             return
@@ -254,10 +254,10 @@ class MatrixController(object):
 
     def show(self, return_image=False):
         """
-    This is called every time something changes, like run_sign starting or
-    a settings change via the API.  This is what the API calls to ensure
-    that the changes it just set are acted upon.
-    """
+        This is called every time something changes, like run_sign starting or
+        a settings change via the API.  This is what the API calls to ensure
+        that the changes it just set are acted upon.
+        """
 
         self.frames = [
             (self.apply_transformations(img), duration)
