@@ -4,52 +4,82 @@ import argparse
 from hawks import Hawks
 from hawks_api import run_api
 
+
 def parse_args():
-  parser = argparse.ArgumentParser()
-  parser.add_argument("--text", default="12", help="Default is \"12\"")
-  parser.add_argument("--bgcolor", default="blue", help="Default is blue")
-  parser.add_argument("--outercolor", default="black", help="Text outline color, default is black")
-  parser.add_argument("--innercolor", default="white", help="Text inner color, default is white")
-  parser.add_argument("--cols", type=int, default=32, help="Image width, default 32")
-  parser.add_argument("--rows", type=int, default=32, help="Image height, default 32")
-  parser.add_argument("--margin", type=int, default=2, help="Margin of bgcolor around text")
-  parser.add_argument("--thickness", type=int, default=1,
-                      help="Thickness of outercolor border around text")
-  parser.add_argument("--decompose", action="store_true", default=False,
-                      help="Set this if you have two 32x64 panels chained as 32x128 but want them "
-                      "to function as 64x64")
-  parser.add_argument("--font", default="FreeSansBold", help="Truetype font, default is FreeSansBold")
-  parser.add_argument("--textsize", default=27, type=int)
-  parser.add_argument("--x", type=int, default=0)
-  parser.add_argument("--y", type=int, default=0)
-  parser.add_argument("--preset", default="none", choices=Hawks.PRESETS.keys())
-  parser.add_argument("--port", type=int, default=1212, help="API listener port, default 1212")
-  parser.add_argument("--filename", default="none", help="PNG, JPG, or GIF file to display")
-  parser.add_argument("--debug", action="store_true", default=False)
-  parser.add_argument("--brightness", default=255, type=int, help="min 0, max 255")
-  parser.add_argument("--disc", action="store_true", default=False,
-                      help="Display is an Adafruit Dotstar disc")
-  parser.add_argument("--mock", action="store_true", default=False, help="Display is mock rgbmatrix")
-  parser.add_argument("--mode", default="text",
-                      help="Mode of operation.  Valid values are 'text', 'file', and 'network_weather'")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--text", default="12", help='Default is "12"')
+    parser.add_argument("--bgcolor", default="blue", help="Default is blue")
+    parser.add_argument(
+        "--outercolor", default="black", help="Text outline color, default is black"
+    )
+    parser.add_argument(
+        "--innercolor", default="white", help="Text inner color, default is white"
+    )
+    parser.add_argument("--cols", type=int, default=32, help="Image width, default 32")
+    parser.add_argument("--rows", type=int, default=32, help="Image height, default 32")
+    parser.add_argument(
+        "--margin", type=int, default=2, help="Margin of bgcolor around text"
+    )
+    parser.add_argument(
+        "--thickness",
+        type=int,
+        default=1,
+        help="Thickness of outercolor border around text",
+    )
+    parser.add_argument(
+        "--decompose",
+        action="store_true",
+        default=False,
+        help="Set this if you have two 32x64 panels chained as 32x128 but want them "
+        "to function as 64x64",
+    )
+    parser.add_argument(
+        "--font", default="FreeSansBold", help="Truetype font, default is FreeSansBold"
+    )
+    parser.add_argument("--textsize", default=27, type=int)
+    parser.add_argument("--x", type=int, default=0)
+    parser.add_argument("--y", type=int, default=0)
+    parser.add_argument("--preset", default="none", choices=Hawks.PRESETS.keys())
+    parser.add_argument(
+        "--port", type=int, default=1212, help="API listener port, default 1212"
+    )
+    parser.add_argument(
+        "--filename", default="none", help="PNG, JPG, or GIF file to display"
+    )
+    parser.add_argument("--debug", action="store_true", default=False)
+    parser.add_argument("--brightness", default=255, type=int, help="min 0, max 255")
+    parser.add_argument(
+        "--disc",
+        action="store_true",
+        default=False,
+        help="Display is an Adafruit Dotstar disc",
+    )
+    parser.add_argument(
+        "--mock", action="store_true", default=False, help="Display is mock rgbmatrix"
+    )
+    parser.add_argument(
+        "--mode",
+        default="text",
+        help="Mode of operation.  Valid values are 'text', 'file', and 'network_weather'",
+    )
 
-  autosize = parser.add_mutually_exclusive_group(required=False)
-  autosize.add_argument("--autosize", dest="autosize", action="store_true")
-  autosize.add_argument("--no-autosize", dest="autosize", action="store_false")
-  parser.set_defaults(autosize=True)
+    autosize = parser.add_mutually_exclusive_group(required=False)
+    autosize.add_argument("--autosize", dest="autosize", action="store_true")
+    autosize.add_argument("--no-autosize", dest="autosize", action="store_false")
+    parser.set_defaults(autosize=True)
 
-  return parser.parse_args()
-  return args
+    return parser.parse_args()
+    return args
+
 
 def main():
-  args = parse_args()
-  hawks_args = dict(args._get_kwargs())
-  hawks_args.pop("port")
-  hawks = Hawks(**hawks_args)
-  hawks.show()
-  run_api('', args.port, hawks)
+    args = parse_args()
+    hawks_args = dict(args._get_kwargs())
+    hawks_args.pop("port")
+    hawks = Hawks(**hawks_args)
+    hawks.show()
+    run_api("", args.port, hawks)
 
 
-if __name__ == '__main__':
-  main()
-
+if __name__ == "__main__":
+    main()

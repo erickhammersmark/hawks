@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-'''
+"""
 Implements the math to map pixel positions in an Adafruit Dotstart Disc (or
 any similarly arranged concentric circles of pixels) into a rectilinear pixel
 space.
@@ -18,12 +18,13 @@ total_pixels    radius
 40              3.5"
 44              4"
 48              4.5"
-'''
+"""
 
 import math
 import sys
 from PIL import Image
 from sample import sample, generate_offsets
+
 
 class DotstarPixel(object):
     def __init__(self, radius, position, total_pixels):
@@ -32,28 +33,31 @@ class DotstarPixel(object):
         self.total_pixels = total_pixels
 
     def __repr__(self):
-        return "r: {0}, p: {1}, total: {2}".format(self.radius, self.position, self.total_pixels)
+        return "r: {0}, p: {1}, total: {2}".format(
+            self.radius, self.position, self.total_pixels
+        )
+
 
 class Disc(object):
-    '''
+    """
     pixels and methods for mapping a Dotstar Disc or similar to an x, y space
 
     Disc.pixels is a list of dicts.  Each pixel is a dict of:
         radius          distance from the origin of the circle
         position        ordinal position along the circle
         total_pixels    number of pixels in this circle
-    '''
+    """
 
     def __init__(self, *args, **kwargs):
         self.pixels = []
         self.max_radius = None
 
     def get_pixels(self, xy_range, circles=None):
-        '''
+        """
         Get all of the x,y pairs for the pixels on the disc.
         xy_range is a tuple of (x,y) sizes (result will start at 0)
         circles is a list of (radius, pixel_count) tuples.
-        '''
+        """
         self.init_pixels(circles)
         return (self.calculate_xy(px, xy_range) for px in self.pixels)
 
@@ -81,13 +85,13 @@ class Disc(object):
         if self.max_radius is None:
             self.max_radius = max(getattr(pixel, "radius") for pixel in self.pixels)
         return self.max_radius
- 
+
     def calculate_xy(self, pixel, xy):
-        '''
+        """
         Given a pixel and an xy range (dict with keys 'x' and 'y'),
         calculate the position of the pixel in the range.
         returns a tupel of x, y
-        '''
+        """
 
         (x_range, y_range) = xy
 
@@ -113,20 +117,20 @@ if __name__ == "__main__":
     disc = Disc()
     img = Image.open("circle.jpg").convert("RGB")
     samples = disc.sample_image(img)
-    #samples = sample(img, disc.get_pixels(img.size), generate_offsets("circle", 2))
+    # samples = sample(img, disc.get_pixels(img.size), generate_offsets("circle", 2))
     new_img = Image.new("RGB", img.size, "black")
     new_img_data = []
     new_img_data.extend(new_img.getdata())
     cols, rows = new_img.size
     for (pos, pixel) in zip(disc.get_pixels(img.size), samples):
         x, y = pos
-        #print(x, y, y * cols + x)
+        # print(x, y, y * cols + x)
         new_img_data[y * cols + x] = pixel
-    #print(new_img_data)
+    # print(new_img_data)
     new_img.putdata(new_img_data)
     new_img.save("test.png")
 
-    #disc.init_pixels()
-    #print(disc.pixels)
-    #print(disc.get_max_radius())
-    #print('\n'.join(str(px) for px in disc.get_pixels((100,100))))
+    # disc.init_pixels()
+    # print(disc.pixels)
+    # print(disc.get_max_radius())
+    # print('\n'.join(str(px) for px in disc.get_pixels((100,100))))
