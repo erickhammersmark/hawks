@@ -4,6 +4,7 @@ import api_server
 import http.server
 import json
 import os
+import time
 
 from urllib.parse import unquote
 
@@ -45,7 +46,7 @@ Settings:
     parts = req.parts[2:]
     if not parts or parts[0] == "settings":
       # GET /api or /api/settings, return a dump of all of the settings
-      return req.send(200, body=json.dumps(dict((k,v) for k,v in hawks.settings if k != "hawks")))
+      return req.send(200, body=json.dumps(dict((k,v) for k,v in hawks.settings)))
     if parts[0] == "presets":
       # GET /api/presets, dump the list of available presets
       return req.send(200, body=json.dumps(list(hawks.PRESETS.keys())))
@@ -62,7 +63,18 @@ Settings:
       return req.send(200, body=json.dumps(hawks.settings.get(parts[0])))
     return usage(req)
 
-  def api_set(req, msg=None):
+  def make_tuple(*args, **kwargs):
+    result = [*args]
+    result.extend(list(kwargs.values()))
+    return tuple(result)
+
+  def api_set(req, msg=None, respond=True):
+    # such a stupid hack
+    if respond:
+      send = req.send
+    else:
+      send = make_tuple
+
     parts = dict(tups(req.parts[2:]))
     for key,value in parts.items():
       if key == "filename":
@@ -76,26 +88,26 @@ Settings:
           try:
             value = float(value)
           except:
-            return req.send(400, body="Value for key {0} must be of type float".format(key))
+            return send(400, body="Value for key {0} must be of type float".format(key))
         elif type(_val) is int:
           try:
             value = int(value)
           except:
-            return req.send(400, body="Value for key {0} must be of type int".format(key))
+            return send(400, body="Value for key {0} must be of type int".format(key))
         elif type(_val) is bool:
             try:
               value = bool(value)
             except:
-              return req.send(400, body="Value for key {0} must be of type bool".format(key))
+              return send(400, body="Value for key {0} must be of type bool".format(key))
         else:
           value = value
         hawks.settings.set(key, value, show=False)
       else:
-        return req.send(404, body="Unknown attribute: {0}".format(key))
+        return send(404, body="Unknown attribute: {0}".format(key))
     hawks.show()
     if msg:
-      return req.send(200, msg)
-    return req.send(200)
+      return send(200, msg)
+    return send(200)
 
   def api_do(req):
     parts = req.parts[2:]
@@ -124,27 +136,53 @@ Settings:
         return False
     return True
 
-  def webui_form(req):
-    body = "<html><head>Hawks UI</head><body><H1>Hawks UI</H1>"
-    body = body + '<form method="get" action="/submit"><table>'
+  def webui_form(req, message=None):
+    if req.command == "POST":
+      message = webui_submit(req)
+    filepath = hawks.settings.filepath or "img"
+    hawks.settings.choices["filename"] = [os.path.join(filepath, item) for item in os.listdir(filepath)]
+    body = []
+    body.append("<html><head>Hawks UI</head><body><H1>Hawks UI</H1>")
+    if message:
+      body.append(f"<h3>{time.asctime()}: {message}</h3>")
+    body.append('<form method="post" action="/"><table>')
     for setting, value in hawks.settings:
-      if setting != "hawks":
-        body = body + "<tr><td>{0}</td><td><input name={0} value={1} type=text></input></td></tr>".format(setting, value)
-    body = body + "</table><br><input type=submit>"
-    body = body + "</form></body></html>"
-    req.send(200, body=body)
+      if setting == "filename":
+        value = unquote(value)
+      body.append("<tr>")
+      if setting in hawks.settings.helptext:
+        helptext = hawks.settings.helptext[setting]
+        body.append(f'<td title="{helptext}">')
+      else:
+        body.append("<td>")
+      body.append(f"{setting}</td><td>")
+      if setting in hawks.settings.choices:
+        body.append(f"<select name={setting} value={value}>")
+        choices = hawks.settings.choices[setting]
+        choices.sort()
+        choices.sort(key=lambda x: x!=value)
+        for choice in choices:
+          body.append(f'<option value="{choice}">{choice}</option>')
+        body.append("</select>")
+      else:
+        body.append(f"<input name={setting} value={value} type=text></input>")
+      body.append("</td></tr>")
+    body.append("</table><br><input type=submit>")
+    body.append("</form></body></html>")
+    req.send(200, body="".join(body))
     
   def webui_submit(req):
     req.parts = ['api', 'set'] 
-    parts = req.path.split("?")[1].split("&")
-    for part in parts:
+    data = req.data.decode()
+    for part in data.split("&"):
       key, value = part.split("=")
       if value in ["True", "true"]:
         value = True
       elif value in ["False", "false"]:
         value = False
       req.parts.extend([key, value])
-    return api_set(req, msg="Settings accepted")
+    code, message = api_set(req, msg="Settings accepted", respond=False)
+    return message
 
   def api_help(req):
     usage(req)
@@ -155,6 +193,6 @@ Settings:
   api.register_endpoint("/api/do", api_do)
   api.register_endpoint("/help", api_help)
   api.register_endpoint("/api/help", api_help)
-  api.register_endpoint("/", webui_form)
-  api.register_endpoint("/submit", webui_submit)
+  api.register_endpoint("/", webui_form, methods=["GET", "POST"])
+  #api.register_endpoint("/submit", webui_submit, methods=["POST"])
   api.run(ip, port)

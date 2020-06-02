@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import os
 from hawks import Hawks
 from hawks_api import run_api
 
@@ -32,6 +33,7 @@ def parse_args():
   parser.add_argument("--mock", action="store_true", default=False, help="Display is mock rgbmatrix")
   parser.add_argument("--mode", default="text",
                       help="Mode of operation.  Valid values are 'text', 'file', and 'network_weather'")
+  parser.add_argument("--fontdir", default="/usr/share/fonts/truetype/freefont", help="TrueType font directory (only for webui)")
 
   autosize = parser.add_mutually_exclusive_group(required=False)
   autosize.add_argument("--autosize", dest="autosize", action="store_true")
@@ -47,6 +49,7 @@ def main():
   hawks_args.pop("port")
   hawks = Hawks(**hawks_args)
   hawks.show()
+  hawks.settings.choices["font"] = [x.strip(".ttf") for x in os.listdir("/usr/share/fonts/truetype/freefont")]
   run_api('', args.port, hawks)
 
 
