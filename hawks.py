@@ -6,6 +6,7 @@ from matrixcontroller import MatrixController
 from imagecontroller import (
     TextImageController,
     FileImageController,
+    GifFileImageController,
     NetworkWeatherImageController,
 )
 
@@ -14,38 +15,68 @@ class HawksSettings(Settings):
     def __init__(self):
         super().__init__(self)
         self.hawks = None
+        self.internal.add("hawks")
+        self.internal.add("filepath")
+        self.set("filepath", "")
         self.set("bgcolor", "blue", helptext="Background color when rendering text")
         self.set("outercolor", "black", helptext="Outer color of rendered text")
         self.set("innercolor", "green", helptext="Inner color of rendered text")
         self.set("font", "FreeSansBold", helptext="Font to use when rendering text")
         self.set("x", 0)
         self.set("y", 0)
-        self.set("rows", 32, helptext="Image height")
-        self.set("cols", 32, helptext="Image width")
+        self.set("rows", 32, helptext="Image height", choices=[32, 64])
+        self.set("cols", 32, helptext="Image width", choices=[32, 64])
         self.set(
             "decompose",
             False,
             helptext="Display is a chain of two 64x32 RGB LED matrices arranged to form a big square",
+            choices=[False, True],
         )
         self.set("text", "12", helptext='Text to render (if filename is "none")')
         self.set("textsize", 27)
         self.set("thickness", 1, helptext="Thickness of outercolor border around text")
-        self.set("animation", "none", helptext='Options are "waving" or "none"')
+        self.set(
+            "animation",
+            "none",
+            helptext='Options are "waving" or "none"',
+            choices=["none", "waving"],
+        )
         self.set("amplitude", 0.4, helptext="Amplitude of waving animation")
         self.set("fps", 16, helptext="FPS of waving animation")
         self.set("period", 2000, helptext="Period of waving animation")
         self.set("filename", "none", helptext='Image file to display (or "none")')
-        self.set("autosize", True)
+        self.set("autosize", True, choices=[True, False])
         self.set("margin", 2, helptext="Margin of background color around text")
         self.set("brightness", 255, helptext="Image brighness, full bright = 255")
-        self.set("disc", False, helptext="Display is a 255-element DotStar disc")
-        self.set("transpose", "none", helptext="PIL transpose operations are supported")
+        self.set(
+            "disc",
+            False,
+            helptext="Display is a 255-element DotStar disc",
+            choices=[False, True],
+        )
+        self.set(
+            "transpose",
+            "none",
+            helptext="PIL transpose operations are supported",
+            choices=[
+                "none",
+                "FLIP_LEFT_RIGHT",
+                "FLIP_TOP_BOTTOM",
+                "ROTATE_90",
+                "ROTATE_180",
+                "ROTATE_270",
+                "TRANSPOSE",
+            ],
+        )
         self.set("rotate", 0, helptext="Rotation in degrees")
-        self.set("mock", False, helptext="Display is mock rgbmatrix")
+        self.set(
+            "mock", False, helptext="Display is mock rgbmatrix", choices=[False, True]
+        )
         self.set(
             "mode",
             "text",
             helptext="Valid modes are 'text', 'file', and 'network_weather'",
+            choices=["text", "file", "network_weather"],
         )
 
     def set(self, name, value, show=True, **kwargs):

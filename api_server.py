@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import http.server
+import json
 import unittest
 from copy import copy
 
@@ -102,7 +103,9 @@ class Api(object):
             """
             self.send(200, body=message)
 
-        def do_PUT(self):
+        def do_POST(self):
+            if "Content-Length" in self.headers:
+                self.data = self.rfile.read(int(self.headers["Content-Length"]))
             return self.do_ANY()
 
         def do_GET(self):

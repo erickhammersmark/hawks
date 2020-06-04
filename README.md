@@ -22,7 +22,7 @@ imagecontroller.ImageController turns configuration into a set of frames for Mat
 
 api_server.ApiServer implements an API server. Configure it by calling .register_endpoint() with a path, a callback, and an optional list of methods. Launch it with .run(ip, port).
 
-hawks_api.HawksApi implements the Hawks-specific API layer, including the web form.
+hawks_api.Hawks
 
 disc.Disc implements the logic to map the points on a DotStart disc to the points in a rectangular image.
 
