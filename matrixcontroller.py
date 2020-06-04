@@ -91,7 +91,7 @@ class MatrixController(object):
 
     def fill_out(self, image):
         """
-        If an image doesn't have enough rows or columsn to fill the matrix,
+        If an image doesn't have enough rows or columns to fill the matrix,
         fill it in with black rows or columns.
         """
         cols, rows = image.size

@@ -56,8 +56,8 @@ class Settings(object):
         return SettingsIterator(self)
 
     def get(self, name):
-        if name in self.__dict__:
-            return self.__dict__[name]
+        if hasattr(self, name):
+            return getattr(self, name)
         return None
 
 
@@ -74,4 +74,3 @@ if __name__ == "__main__":
     for name in s:
         print(name)
         # print(name, getattr(s, name))
->>>>>>> overhaul

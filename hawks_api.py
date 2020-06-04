@@ -62,7 +62,7 @@ Settings:
             # use this instead of GET /api/foo if you want a 404 when you screw up
             if hawks.settings.get(parts[1]):
                 return req.send(200, body=json.dumps(hawks.settings.get(parts[1])))
-            return req.send(404, body="No such setting {}".format(parts[1]))
+            return req.send(404, body=f"No such setting {parts[1]}")
         if hawks.settings.get(parts[0]):
             # GET /api/foo, return setting foo if it exists, otherwise, fall through to a 200 from usage()
             # use this when you want the get/set sematics to be the same and you don't care about getting
@@ -97,7 +97,7 @@ Settings:
                     except:
                         return send(
                             400,
-                            body="Value for key {0} must be of type float".format(key),
+                            body=f"Value for key {key} must be of type float",
                         )
                 elif type(_val) is int:
                     try:
@@ -105,7 +105,7 @@ Settings:
                     except:
                         return send(
                             400,
-                            body="Value for key {0} must be of type int".format(key),
+                            body=f"Value for key {key} must be of type int",
                         )
                 elif type(_val) is bool:
                     try:
@@ -113,13 +113,13 @@ Settings:
                     except:
                         return send(
                             400,
-                            body="Value for key {0} must be of type bool".format(key),
+                            body=f"Value for key {key} must be of type bool",
                         )
                 else:
                     value = value
                 hawks.settings.set(key, value, show=False)
             else:
-                return send(404, body="Unknown attribute: {0}".format(key))
+                return send(404, body=f"Unknown attribute: {key}")
         hawks.show()
         if msg:
             return send(200, msg)
@@ -135,7 +135,7 @@ Settings:
             if parts[1]:
                 if hawks.apply_preset(parts[1]):
                     return req.send(200)
-                return req.send(400, body="Unknown preset: {0}".format(parts[1]))
+                return req.send(400, body=f"Unknown preset: {parts[1]}")
             else:
                 return usage(
                     req, msg="Path must have non-zero, even number of elements"
@@ -145,7 +145,7 @@ Settings:
                 200, body=hawks.show(return_image=True), content_type="image/png"
             )
         else:
-            return usage(req, msg == "Unknown command: {0}".format(parts[0]))
+            return usage(req, msg == f"Unknown command: {parts[0]}")
 
     def only_alpha(name):
         name = unquote(name)

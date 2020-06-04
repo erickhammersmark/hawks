@@ -70,9 +70,7 @@ class Api(object):
         if not req.path.startswith(self.prefix):
             return req.send(
                 404,
-                body="Unrecognized path: {0}. Requests must start with {1}\n".format(
-                    req.path, self.prefix
-                ),
+                body=f"Unrecognized path: {req.path}. Requests must start with {self.prefix}\n",
             )
         path = req.path.replace(self.prefix, "")
         paths = list(self.endpoints.keys())
@@ -118,7 +116,7 @@ class Api(object):
                 return endpoint["callback"](self)
             else:
                 return self.send(
-                    404, body="Unrecognized request: {0}\n".format(self.path)
+                    404, body=f"Unrecognized request: {self.path}\n"
                 )
 
     def run(self, ip, port):

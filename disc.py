@@ -33,9 +33,7 @@ class DotstarPixel(object):
         self.total_pixels = total_pixels
 
     def __repr__(self):
-        return "r: {0}, p: {1}, total: {2}".format(
-            self.radius, self.position, self.total_pixels
-        )
+        return f"r: {self.radius}, p: {self.position}, total: {self.total_pixels}"
 
 
 class Disc(object):
@@ -63,7 +61,7 @@ class Disc(object):
 
     def init_pixels(self, circles=None):
         self.pixels = []
-        if circles == None:
+        if not circles:
             # dotstar disc numbers, radius of and count of pixels in each circle
             circles = [
                 (4.5, 48),

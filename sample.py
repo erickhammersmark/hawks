@@ -20,6 +20,7 @@ def sample_at_position(img_data, size, position, offsets):
 
     if count:
         return tuple([int(color / count) for color in sums])
+
     return tuple(sums)
 
 
