@@ -32,11 +32,13 @@ class RGBMatrix(object):
       cols = 128
     if hasattr(self, "mock_square") and getattr(self, "mock_square"):
       cols = 64
+    output = []
     for px in data:
-      sys.stdout.write(self.text_as_color('  ', px))
+      output.append(self.text_as_color('  ', px))
       count += 1
       if count % cols == 0:
-        print()
+        output.append('\n')
+    sys.stdout.write("".join(output))
     print()
 
   def SetImage(self, image, *args, **kwargs):
