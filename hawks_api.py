@@ -165,9 +165,12 @@ Settings:
         if req.command == "POST":
             message = webui_submit(req)
         filepath = hawks.settings.filepath or "img"
-        hawks.settings.choices["filename"] = [
-            os.path.join(filepath, item) for item in os.listdir(filepath)
-        ]
+        try:
+            hawks.settings.choices["filename"] = [
+                os.path.join(filepath, item) for item in os.listdir(filepath)
+            ]
+        except FileNotFoundError:
+            hawks.settings.choices["filename"] = None
         body = []
         body.append("<html><head>Hawks UI</head><body><H1>Hawks UI</H1>")
         if message:
@@ -183,7 +186,7 @@ Settings:
             else:
                 body.append("<td>")
             body.append(f"{setting}</td><td>")
-            if setting in hawks.settings.choices:
+            if setting in hawks.settings.choices and hawks.settings.choices[setting]:
                 body.append(f"<select name={setting} value={value}>")
                 choices = hawks.settings.choices[setting]
                 choices.sort()
