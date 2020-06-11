@@ -331,17 +331,24 @@ class TextImageController(ImageController):
 
 
 class FileImageController(ImageController):
-    settings = ImageController.settings + ["filename"]
+    settings = [
+      "filename",
+      "animate_gifs",
+      "frame_no",
+    ]
+    settings.extend(ImageController.settings)
 
     def __init__(self, filename, **kwargs):
         self.filename = filename
+        self.animate_gifs = True
+        self.frame_no = 0
         super().__init__(**kwargs)
 
     def render(self):
         image = Image.open(unquote(self.filename))
 
         if hasattr(image, "is_animated") and image.is_animated:
-            return GifFileImageController(self.filename).render()
+            return GifFileImageController(self.filename, animate_gifs=self.animate_gifs, frame_no=self.frame_no).render()
 
         image = image.convert("RGB")
         return [(image, 0)]
@@ -358,7 +365,17 @@ class GifFileImageController(FileImageController):
             for n in range(0, gif.n_frames):
                 gif.seek(n)
                 image = gif.convert("RGB")
-                self.frames.append((image, int(gif.info["duration"])))
+                if self.animate_gifs:
+                    duration = int(gif.info["duration"])
+                else:
+                    if n == self.frame_no:
+                        duration = 0
+                    else:
+                        duration = 1
+                self.frames.append((image, duration))
+                if not duration:
+                    # -0 duration frame will be shown forever, no value in rendering any more
+                    return
 
     def render(self):
         return self.frames
@@ -486,6 +503,7 @@ def main():
             ctrl.set_frames(FileImageController(sys.argv[1]).render())
     else:
         ctrl.set_frames(TextImageController().render())
+    ctrl.show()
     while True:
         time.sleep(1000)
 

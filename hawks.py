@@ -78,6 +78,8 @@ class HawksSettings(Settings):
             helptext="Valid modes are 'text', 'file', and 'network_weather'",
             choices=["text", "file", "network_weather"],
         )
+        self.set("frame_no", 0, helptext="Frame number of gif to statically display (when not animating)")
+        self.set("animate_gifs", True, choices=[True, False], helptext="Animate animated GIFs")
 
     def set(self, name, value, show=True, **kwargs):
         """

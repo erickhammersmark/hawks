@@ -83,11 +83,9 @@ class MatrixController(object):
 
     def set_frames(self, frames):
         self.orig_frames = frames
-        self.show()
 
     def set_image(self, image):
         self.orig_frames = [(image, 0)]
-        self.show()
 
     def fill_out(self, image):
         """
@@ -271,6 +269,7 @@ class MatrixController(object):
             return self.make_png(self.frames[0][0])
 
         self.next_time = time.time()
+        self.matrix.Clear()
         self.render()
 
 
