@@ -78,8 +78,11 @@ class HawksSettings(Settings):
             helptext="Valid modes are 'text', 'file', and 'network_weather'",
             choices=["text", "file", "network_weather"],
         )
-        self.set("frame_no", 0, helptext="Frame number of gif to statically display (when not animating)")
+        self.set("gif_frame_no", 0, helptext="Frame number of gif to statically display (when not animating)")
+        self.set("gif_speed", 1.0, helptext="Multiplier for gif animation speed")
+        self.set("gif_loop_delay", 0, helptext="Delay (ms) between repeatations of an animated gif")
         self.set("animate_gifs", True, choices=[True, False], helptext="Animate animated GIFs")
+        self.set("zoom", False, choices=[True, False], helptext="Crop images to fill screen")
 
     def set(self, name, value, show=True, **kwargs):
         """

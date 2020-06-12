@@ -334,21 +334,31 @@ class FileImageController(ImageController):
     settings = [
       "filename",
       "animate_gifs",
-      "frame_no",
+      "gif_frame_no",
+      "gif_speed",
+      "gif_loop_delay",
     ]
     settings.extend(ImageController.settings)
 
     def __init__(self, filename, **kwargs):
         self.filename = filename
         self.animate_gifs = True
-        self.frame_no = 0
+        self.gif_frame_no = 0
+        self.gif_speed = 1
+        self.gif_loop_delay = 0
         super().__init__(**kwargs)
 
     def render(self):
         image = Image.open(unquote(self.filename))
 
         if hasattr(image, "is_animated") and image.is_animated:
-            return GifFileImageController(self.filename, animate_gifs=self.animate_gifs, frame_no=self.frame_no).render()
+            return GifFileImageController(
+                self.filename,
+                animate_gifs=self.animate_gifs,
+                gif_frame_no=self.gif_frame_no,
+                gif_speed=self.gif_speed,
+                gif_loop_delay=self.gif_loop_delay,
+            ).render()
 
         image = image.convert("RGB")
         return [(image, 0)]
@@ -367,11 +377,14 @@ class GifFileImageController(FileImageController):
                 image = gif.convert("RGB")
                 if self.animate_gifs:
                     duration = int(gif.info["duration"])
+                    if n == gif.n_frames - 1:
+                        duration += self.gif_loop_delay * self.gif_speed  # hack
                 else:
-                    if n == self.frame_no:
+                    if n == self.gif_frame_no:
                         duration = 0
                     else:
                         duration = 1
+                duration = int(duration * (1 / self.gif_speed))
                 self.frames.append((image, duration))
                 if not duration:
                     # -0 duration frame will be shown forever, no value in rendering any more

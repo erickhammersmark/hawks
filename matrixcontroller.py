@@ -22,6 +22,7 @@ class MatrixController(object):
         "transpose",
         "rotate",
         "mock",
+        "zoom",
     ]
 
     def __init__(self, *args, **kwargs):
@@ -35,6 +36,7 @@ class MatrixController(object):
         self.transpose = "none"
         self.rotate = 0
         self.mock = False
+        self.zoom = False
         self.image = None
         self.orig_frames = []
         self.frames = []
@@ -116,10 +118,23 @@ class MatrixController(object):
     def resize_image(self, image, cols, rows):
         orig_c, orig_r = image.size
         new_c, new_r = cols, rows
-        if orig_c > orig_r:
-            new_r = new_r * float(orig_r) / orig_c
-        elif orig_r > orig_c:
-            new_c = new_c * float(orig_c) / orig_r
+        left, right, top, bottom = 0, orig_c - 1, 0, orig_r - 1
+
+        if self.zoom:
+            if orig_r > orig_c:
+                delta = orig_r - orig_c
+                top = delta / 2
+                bottom -= (delta - top)
+            elif orig_c > orig_r:
+                delta = orig_c - orig_r
+                left = delta / 2
+                right -= (delta - left)
+            image = image.crop((left, top, right, bottom))
+        else:
+            if orig_c > orig_r:
+                new_r = new_r * float(orig_r) / orig_c
+            elif orig_r > orig_c:
+                new_c = new_c * float(orig_c) / orig_r
         image = image.resize((int(new_c), int(new_r)))
         if new_c < self.cols or new_r < self.rows:
             image = self.fill_out(image)
