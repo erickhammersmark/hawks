@@ -192,3 +192,9 @@ class Hawks(object):
             self.ctrl.set_frames(img_ctrl.render())
 
         return self.ctrl.show(return_image=return_image)
+
+    def stop(self):
+        return self.ctrl.stop()
+
+    def start(self):
+        return self.ctrl.start()

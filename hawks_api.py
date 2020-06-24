@@ -95,6 +95,7 @@ Settings:
                     try:
                         value = float(value)
                     except:
+                        hawks.start()
                         return send(
                             400,
                             body=f"Value for key {key} must be of type float",
@@ -120,6 +121,7 @@ Settings:
                 hawks.settings.set(key, value, show=False)
             else:
                 return send(404, body=f"Unknown attribute: {key}")
+        hawks.stop()
         hawks.show()
         if msg:
             return send(200, msg)

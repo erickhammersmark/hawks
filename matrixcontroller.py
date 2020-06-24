@@ -43,6 +43,7 @@ class MatrixController(object):
         self.frame_no = 0
         self.next_time = 0
         self.timer = None
+        self.go = True
 
         for (k, v) in kwargs.items():
             setattr(self, k, v)
@@ -251,6 +252,9 @@ class MatrixController(object):
         if not self.frames:
             return
 
+        if not self.go:
+            return
+
         self.SetImage(self.frames[self.frame_no][0])
 
         duration = self.frames[self.frame_no][1]
@@ -285,7 +289,20 @@ class MatrixController(object):
 
         self.next_time = time.time()
         self.matrix.Clear()
+        self.go = True
         self.render()
+
+    def stop(self):
+        """
+        Stop displaying new frames.
+        """
+        self.go = False
+
+    def start(self):
+        """
+        Resume displaying new frames.
+        """
+        self.go = True
 
 
 def main():
