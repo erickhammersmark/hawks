@@ -48,6 +48,7 @@ class HawksSettings(Settings):
         self.set("autosize", True, choices=[True, False])
         self.set("margin", 2, helptext="Margin of background color around text")
         self.set("brightness", 255, helptext="Image brighness, full bright = 255")
+        self.set("back_and_forth", False, helptext="Loop GIF back and forth", choices=[False, True])
         self.set(
             "disc",
             False,

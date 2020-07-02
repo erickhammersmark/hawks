@@ -16,8 +16,9 @@ class MatrixController(object):
     settings = [
         "rows",
         "cols",
-        "decompose",
+        "back_and_forth",
         "brightness",
+        "decompose",
         "disc",
         "transpose",
         "rotate",
@@ -44,6 +45,8 @@ class MatrixController(object):
         self.next_time = 0
         self.timer = None
         self.go = True
+        self.direction = 1
+        self.back_and_forth = False
 
         for (k, v) in kwargs.items():
             setattr(self, k, v)
@@ -259,9 +262,17 @@ class MatrixController(object):
 
         duration = self.frames[self.frame_no][1]
 
-        self.frame_no += 1
-        if self.frame_no >= len(self.frames):
-            self.frame_no = 0
+        self.frame_no += self.direction
+        if self.back_and_forth:
+            if self.frame_no >= len(self.frames):
+                self.frame_no = len(self.frames) - 2
+                self.direction = -1
+            if self.frame_no <= 0:
+                self.frame_no = 0
+                self.direction = 1
+        else:
+            if self.frame_no >= len(self.frames):
+                self.frame_no = 0
 
         if duration:
             self.next_time += duration / 1000.0
@@ -290,6 +301,7 @@ class MatrixController(object):
         self.next_time = time.time()
         self.matrix.Clear()
         self.go = True
+        self.direction = 1
         self.render()
 
     def stop(self):
