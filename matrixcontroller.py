@@ -24,6 +24,9 @@ class MatrixController(object):
         "rotate",
         "mock",
         "zoom",
+        "zoom_level",
+        "x",
+        "y",
     ]
 
     def __init__(self, *args, **kwargs):
@@ -47,6 +50,9 @@ class MatrixController(object):
         self.go = True
         self.direction = 1
         self.back_and_forth = False
+        self.zoom_level = 0
+        self.x = 0
+        self.y = 0
 
         for (k, v) in kwargs.items():
             setattr(self, k, v)
@@ -125,14 +131,24 @@ class MatrixController(object):
         left, right, top, bottom = 0, orig_c - 1, 0, orig_r - 1
 
         if self.zoom:
-            if orig_r > orig_c:
-                delta = orig_r - orig_c
-                top = delta / 2
-                bottom -= (delta - top)
-            elif orig_c > orig_r:
-                delta = orig_c - orig_r
-                left = delta / 2
-                right -= (delta - left)
+            if self.zoom_level not in [1.0, 0.0]:
+                left = self.x * (orig_c / new_c)
+                top = self.y * (orig_r / new_r)
+                if orig_r > orig_c:
+                    right = (orig_c / self.zoom_level) + left
+                    bottom = (orig_c / self.zoom_level) + top
+                elif orig_c > orig_r:
+                    right = (orig_r / self.zoom_level) + left
+                    bottom = (orig_r / self.zoom_level) + top
+            else:
+                if orig_r > orig_c:
+                    delta = orig_r - orig_c
+                    top = delta / 2
+                    bottom -= (delta - top)
+                elif orig_c > orig_r:
+                    delta = orig_c - orig_r
+                    left = delta / 2
+                    right -= (delta - left)
             image = image.crop((left, top, right, bottom))
         else:
             if orig_c > orig_r:
@@ -320,6 +336,7 @@ class MatrixController(object):
 def main():
     ctrl = MatrixController(mock=True)
     ctrl.set_image(Image.open("img/hawks.png").convert("RGB"))
+    ctrl.show()
     while True:
         time.sleep(1000)
 

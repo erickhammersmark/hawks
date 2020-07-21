@@ -169,7 +169,8 @@ Settings:
         filepath = hawks.settings.filepath or "img"
         try:
             hawks.settings.choices["filename"] = [
-                os.path.join(filepath, item) for item in os.listdir(filepath)
+                #os.path.join(filepath, item) for item in os.listdir(filepath)
+                item for item in os.listdir(filepath)
             ]
         except FileNotFoundError:
             hawks.settings.choices["filename"] = None
@@ -180,7 +181,7 @@ Settings:
         body.append('<form method="post" action="/"><table>')
         for setting, value in hawks.settings:
             if setting == "filename":
-                value = unquote(value)
+                value = unquote(value).replace(f"{filepath}/", "")
             body.append("<tr>")
             if setting in hawks.settings.helptext:
                 helptext = hawks.settings.helptext[setting]
@@ -189,12 +190,20 @@ Settings:
                 body.append("<td>")
             body.append(f"{setting}</td><td>")
             if setting in hawks.settings.choices and hawks.settings.choices[setting]:
-                body.append(f"<select name={setting} value={value}>")
                 choices = hawks.settings.choices[setting]
-                choices.sort()
-                choices.sort(key=lambda x: x != value)
-                for choice in choices:
-                    body.append(f'<option value="{choice}">{choice}</option>')
+                if setting == "filename":
+                    choices.sort()
+                    body.append(f"<select name={setting} value={value} size=12>")
+                    for choice in choices:
+                        if choice == value:
+                            body.append(f'<option value="{choice}" selected="selected">{choice}</option>')
+                        else:
+                            body.append(f'<option value="{choice}">{choice}</option>')
+                else:
+                    body.append(f"<select name={setting} value={value}>")
+                    choices.sort(key=lambda x: x != value)
+                    for choice in choices:
+                        body.append(f'<option value="{choice}">{choice}</option>')
                 body.append("</select>")
             else:
                 body.append(f"<input name={setting} value={value} type=text></input>")
@@ -205,6 +214,7 @@ Settings:
 
     def webui_submit(req):
         req.parts = ["api", "set"]
+        filepath = hawks.settings.filepath or "img"
         data = req.data.decode()
         for part in data.split("&"):
             key, value = part.split("=")
@@ -212,6 +222,8 @@ Settings:
                 value = True
             elif value in ["False", "false"]:
                 value = False
+            if key == "filename":
+                value = f"{filepath}/{value}"
             req.parts.extend([key, value])
         code, message = api_set(req, msg="Settings accepted", respond=False)
         return message

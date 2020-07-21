@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 
 import sys
-
+from PIL import Image
 
 class RGBMatrix(object):
     def __init__(self, *args, **kwargs):
         for k, v in kwargs.items():
             setattr(self, k, v)
+        self.clear_image = Image.new("RGB", (self.options.cols, self.options.rows), (0, 0, 0, 0))
 
     def text_as_color(self, text, rgb):
         """
@@ -45,6 +46,9 @@ class RGBMatrix(object):
 
     def SetImage(self, image, *args, **kwargs):
         self.print_image(image)
+
+    def Clear(self):
+        self.print_image(self.clear_image)
 
 
 class RGBMatrixOptions(object):

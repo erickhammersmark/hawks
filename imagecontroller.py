@@ -337,6 +337,7 @@ class FileImageController(ImageController):
       "gif_frame_no",
       "gif_speed",
       "gif_loop_delay",
+      "gif_override_duration_zero",
     ]
     settings.extend(ImageController.settings)
 
@@ -346,6 +347,7 @@ class FileImageController(ImageController):
         self.gif_frame_no = 0
         self.gif_speed = 1
         self.gif_loop_delay = 0
+        self.override_duration_zero = False
         super().__init__(**kwargs)
 
     def render(self):
@@ -358,6 +360,7 @@ class FileImageController(ImageController):
                 gif_frame_no=self.gif_frame_no,
                 gif_speed=self.gif_speed,
                 gif_loop_delay=self.gif_loop_delay,
+                gif_override_duration_zero=self.gif_override_duration_zero,
             ).render()
 
         image = image.convert("RGB")
@@ -377,6 +380,8 @@ class GifFileImageController(FileImageController):
                 image = gif.convert("RGB")
                 if self.animate_gifs:
                     duration = int(gif.info["duration"])
+                    if duration == 0 and self.gif_override_duration_zero:
+                        duration = 100
                     if n == gif.n_frames - 1:
                         duration += self.gif_loop_delay * self.gif_speed  # hack
                 else:
