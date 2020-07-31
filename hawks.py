@@ -86,6 +86,7 @@ class HawksSettings(Settings):
         self.set("animate_gifs", True, choices=[True, False], helptext="Animate animated GIFs")
         self.set("zoom", False, choices=[True, False], helptext="Crop images to fill screen")
         self.set("zoom_level", 1.0, helptext="Custom zoom level")
+        self.set("fit", False, choices=[True, False], helptext="Fit image to display")
         
 
     def set(self, name, value, show=True, **kwargs):
