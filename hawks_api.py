@@ -109,9 +109,11 @@ Settings:
                             body=f"Value for key {key} must be of type int",
                         )
                 elif type(_val) is bool:
-                    try:
-                        value = bool(value)
-                    except:
+                    if value in ["True", "true"]:
+                        value = True
+                    elif value in ["False", "false"]:
+                        value = False
+                    else:
                         return send(
                             400,
                             body=f"Value for key {key} must be of type bool",
@@ -218,10 +220,10 @@ Settings:
         data = req.data.decode()
         for part in data.split("&"):
             key, value = part.split("=")
-            if value in ["True", "true"]:
-                value = True
-            elif value in ["False", "false"]:
-                value = False
+            #if value in ["True", "true"]:
+            #    value = True
+            #elif value in ["False", "false"]:
+            #    value = False
             if key == "filename":
                 value = f"{filepath}/{value}"
             req.parts.extend([key, value])

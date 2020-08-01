@@ -130,11 +130,35 @@ class MatrixController(object):
         return new_image
 
     def resize_image(self, image, cols, rows):
-        image_c, image_r = image.size
+        orig_image_c, orig_image_r = image.size
         panel_c, panel_r = cols, rows
-        left, right, top, bottom = 0, image_c - 1, 0, image_r - 1
+        new_c, new_r = panel_c, panel_r
+        left, right, top, bottom = 0, orig_image_c - 1, 0, orig_image_r - 1
 
+        # all of the manipulations are in image pixel space
+        # the image is not scaled into panel space until the call to image.resize() at the end
+        if self.zoom:
+            image_c, image_r = image.size
+            # zoom in on a pixel position in the image
+            # calculate how much the image we are keeping in each dimension
+            # bring bottom and right in total - that much
+            zoomed_r = image_r / self.zoom_level
+            zoomed_c = image_c / self.zoom_level
+            if self.zoom_center:
+                left = (image_c - zoomed_c) / 2
+                right = image_c - left
+                top = (image_r - zoomed_r) / 2
+                bottom = image_r - top
+            else:
+                left = self.x
+                right = left + zoomed_c
+                top = self.y
+                bottom = self.y + zoomed_r
+            image = image.crop((left, top, right, bottom))
         if self.fit:
+            # crop the image to be square, preserving all of one dimension
+            image_c, image_r = image.size
+            left, right, top, bottom = 0, image_c - 1, 0, image_r - 1
             if image_r > image_c:
                 delta = image_r - image_c
                 top = delta / 2
@@ -144,23 +168,16 @@ class MatrixController(object):
                 left = delta / 2
                 right -= (delta - left)
             image = image.crop((left, top, right, bottom))
-        elif self.zoom:
-            left = self.x * (image_c / panel_c)
-            top = self.y * (image_r / panel_r)
-            if image_r > image_c:
-                right = (image_c / self.zoom_level) + left
-                bottom = (image_c / self.zoom_level) + top
-            elif image_c > image_r:
-                right = (image_r / self.zoom_level) + left
-                bottom = (image_r / self.zoom_level) + top
-            image = image.crop((left, top, right, bottom))
         else:
+            # scale such that the longest dimension of the image fits on the panel
+            # default is to scale to the size (panel_c, panel_r)
+            # if one dimension is longer than the other, scale the shorter one
+            # to less than panel_c or panel_r to preserve aspect ratio
+            image_c, image_r = image.size
             if image_c > image_r:
-                new_c = panel_c
                 new_r = panel_r * float(image_r) / image_c
             elif image_r > image_c:
                 new_c = panel_c * float(image_c) / image_r
-                new_r = panel_r
         image = image.resize((int(new_c), int(new_r)))
         if new_c < self.cols or new_r < self.rows:
             image = self.fill_out(image)

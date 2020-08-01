@@ -85,6 +85,7 @@ class HawksSettings(Settings):
         self.set("gif_override_duration_zero", False, helptext="Use 100ms frame time instead of 0", choices=[True, False])
         self.set("animate_gifs", True, choices=[True, False], helptext="Animate animated GIFs")
         self.set("zoom", False, choices=[True, False], helptext="Crop images to fill screen")
+        self.set("zoom_center", True, choices=[True, False], helptext="When zooming, zoom into center of image")
         self.set("zoom_level", 1.0, helptext="Custom zoom level")
         self.set("fit", False, choices=[True, False], helptext="Fit image to display")
         
