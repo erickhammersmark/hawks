@@ -25,6 +25,7 @@ class MatrixController(object):
         "mock",
         "zoom",
         "zoom_level",
+        "zoom_center",
         "x",
         "y",
         "fit",
@@ -52,6 +53,7 @@ class MatrixController(object):
         self.direction = 1
         self.back_and_forth = False
         self.zoom_level = 1.0
+        self.zoom_center = True
         self.x = 0
         self.y = 0
         self.fit = False
@@ -128,35 +130,37 @@ class MatrixController(object):
         return new_image
 
     def resize_image(self, image, cols, rows):
-        orig_c, orig_r = image.size
-        new_c, new_r = cols, rows
-        left, right, top, bottom = 0, orig_c - 1, 0, orig_r - 1
+        image_c, image_r = image.size
+        panel_c, panel_r = cols, rows
+        left, right, top, bottom = 0, image_c - 1, 0, image_r - 1
 
         if self.fit:
-            if orig_r > orig_c:
-                delta = orig_r - orig_c
+            if image_r > image_c:
+                delta = image_r - image_c
                 top = delta / 2
                 bottom -= (delta - top)
-            elif orig_c > orig_r:
-                delta = orig_c - orig_r
+            elif image_c > image_r:
+                delta = image_c - image_r
                 left = delta / 2
                 right -= (delta - left)
             image = image.crop((left, top, right, bottom))
         elif self.zoom:
-            left = self.x * (orig_c / new_c)
-            top = self.y * (orig_r / new_r)
-            if orig_r > orig_c:
-                right = (orig_c / self.zoom_level) + left
-                bottom = (orig_c / self.zoom_level) + top
-            elif orig_c > orig_r:
-                right = (orig_r / self.zoom_level) + left
-                bottom = (orig_r / self.zoom_level) + top
+            left = self.x * (image_c / panel_c)
+            top = self.y * (image_r / panel_r)
+            if image_r > image_c:
+                right = (image_c / self.zoom_level) + left
+                bottom = (image_c / self.zoom_level) + top
+            elif image_c > image_r:
+                right = (image_r / self.zoom_level) + left
+                bottom = (image_r / self.zoom_level) + top
             image = image.crop((left, top, right, bottom))
         else:
-            if orig_c > orig_r:
-                new_r = new_r * float(orig_r) / orig_c
-            elif orig_r > orig_c:
-                new_c = new_c * float(orig_c) / orig_r
+            if image_c > image_r:
+                new_c = panel_c
+                new_r = panel_r * float(image_r) / image_c
+            elif image_r > image_c:
+                new_c = panel_c * float(image_c) / image_r
+                new_r = panel_r
         image = image.resize((int(new_c), int(new_r)))
         if new_c < self.cols or new_r < self.rows:
             image = self.fill_out(image)
