@@ -4,6 +4,7 @@ import json
 import math
 import requests
 import sys
+import tempfile
 import time
 from matrixcontroller import MatrixController
 from PIL import Image, ImageDraw, ImageFont, ImageColor, GifImagePlugin
@@ -397,6 +398,35 @@ class GifFileImageController(FileImageController):
 
     def render(self):
         return self.frames
+
+
+
+class URLImageController(FileImageController):
+    settings = [ "url" ]
+    settings.extend(FileImageController.settings)
+
+    def __init__(self, url, **kwargs):
+        self.url = url
+        super().__init__(tempfile.mktemp(), **kwargs)
+        self.fetch_image()
+
+    def fetch_image(self):
+        response = requests.get(self.url)
+        if response.status_code != 200:
+            raise Exception("Error fetching {}: status code {}".format(self.url, response.status_code))
+        with open(self.filename, "wb") as TMPFILE:
+            TMPFILE.write(response.content)
+
+    def render(self):
+        return FileImageController(
+            self.filename,
+            animate_gifs = self.animate_gifs,
+            gif_frame_no = self.gif_frame_no,
+            gif_speed = self.gif_speed,
+            gif_loop_delay = self.gif_loop_delay,
+            override_duration_zero = self.override_duration_zero,
+        ).render()
+        os.unlink(self.filename)
 
 
 class NetworkWeatherImageController(ImageController):
