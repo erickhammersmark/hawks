@@ -90,7 +90,8 @@ class MatrixController(object):
         options.parallel = 1
         options.gpio_slowdown = 2
         options.hardware_mapping = (
-            "adafruit-hat"  # If you have an Adafruit HAT: "adafruit-hat"
+            "adafruit-hat-pwm"  # If you have an Adafruit HAT: "adafruit-hat" or "adafruit-hat-pwm"
+                                # https://github.com/hzeller/rpi-rgb-led-matrix#troubleshooting
         )
         if not self.disc:
             self.matrix = RGBMatrix(options=options)
