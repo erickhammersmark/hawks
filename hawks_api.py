@@ -87,7 +87,7 @@ Settings:
             if key == "filename":
                 if not only_alpha(value):
                     continue
-            if key == "text":
+            if key == "text" or key == "url":
                 value = unquote(value)
             _val = hawks.settings.get(key)
             if _val is not None:
@@ -208,7 +208,7 @@ Settings:
                         body.append(f'<option value="{choice}">{choice}</option>')
                 body.append("</select>")
             else:
-                body.append(f"<input name={setting} value={value} type=text></input>")
+                body.append(f"<input name={setting} value=\"{value}\" type=text></input>")
             body.append("</td></tr>")
         body.append("</table><br><input type=submit>")
         body.append("</form></body></html>")

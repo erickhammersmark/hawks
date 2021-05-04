@@ -7,6 +7,7 @@ from imagecontroller import (
     TextImageController,
     FileImageController,
     GifFileImageController,
+    URLImageController,
     NetworkWeatherImageController,
 )
 
@@ -49,6 +50,7 @@ class HawksSettings(Settings):
         self.set("margin", 2, helptext="Margin of background color around text")
         self.set("brightness", 255, helptext="Image brighness, full bright = 255")
         self.set("back_and_forth", False, helptext="Loop GIF back and forth", choices=[False, True])
+        self.set("url", "", helptext="Fetch image from url")
         self.set(
             "disc",
             False,
@@ -181,7 +183,11 @@ class Hawks(object):
 
     def show(self, return_image=False):
         img_ctrl = None
-        if self.settings.mode == "file" and self.settings.filename != "none":
+        if self.settings.url != "":
+            img_ctrl = URLImageController(
+                **self.settings.render(URLImageController.settings)
+            )
+        elif self.settings.mode == "file" and self.settings.filename != "none":
             img_ctrl = FileImageController(
                 **self.settings.render(FileImageController.settings)
             )

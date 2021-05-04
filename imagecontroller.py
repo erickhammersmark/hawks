@@ -407,7 +407,8 @@ class URLImageController(FileImageController):
 
     def __init__(self, url, **kwargs):
         self.url = url
-        super().__init__(tempfile.mktemp(), **kwargs)
+        super().__init__(**kwargs)
+        self.filename = tempfile.mktemp()
         self.fetch_image()
 
     def fetch_image(self):
