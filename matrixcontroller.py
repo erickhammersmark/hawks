@@ -235,6 +235,7 @@ class MatrixController(object):
         image.putdata(newdata)
         return image
 
+
     def set_disc_image(self, image):
         """
         Renders a square/rectangular image for a DotStart disc.
@@ -252,11 +253,11 @@ class MatrixController(object):
             image.save(output, format="PNG")
             return output.getvalue()
 
-    def apply_transformations(self, image):
+    def apply_transformations(self, image, max_brightness=False):
         if not self.disc:
             image = self.resize_image(image, self.cols, self.rows)
 
-        if self.brightness != 255:
+        if self.brightness != 255 and not max_brightness:
             image = self.brighten(image)
 
         if self.transpose != "none":
@@ -327,16 +328,14 @@ class MatrixController(object):
         that the changes it just set are acted upon.
         """
 
+        if return_image:
+            return self.make_png(self.apply_transformations(self.orig_frames[0][0], max_brightness=True))
+
         self.frames = [
             (self.apply_transformations(img), duration)
             for img, duration in self.orig_frames
         ]
         self.frame_no = 0
-
-        if return_image:
-            if not self.frames:
-                return None
-            return self.make_png(self.frames[0][0])
 
         self.next_time = time.time()
         self.matrix.Clear()

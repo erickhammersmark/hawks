@@ -8,7 +8,6 @@ import time
 
 from urllib.parse import unquote
 
-
 def run_api(ip, port, hawks):
     api = api_server.Api(prefix="/")
 
@@ -151,6 +150,11 @@ Settings:
         else:
             return usage(req, msg == f"Unknown command: {parts[0]}")
 
+    def api_fetch(req):
+        with open("/".join(unquote(part) for part in req.parts), "rb") as IMG:
+            img = IMG.read()
+            req.send(200, body=img, content_type="image/jpeg")
+
     def only_alpha(name):
         name = unquote(name)
         if name.startswith("/"):
@@ -169,6 +173,13 @@ Settings:
         if req.command == "POST":
             message = webui_submit(req)
         filepath = hawks.settings.filepath or "img"
+        api_js = f'''
+        var update_preview = function(value) {{
+            img_tag = document.getElementById("preview")
+            img_tag.src="{filepath}/" + value
+        }}
+        '''
+
         try:
             hawks.settings.choices["filename"] = [
                 #os.path.join(filepath, item) for item in os.listdir(filepath)
@@ -177,10 +188,11 @@ Settings:
         except FileNotFoundError:
             hawks.settings.choices["filename"] = None
         body = []
-        body.append("<html><head>Hawks UI</head><body><H1>Hawks UI</H1>")
+        body.append(f"<html><head><title>Hawks UI</title><script>{api_js}</script></head><body><H1>Hawks UI</H1>")
         if message:
             body.append(f"<h3>{time.asctime()}: {message}</h3>")
         body.append('<form method="post" action="/"><table>')
+        body.append('<tr><td></td><td></td><td rowspan=4><img src="/api/do/image"></img></td></tr>')
         for setting, value in hawks.settings:
             if setting == "filename":
                 value = unquote(value).replace(f"{filepath}/", "")
@@ -195,18 +207,19 @@ Settings:
                 choices = hawks.settings.choices[setting]
                 if setting == "filename":
                     choices.sort()
-                    body.append(f"<select name={setting} value={value} size=12>")
+                    body.append(f'<select name={setting} value={value} size=12 oninput="update_preview(this.value)">')
                     for choice in choices:
                         if choice == value:
                             body.append(f'<option value="{choice}" selected="selected">{choice}</option>')
                         else:
                             body.append(f'<option value="{choice}">{choice}</option>')
+                    body.append("</select></td><td rowspan=1><img style=\"max-height: 200px;\" id=\"preview\"</img>")
                 else:
                     body.append(f"<select name={setting} value={value}>")
                     choices.sort(key=lambda x: x != value)
                     for choice in choices:
                         body.append(f'<option value="{choice}">{choice}</option>')
-                body.append("</select>")
+                    body.append("</select>")
             else:
                 body.append(f"<input name={setting} value=\"{value}\" type=text></input>")
             body.append("</td></tr>")
@@ -239,6 +252,9 @@ Settings:
     api.register_endpoint("/api/do", api_do)
     api.register_endpoint("/help", api_help)
     api.register_endpoint("/api/help", api_help)
+    api.register_endpoint("/img", api_fetch)
+    #if hawks.settings.filepath:
+    #    api.register_endpoint(f"/{hawks.settings.filepath}", api_fetch)
     api.register_endpoint("/", webui_form, methods=["GET", "POST"])
     # api.register_endpoint("/submit", webui_submit, methods=["POST"])
     api.run(ip, port)
