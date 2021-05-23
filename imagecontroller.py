@@ -425,7 +425,7 @@ class URLImageController(FileImageController):
             gif_frame_no = self.gif_frame_no,
             gif_speed = self.gif_speed,
             gif_loop_delay = self.gif_loop_delay,
-            override_duration_zero = self.override_duration_zero,
+            gif_override_duration_zero = self.gif_override_duration_zero,
         ).render()
         os.unlink(self.filename)
 
