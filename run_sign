@@ -27,13 +27,15 @@ def parse_args():
   parser.add_argument("--preset", default="none", choices=Hawks.PRESETS.keys())
   parser.add_argument("--port", type=int, default=1212, help="API listener port, default 1212")
   parser.add_argument("--filename", default="none", help="PNG, JPG, or GIF file to display")
+  parser.add_argument("--url", default="", help="Load image from URL")
+  parser.add_argument("--urls_file", default="", help="File containing URLs to show in web UI (one URL per line)")
   parser.add_argument("--debug", action="store_true", default=False)
   parser.add_argument("--brightness", default=255, type=int, help="min 0, max 255")
   parser.add_argument("--disc", action="store_true", default=False,
                       help="Display is an Adafruit Dotstar disc")
   parser.add_argument("--mock", action="store_true", default=False, help="Display is mock rgbmatrix")
   parser.add_argument("--mode", default="text",
-                      help="Mode of operation.  Valid values are 'text', 'file', and 'network_weather'")
+                      help="Mode of operation.  Valid values are 'text', 'file', 'url', and 'network_weather'")
   parser.add_argument("--fontdir", default="/usr/share/fonts/truetype/freefont", help="TrueType font directory (only for webui)")
 
   autosize = parser.add_mutually_exclusive_group(required=False)

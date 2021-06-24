@@ -51,6 +51,8 @@ class HawksSettings(Settings):
         self.set("brightness", 255, helptext="Image brighness, full bright = 255")
         self.set("back_and_forth", False, helptext="Loop GIF back and forth", choices=[False, True])
         self.set("url", "", helptext="Fetch image from url")
+        self.set("urls", "", choices=[])
+        self.set("urls_file", "", helptext="File containing image urls, one url per line")
         self.set(
             "disc",
             False,
@@ -78,8 +80,8 @@ class HawksSettings(Settings):
         self.set(
             "mode",
             "text",
-            helptext="Valid modes are 'text', 'file', and 'network_weather'",
-            choices=["text", "file", "network_weather"],
+            helptext="Valid modes are 'text', 'file', 'url', and 'network_weather'",
+            choices=["text", "file", "url", "network_weather"],
         )
         self.set("gif_frame_no", 0, helptext="Frame number of gif to statically display (when not animating)")
         self.set("gif_speed", 1.0, helptext="Multiplier for gif animation speed")
@@ -183,7 +185,9 @@ class Hawks(object):
 
     def show(self, return_image=False):
         img_ctrl = None
-        if self.settings.url != "":
+        if self.settings.mode == "url":
+            if self.settings.url == "":
+                self.settings.url = self.settings.urls
             img_ctrl = URLImageController(
                 **self.settings.render(URLImageController.settings)
             )

@@ -4,12 +4,26 @@ import api_server
 import http.server
 import json
 import os
+import requests
+import tempfile
 import time
 
 from urllib.parse import unquote
 
+def read_urls(hawks):
+    urls = []
+    try:
+        URLS = open(hawks.settings.urls_file, 'r')
+        urls = URLS.read().splitlines()
+        URLS.close()
+    except FileNotFoundError:
+        pass
+    return urls
+
 def run_api(ip, port, hawks):
     api = api_server.Api(prefix="/")
+
+    hawks.settings.set("urls", "", choices=read_urls(hawks))
 
     def tups(parts):
         return ((parts[2 * n], parts[2 * n + 1]) for n in range(0, int(len(parts) / 2)))
@@ -74,6 +88,12 @@ Settings:
         result.extend(list(kwargs.values()))
         return tuple(result)
 
+    def test_url(url):
+        response = requests.head(url)
+        if response.status_code > 299:
+            return False
+        return True
+
     def api_set(req, msg=None, respond=True):
         # such a stupid hack
         if respond:
@@ -86,8 +106,23 @@ Settings:
             if key == "filename":
                 if not only_alpha(value):
                     continue
-            if key == "text" or key == "url":
+            if key == "text" or key == "url" or key == "urls":
                 value = unquote(value)
+                if key == "url" and value:
+                    if not test_url(value):
+                        return send(
+                            400,
+                            body=f"Unable to fetch image from {value}",
+                        )
+                    if value not in hawks.settings.choices["urls"]:
+                        hawks.settings.choices["urls"].append(value)
+                    if hawks.settings.urls_file:
+                        try:
+                            URLS = open(hawks.settings.urls_file, "w")
+                            URLS.write("\n".join(hawks.settings.choices["urls"]))
+                            URLS.close()
+                        except Exception as e:
+                            print(e)
             _val = hawks.settings.get(key)
             if _val is not None:
                 if type(_val) is float:
@@ -178,6 +213,12 @@ Settings:
             img_tag = document.getElementById("preview")
             img_tag.src="{filepath}/" + value
         }}
+        var update_url = function(value) {{
+            url_field = document.getElementsByName("url")[0]
+            url_field.value = value
+            img_tag = document.getElementById("preview")
+            img_tag.src = value
+        }}
         '''
 
         try:
@@ -187,6 +228,9 @@ Settings:
             ]
         except FileNotFoundError:
             hawks.settings.choices["filename"] = None
+
+        hawks.settings.set("urls", hawks.settings.url, choices=read_urls(hawks))
+
         body = []
         body.append(f"<html><head><title>Hawks UI</title><script>{api_js}</script></head><body><H1>Hawks UI</H1>")
         if message:
@@ -214,6 +258,15 @@ Settings:
                         else:
                             body.append(f'<option value="{choice}">{choice}</option>')
                     body.append("</select></td><td rowspan=1><img style=\"max-height: 200px;\" id=\"preview\"</img>")
+                elif setting == "urls":
+                    choices.sort()
+                    body.append(f'<select name={setting} value={value} size=12 oninput="update_url(this.value)">')
+                    for choice in choices:
+                        if choice == value:
+                            body.append(f'<option value="{choice}" selected="selected">{choice}</option>')
+                        else:
+                            body.append(f'<option value="{choice}">{choice}</option>')
+                    body.append("</select></td><td rowspan=1>")
                 else:
                     body.append(f"<select name={setting} value={value}>")
                     choices.sort(key=lambda x: x != value)
@@ -221,7 +274,10 @@ Settings:
                         body.append(f'<option value="{choice}">{choice}</option>')
                     body.append("</select>")
             else:
-                body.append(f"<input name={setting} value=\"{value}\" type=text></input>")
+                if setting == "url":
+                    body.append(f'<input name={setting} value="{value}" type=text style="width:100%;box-sizing:border-box;"></input>')
+                else:
+                    body.append(f"<input name={setting} value=\"{value}\" type=text></input>")
             body.append("</td></tr>")
         body.append("</table><br><input type=submit>")
         body.append("</form></body></html>")

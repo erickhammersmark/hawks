@@ -18,7 +18,8 @@ class Settings(object):
     def __init__(self, *args, **kwargs):
         self.helptext = {}
         self.choices = {}
-        self.internal = set(["helptext", "choices", "internal"])
+        self.hooks = {}
+        self.internal = set(["helptext", "choices", "internal", "hooks"])
 
         for k, v in kwargs.items():
             self.set(k, v)
@@ -26,11 +27,13 @@ class Settings(object):
     def __contains__(self, name):
         return name in self.__dict__
 
-    def set(self, name, value, helptext=None, choices=None):
+    def set(self, name, value, helptext=None, choices=None, hooks=None):
         if helptext:
             self.helptext[name] = helptext
         if choices:
             self.choices[name] = choices
+        if hooks:
+            self.hooks[name] = hooks
 
         existing = self.get(name)
         if type(existing) == int:
@@ -44,6 +47,9 @@ class Settings(object):
             except:
                 pass
         setattr(self, name, value)
+        if name in self.hooks:
+            for hook in self.hooks[name]:
+                hook(name, value)
 
     def list(self):
         return [
