@@ -1,0 +1,9 @@
+#!/usr/bin/env python3
+
+import adafruit_dotstar as dotstar
+import board
+
+dots = dotstar.DotStar(board.SCK, board.MOSI, 255, auto_write=False)
+for p in range(0, 255):
+    dots[p] = (0, 0, 0)
+dots.show()
