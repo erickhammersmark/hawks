@@ -79,6 +79,8 @@ class Disc(object):
             for n in range(num_pixels):
                 self.pixels.append(DotstarPixel(radius, n, num_pixels))
 
+        self.circles = circles
+
     def get_max_radius(self):
         if self.max_radius is None:
             self.max_radius = max(getattr(pixel, "radius") for pixel in self.pixels)

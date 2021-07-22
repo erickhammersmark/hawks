@@ -40,7 +40,7 @@ class HawksSettings(Settings):
             "animation",
             "none",
             helptext='Options are "waving" or "none"',
-            choices=["none", "waving"],
+            choices=["none", "waving", "disc_animations"],
         )
         self.set("amplitude", 0.4, helptext="Amplitude of waving animation")
         self.set("fps", 16, helptext="FPS of waving animation")
@@ -199,6 +199,8 @@ class Hawks(object):
             img_ctrl = NetworkWeatherImageController(
                 **self.settings.render(NetworkWeatherImageController.settings)
             )
+        elif self.settings.mode == "disc_animations":
+            self.ctrl.disc_animations()
         else:
             img_ctrl = TextImageController(
                 **self.settings.render(TextImageController.settings)

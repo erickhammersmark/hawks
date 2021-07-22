@@ -2,6 +2,7 @@
 
 import argparse
 import os
+import time
 from hawks import Hawks
 from hawks_api import run_api
 
@@ -35,7 +36,7 @@ def parse_args():
                       help="Display is an Adafruit Dotstar disc")
   parser.add_argument("--mock", action="store_true", default=False, help="Display is mock rgbmatrix")
   parser.add_argument("--mode", default="text",
-                      help="Mode of operation.  Valid values are 'text', 'file', 'url', and 'network_weather'")
+                      help="Mode of operation.  Valid values are 'text', 'file', 'url', 'disc_animations', and 'network_weather'")
   parser.add_argument("--fontdir", default="/usr/share/fonts/truetype/freefont", help="TrueType font directory (only for webui)")
 
   autosize = parser.add_mutually_exclusive_group(required=False)

@@ -284,6 +284,7 @@ class MatrixController(object):
                 setattr(self.matrix, "mock_square", True)
                 self.matrix.SetImage(image)
             else:
+                self.matrix.Clear()
                 self.matrix.SetImage(self.reshape(image))
         else:
             self.matrix.SetImage(image)
@@ -321,6 +322,89 @@ class MatrixController(object):
             self.timer = Timer(duration, self.render)
             self.timer.start()
 
+    def disc_animations(self):
+      
+        circle_colors = []
+        color = 100
+        for circle in self.disc.circles:
+            circle_colors.append(color)
+            color += 100
+
+        def rainbow_color_from_value(value):
+          border = 0
+          num_buckets = 6
+          max_value = 1024 # implicit min value of 0
+          bucket = (max_value - border * 2) / num_buckets
+          value = min(value, bucket * num_buckets) # bucket * num_buckets is the actual max value
+          r = 0
+          g = 0
+          b = 0
+          bright = self.brightness
+      
+          if value < border:
+            # red
+            r = bright
+            g = 0
+            b = 0
+          elif value < border + bucket * 1:
+            # red + increasing green
+            value -= border + bucket * 0
+            value = (value * bright) / bucket
+            r = bright
+            g = value
+            b = 0
+          elif value < border + bucket * 2:
+            # green + decreasing red
+            value -= border + bucket * 1
+            value = bucket - value
+            value = (value * bright) / bucket
+            r = value
+            g = bright
+            b = 0
+          elif value < border + bucket * 3:
+            # green + increasing blue
+            value -= border + bucket * 2
+            value = (value * bright) / bucket
+            r = 0
+            g = bright
+            b = value
+          elif value < border + bucket * 4:
+            # blue + decreasing green
+            value -= border + bucket * 3
+            value = bucket - value
+            value = (value * bright) / bucket
+            r = 0
+            g = value
+            b = bright
+          elif value < border + bucket * 5:
+            # blue + increasing red
+            value -= border + bucket * 4
+            value = (value * bright) / bucket
+            r = value
+            g = 0
+            b = bright
+          else:
+            # red + decreasing blue
+            value -= border + bucket * 5
+            value = bucket - value
+            value = (value * bright) / bucket
+            r = bright
+            g = 0
+            b = value
+          return (int(g), int(r), int(b))
+      
+        while True:
+            p = 0
+            for idx, circle in enumerate(self.disc.circles):
+                color = rainbow_color_from_value(circle_colors[idx])
+                for n in range(0, circle[1]):
+                    self.dots[p] = color
+                    p += 1
+                circle_colors[idx] += 7
+                if circle_colors[idx] >= 1024:
+                    circle_colors[idx] = 0
+            self.dots.show()
+
     def show(self, return_image=False):
         """
         This is called every time something changes, like run_sign starting or
@@ -338,7 +422,6 @@ class MatrixController(object):
         self.frame_no = 0
 
         self.next_time = time.time()
-        self.matrix.Clear()
         self.go = True
         self.direction = 1
         self.render()
