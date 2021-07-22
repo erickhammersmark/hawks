@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import time
+from base import Base
 from settings import Settings
 from matrixcontroller import MatrixController
 from imagecontroller import (
@@ -18,7 +19,9 @@ class HawksSettings(Settings):
         self.hawks = None
         self.internal.add("hawks")
         self.internal.add("filepath")
+        self.internal.add("debug")
         self.set("filepath", "")
+        self.set("debug", False)
         self.set("bgcolor", "blue", helptext="Background color when rendering text")
         self.set("outercolor", "black", helptext="Outer color of rendered text")
         self.set("innercolor", "green", helptext="Inner color of rendered text")
@@ -120,7 +123,7 @@ class HawksSettings(Settings):
         return dict((name, self.get(name)) for name in names)
 
 
-class Hawks(object):
+class Hawks(Base):
     """
     Implements the base logic of the sign. Passes the right parameters to the ImageController's constrctor,
     interprets the settings enough to understand which ImageController to use and which settings to
