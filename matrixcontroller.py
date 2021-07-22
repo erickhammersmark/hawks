@@ -4,11 +4,12 @@ import disc
 import io
 import sys
 import time
+from base import Base
 from PIL import Image
 from threading import Timer
 
 
-class MatrixController(object):
+class MatrixController(Base):
     """
     Implements an RGB Matrix and Dotstar Disc controller
     """
@@ -29,6 +30,7 @@ class MatrixController(object):
         "x",
         "y",
         "fit",
+        "debug",
     ]
 
     def __init__(self, *args, **kwargs):
@@ -39,6 +41,7 @@ class MatrixController(object):
         self.brightness = 255
         self.brightness_mask = None
         self.disc = False
+        self._disc = None
         self.transpose = "none"
         self.rotate = 0
         self.mock = False
@@ -57,15 +60,18 @@ class MatrixController(object):
         self.x = 0
         self.y = 0
         self.fit = False
+        self.debug = False
 
         for (k, v) in kwargs.items():
             setattr(self, k, v)
 
         if self.disc:
+            self.db("Initializing self.dots and self_disc")
             import board
             import adafruit_dotstar as dotstar
 
             self.dots = dotstar.DotStar(board.SCK, board.MOSI, 255, auto_write=False)
+            self._disc = disc.Disc()
 
         self.init_matrix()
 
@@ -73,6 +79,8 @@ class MatrixController(object):
         """
         The Matrix has you
         """
+
+        self.db("Initializing matrix")
 
         if self.mock:
             from mock import RGBMatrix, RGBMatrixOptions
@@ -95,8 +103,10 @@ class MatrixController(object):
         )
         if not self.disc:
             self.matrix = RGBMatrix(options=options)
+
         self.frames = [(Image.new("RGB", (self.cols, self.rows), "black"), 0)]
-        self.render()
+        self.dot_frames = [(self._disc.sample_image(self.frames[0][0]), 0)]
+        self.show()
 
     def set_frames(self, frames):
         self.orig_frames = frames
@@ -238,14 +248,19 @@ class MatrixController(object):
 
     def set_disc_image(self, image):
         """
-        Renders a square/rectangular image for a DotStart disc.
+        Write pixels to the DotStar disc. image should contain
+        a list of 255 RGBA pixel values. If it doesn't then
+        render a quare/rectangular image for a DotStar disc.
         sample_image() maps the disc's circular coordinates to
         locations in the image and samples it.
         """
-        self.disc = disc.Disc()
-        # moved this step to render()
-        #pixels = self.disc.sample_image(image)
-        pixels = image
+        self.db(f"set_disc_image({image})")
+        self.db(len(image))
+
+        if len(image) != 255:
+            pixels = self._disc.sample_image(image)
+        else:
+            pixels = image
         for idx, pixel in enumerate(pixels):
             self.dots[idx] = pixel[0:3]
         self.dots.show()
@@ -272,14 +287,19 @@ class MatrixController(object):
 
         return image
 
-    def SetImage(self, image):
+    def SetFrame(self, frame_no):
         """
         Use instead of matrix.SetImage
         This does live last-second post-processing before calling matrix.SetImage
         """
+        self.db(f"SetFrame({frame_no})")
+
         if self.disc:
-            self.set_disc_image(image)
+            self.set_disc_image(self.dot_frames[frame_no][0])
             return
+
+        self.db("Decomposing (if requierd) and setting matrix image")
+        image = self.frames[frame_no][0]
 
         if self.decompose:
             if self.mock:
@@ -292,6 +312,8 @@ class MatrixController(object):
             self.matrix.SetImage(image)
 
     def render(self):
+        self.db("render()")
+
         if self.timer:
             self.timer.cancel()
             self.timer = None
@@ -302,7 +324,7 @@ class MatrixController(object):
         if not self.go:
             return
 
-        self.SetImage(self.frames[self.frame_no][0])
+        self.SetFrame(self.frame_no)
 
         duration = self.frames[self.frame_no][1]
 
@@ -328,7 +350,7 @@ class MatrixController(object):
       
         circle_colors = []
         color = 100
-        for circle in self.disc.circles:
+        for circle in self._disc.circles:
             circle_colors.append(color)
             color += 100
 
@@ -397,7 +419,7 @@ class MatrixController(object):
       
         while True:
             p = 0
-            for idx, circle in enumerate(self.disc.circles):
+            for idx, circle in enumerate(self._disc.circles):
                 color = rainbow_color_from_value(circle_colors[idx])
                 for n in range(0, circle[1]):
                     self.dots[p] = color
@@ -414,16 +436,21 @@ class MatrixController(object):
         that the changes it just set are acted upon.
         """
 
+        self.db(f"show({return_image})")
+
         if return_image:
+            self.db("Returning png")
             return self.make_png(self.apply_transformations(self.orig_frames[0][0], max_brightness=True))
 
+        self.db("transforming frames")
         self.frames = [
             (self.apply_transformations(img), duration)
             for img, duration in self.orig_frames
         ]
 
         if self.disc:
-            self.frames = [(self.disc.sample_image(frame[0]), frame[1]) for frame in self.frames]
+            self.db("Sampling frames for disc")
+            self.dot_frames = [(self._disc.sample_image(frame[0]), frame[1]) for frame in self.frames]
 
         self.frame_no = 0
 
