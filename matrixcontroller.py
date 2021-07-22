@@ -243,7 +243,9 @@ class MatrixController(object):
         locations in the image and samples it.
         """
         self.disc = disc.Disc()
-        pixels = self.disc.sample_image(image)
+        # moved this step to render()
+        #pixels = self.disc.sample_image(image)
+        pixels = image
         for idx, pixel in enumerate(pixels):
             self.dots[idx] = pixel[0:3]
         self.dots.show()
@@ -419,6 +421,10 @@ class MatrixController(object):
             (self.apply_transformations(img), duration)
             for img, duration in self.orig_frames
         ]
+
+        if self.disc:
+            self.frames = [(self.disc.sample_image(frame[0]), frame[1]) for frame in self.frames]
+
         self.frame_no = 0
 
         self.next_time = time.time()

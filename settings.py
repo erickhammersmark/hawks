@@ -28,11 +28,11 @@ class Settings(object):
         return name in self.__dict__
 
     def set(self, name, value, helptext=None, choices=None, hooks=None):
-        if helptext:
+        if helptext is not None:
             self.helptext[name] = helptext
-        if choices:
+        if choices is not None:
             self.choices[name] = choices
-        if hooks:
+        if hooks is not None:
             self.hooks[name] = hooks
 
         existing = self.get(name)
