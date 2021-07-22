@@ -38,6 +38,8 @@ def parse_args():
   parser.add_argument("--mode", default="text",
                       help="Mode of operation.  Valid values are 'text', 'file', 'url', 'disc_animations', and 'network_weather'")
   parser.add_argument("--fontdir", default="/usr/share/fonts/truetype/freefont", help="TrueType font directory (only for webui)")
+  parser.add_argument("--noapi", action="store_true", default=False, help="Do not run the API service, just do what the CLI says")
+  parser.add_argument("--gif_override_duration_zero", action="store_true", default=False, help="Run gifs with duration 0 at pre-duration-standard timing")
 
   autosize = parser.add_mutually_exclusive_group(required=False)
   autosize.add_argument("--autosize", dest="autosize", action="store_true")
@@ -63,7 +65,11 @@ def main():
     hawks_args.pop("port")
     hawks = Hawks(**hawks_args)
     hawks.show()
-    run_api("", args.port, hawks)
+    if args.noapi:
+        while True:
+            time.sleep(1000)
+    else:
+        run_api("", args.port, hawks)
 
 
 if __name__ == "__main__":
