@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
 """
-Implements the math to map pixel positions in an Adafruit Dotstart Disc (or
+Controller for an Adafruit Dotstar disc. 255 Dotstar RGBW modules laid out
+in a polar pattern.  Implements the math to map pixel positions in a disc (or
 any similarly arranged concentric circles of pixels) into a rectilinear pixel
 space.
 
@@ -20,11 +21,18 @@ total_pixels    radius
 48              4.5"
 """
 
+mock = False
+try:
+    import adafruit_dotstar
+    import board
+except NotImplementedError:
+    from mock import adafruit_dotstar, board
+    mock = True
+
 import math
 import sys
 from PIL import Image
 from sample import sample, generate_offsets
-
 
 class DotstarPixel(object):
     def __init__(self, radius, position, total_pixels):
@@ -49,6 +57,32 @@ class Disc(object):
     def __init__(self, *args, **kwargs):
         self.pixels = []
         self.max_radius = None
+        if mock:
+            self.dots = adafruit_dotstar.DotStar(board.SCK, board.MOSI, 255, auto_write=False, disc=self)
+        else:
+            self.dots = adafruit_dotstar.DotStar(board.SCK, board.MOSI, 255, auto_write=False)
+
+    def set_image(self, image):
+        """
+        Write pixels to the DotStar disc. image should contain
+        a list of 255 RGBA pixel values. If it doesn't then
+        render a quare/rectangular image for a DotStar disc.
+        sample_image() maps the disc's circular coordinates to
+        locations in the image and samples it.
+        """
+
+        if len(image) != 255:
+            pixels = self.sample_image(image)
+        else:
+            pixels = image
+        for idx, pixel in enumerate(pixels):
+            self.dots[idx] = pixel[0:3]
+        self.dots.show()
+
+    def blank(self):
+        for idx, tup in enumerate(self.dots):
+            self.dots[idx] = (0, 0, 0)
+        self.dots.show()
 
     def get_pixels(self, xy_range, circles=None):
         """

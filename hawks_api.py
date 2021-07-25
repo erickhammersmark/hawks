@@ -236,7 +236,7 @@ Settings:
         if message:
             body.append(f"<h3>{time.asctime()}: {message}</h3>")
         body.append('<form method="post" action="/"><table>')
-        body.append('<tr><td></td><td></td><td rowspan=4><img src="/api/do/image"></img></td></tr>')
+        body.append('<tr><td></td><td></td><td rowspan=4><img height="64" src="/api/do/image"></img></td></tr>')
         for setting, value in hawks.settings:
             if setting == "filename":
                 value = unquote(value).replace(f"{filepath}/", "")

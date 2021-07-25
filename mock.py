@@ -2,6 +2,7 @@
 
 import sys
 from PIL import Image
+from sample import generate_offsets
 
 class RGBMatrix(object):
     def __init__(self, *args, **kwargs):
@@ -20,20 +21,17 @@ class RGBMatrix(object):
         escape_seq = "\033[48;2;{0};{1};{2}m{3}\033[10;m"
         return escape_seq.format(*rgb[0:3], text)
 
-    def print_image(self, image):
+    def print_image(self, image, cols=None):
         count = 0
         output = []
         output.append("\033[2J\033[H")
         output.append("\n")
         data = image.getdata()
 
-        # filthy hack inside a kind of nice hack
-        if len(data) == 1024:
-            cols = 32
-        else:
-            cols = 128
-        if getattr(self, "mock_square", None):
-            cols = 64
+        if cols is None:
+            cols = self.options.cols
+            if cols == 4 * self.options.rows:
+                cols /= 2
 
         for px in data:
             output.append(self.text_as_color("  ", px))
@@ -54,3 +52,30 @@ class RGBMatrix(object):
 class RGBMatrixOptions(object):
     def __init__(self, *args, **kwargs):
         pass
+
+
+class board(object):
+    MOSI = 0
+    SCK = 0
+
+
+class adafruit_dotstar(object):
+    class DotStar(object):
+        def __init__(self, sck, mosi, num_pixels, auto_write=True, disc=None):
+            self.dots = list((0, 0, 0, 0) * 255)
+            self.disc = disc
+        def __setitem__(self, idx, value):
+            self.dots[idx] = value
+        def show(self):
+            pixels = self.disc.get_pixels((64, 64))
+            image = Image.new("RGB", (64, 64), (0, 0, 0, 0))
+            data = list(image.getdata())
+            for idx, pixel in enumerate(pixels):
+                data[pixel[0] + 64 * pixel[1]] = self.dots[idx]
+            image.putdata(data)
+            options = RGBMatrixOptions()
+            setattr(options, "cols", 64)
+            setattr(options, "rows", 64)
+            matrix = RGBMatrix(options=options)
+            matrix.print_image(image)
+

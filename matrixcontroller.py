@@ -34,7 +34,6 @@ class MatrixController(Base):
     ]
 
     def __init__(self, *args, **kwargs):
-        self.dots = None
         self.rows = 32
         self.cols = 32
         self.decompose = False
@@ -49,6 +48,7 @@ class MatrixController(Base):
         self.image = None
         self.orig_frames = []
         self.frames = []
+        self.dot_frames = []
         self.frame_no = 0
         self.next_time = 0
         self.timer = None
@@ -65,14 +65,6 @@ class MatrixController(Base):
         for (k, v) in kwargs.items():
             setattr(self, k, v)
 
-        if self.disc:
-            self.db("Initializing self.dots and self_disc")
-            import board
-            import adafruit_dotstar as dotstar
-
-            self.dots = dotstar.DotStar(board.SCK, board.MOSI, 255, auto_write=False)
-            self._disc = disc.Disc()
-
         self.init_matrix()
 
     def init_matrix(self):
@@ -82,30 +74,33 @@ class MatrixController(Base):
 
         self.db("Initializing matrix")
 
-        if self.mock:
-            from mock import RGBMatrix, RGBMatrixOptions
-        else:
-            from rgbmatrix import RGBMatrix, RGBMatrixOptions
+        self.frames = [(Image.new("RGB", (self.cols, self.rows), "black"), 0)]
 
-        options = RGBMatrixOptions()
-        options.cols = self.cols
-        if self.decompose:
-            options.rows = int(self.rows / 2)
-            options.chain_length = 2
+        if self.disc:
+            self._disc = disc.Disc(mock=self.mock)
+            self.dot_frames = [(self._disc.sample_image(self.frames[0][0]), 0)]
         else:
-            options.rows = self.rows
-            options.chain_length = 1
-        options.parallel = 1
-        options.gpio_slowdown = 2
-        options.hardware_mapping = (
-            "adafruit-hat-pwm"  # If you have an Adafruit HAT: "adafruit-hat" or "adafruit-hat-pwm"
-                                # https://github.com/hzeller/rpi-rgb-led-matrix#troubleshooting
-        )
-        if not self.disc:
+            if self.mock:
+                from mock import RGBMatrix, RGBMatrixOptions
+            else:
+                from rgbmatrix import RGBMatrix, RGBMatrixOptions
+
+            options = RGBMatrixOptions()
+            options.cols = self.cols
+            if self.decompose:
+                options.rows = int(self.rows / 2)
+                options.chain_length = 2
+            else:
+                options.rows = self.rows
+                options.chain_length = 1
+            options.parallel = 1
+            options.gpio_slowdown = 2
+            options.hardware_mapping = (
+                "adafruit-hat-pwm"  # If you have an Adafruit HAT: "adafruit-hat" or "adafruit-hat-pwm"
+                                    # https://github.com/hzeller/rpi-rgb-led-matrix#troubleshooting
+            )
             self.matrix = RGBMatrix(options=options)
 
-        self.frames = [(Image.new("RGB", (self.cols, self.rows), "black"), 0)]
-        self.dot_frames = [(self._disc.sample_image(self.frames[0][0]), 0)]
         self.show()
 
     def set_frames(self, frames):
@@ -245,26 +240,6 @@ class MatrixController(Base):
         image.putdata(newdata)
         return image
 
-
-    def set_disc_image(self, image):
-        """
-        Write pixels to the DotStar disc. image should contain
-        a list of 255 RGBA pixel values. If it doesn't then
-        render a quare/rectangular image for a DotStar disc.
-        sample_image() maps the disc's circular coordinates to
-        locations in the image and samples it.
-        """
-        self.db(f"set_disc_image({image})")
-        self.db(len(image))
-
-        if len(image) != 255:
-            pixels = self._disc.sample_image(image)
-        else:
-            pixels = image
-        for idx, pixel in enumerate(pixels):
-            self.dots[idx] = pixel[0:3]
-        self.dots.show()
-
     def make_png(self, image):
         with io.BytesIO() as output:
             image.save(output, format="PNG")
@@ -295,15 +270,14 @@ class MatrixController(Base):
         self.db(f"SetFrame({frame_no})")
 
         if self.disc:
-            self.set_disc_image(self.dot_frames[frame_no][0])
-            return
+            return self._disc.set_image(self.dot_frames[frame_no][0])
 
         self.db("Decomposing (if requierd) and setting matrix image")
         image = self.frames[frame_no][0]
 
+        # TODO: why do I do this at SetFrame time? Why not pre-render this?
         if self.decompose:
             if self.mock:
-                setattr(self.matrix, "mock_square", True)
                 self.matrix.SetImage(image)
             else:
                 self.matrix.Clear()
@@ -422,12 +396,12 @@ class MatrixController(Base):
             for idx, circle in enumerate(self._disc.circles):
                 color = rainbow_color_from_value(circle_colors[idx])
                 for n in range(0, circle[1]):
-                    self.dots[p] = color
+                    self._disc.dots[p] = color
                     p += 1
                 circle_colors[idx] += 7
                 if circle_colors[idx] >= 1024:
                     circle_colors[idx] = 0
-            self.dots.show()
+            self._disc.show()
 
     def show(self, return_image=False):
         """
