@@ -29,6 +29,7 @@ class ImageController(object):
         "period",
         "fps",
         "amplitude",
+        "filter",
     ]
 
     def __init__(self, *args, **kwargs):
@@ -46,6 +47,7 @@ class ImageController(object):
         self.fps = 16
         self.amplitude = 1
         self.animation = None
+        self.filter = None
         for (k, v) in kwargs.items():
             setattr(self, k, v)
         super().__init__()
@@ -163,6 +165,16 @@ class ImageController(object):
                 group = [n]
         frame_times = [ms_per_frame for frame in frames]
         return list(zip(frames, frame_times))
+
+    def filter_halloween(self, frames):
+        spooky = (247, 183, 72)
+        for frame in frames:
+            new_frame = []
+            for pixel in list(frame[0].getdata()):
+                pixel_brightness = (pixel[0] + pixel[1] + pixel[2]) / (255 * 3)
+                new_frame.append(tuple([int(c * pixel_brightness) for c in spooky]))
+            frame[0].putdata(new_frame)
+        return frames
 
 
 class TextImageController(ImageController):
