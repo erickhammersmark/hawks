@@ -95,7 +95,7 @@ class HawksSettings(Settings):
         self.set("zoom_center", True, choices=[True, False], helptext="When zooming, zoom into center of image")
         self.set("zoom_level", 1.0, helptext="Custom zoom level")
         self.set("fit", False, choices=[True, False], helptext="Fit image to display")
-        self.set("filter", "none", choices=["halloween"], helptext="Filter to apply to image")
+        self.set("filter", "none", choices=["none", "halloween"], helptext="Filter to apply to image")
         
 
     def set(self, name, value, show=True, **kwargs):
