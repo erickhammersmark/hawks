@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import disc
 import io
 import sys
 import time
@@ -77,6 +76,7 @@ class MatrixController(Base):
         self.frames = [(Image.new("RGB", (self.cols, self.rows), "black"), 0)]
 
         if self.disc:
+            import disc
             self._disc = disc.Disc(mock=self.mock)
             self.dot_frames = [(self._disc.sample_image(self.frames[0][0]), 0)]
         else:

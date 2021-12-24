@@ -170,7 +170,7 @@ class ImageController(object):
         return list(zip(frames, frame_times))
 
     def filter_halloween(self, frames):
-        spooky = (247, 183, 72)
+        spooky = (255, 127, 00)
         for frame in frames:
             new_frame = []
             for pixel in list(frame[0].getdata()):
