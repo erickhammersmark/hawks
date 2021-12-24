@@ -30,6 +30,7 @@ class ImageController(object):
         "fps",
         "amplitude",
         "filter",
+        "mock",
     ]
 
     def __init__(self, *args, **kwargs):
@@ -135,6 +136,70 @@ class ImageController(object):
                 continue
             saf[frame_no].putdata(new_data[idx])
 
+    def rainbow_color_from_value(self, value):
+        border = 0
+        num_buckets = 6
+        max_value = 1024 # implicit min value of 0
+        bucket = (max_value - border * 2) / num_buckets
+        value = min(value, bucket * num_buckets) # bucket * num_buckets is the actual max value
+        r = 0
+        g = 0
+        b = 0
+        bright = 255
+
+        if value < border:
+            # red
+            r = bright
+            g = 0
+            b = 0
+        elif value < border + bucket * 1:
+            # red + increasing green
+            value -= border + bucket * 0
+            value = (value * bright) / bucket
+            r = bright
+            g = value
+            b = 0
+        elif value < border + bucket * 2:
+            # green + decreasing red
+            value -= border + bucket * 1
+            value = bucket - value
+            value = (value * bright) / bucket
+            r = value
+            g = bright
+            b = 0
+        elif value < border + bucket * 3:
+            # green + increasing blue
+            value -= border + bucket * 2
+            value = (value * bright) / bucket
+            r = 0
+            g = bright
+            b = value
+        elif value < border + bucket * 4:
+            # blue + decreasing green
+            value -= border + bucket * 3
+            value = bucket - value
+            value = (value * bright) / bucket
+            r = 0
+            g = value
+            b = bright
+        elif value < border + bucket * 5:
+            # blue + increasing red
+            value -= border + bucket * 4
+            value = (value * bright) / bucket
+            r = value
+            g = 0
+            b = bright
+        else:
+            # red + decreasing blue
+            value -= border + bucket * 5
+            value = bucket - value
+            value = (value * bright) / bucket
+            r = bright
+            g = 0
+            b = value
+        return (int(g), int(r), int(b))
+
+
     def init_anim_frames(self, image):
         return [image.copy() for n in range(0, self.fps)]
 
@@ -176,6 +241,19 @@ class ImageController(object):
             for pixel in list(frame[0].getdata()):
                 pixel_brightness = (pixel[0] + pixel[1] + pixel[2]) / (255 * 3)
                 new_frame.append(tuple([int(c * pixel_brightness) for c in spooky]))
+            frame[0].putdata(new_frame)
+        return frames
+
+    def filter_christmas(self, frames):
+        for frame in frames:
+            new_frame = []
+            for pixel in list(frame[0].getdata()):
+                new_pixel = [max(255, pixel[0] * 2), pixel[1] * 2, int(pixel[2] / 4)]
+                if new_pixel[0] > new_pixel[1]:
+                    new_pixel[1] = int(new_pixel[1] / 4)
+                else:
+                    new_pixel[0] = int(new_pixel[0] / 4)
+                new_frame.append(tuple(new_pixel))
             frame[0].putdata(new_frame)
         return frames
 
@@ -557,6 +635,34 @@ class NetworkWeatherImageController(ImageController):
         except ConnectionError as e:
             # Couldn't connect, try again next time
             pass
+
+class DiscAnimationsImageController(ImageController):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def render(self):
+        import disc
+
+        circle_colors = []
+        color = 100
+        for circle in disc.Disc.circles:
+            circle_colors.append(color)
+            color += 100
+
+        frames = []
+        while True:
+            if frames and circle_colors[0] == frames[0][0]:
+                break
+            frames.append([])
+            for idx, circle in enumerate(disc.Disc.circles):
+                color = self.rainbow_color_from_value(circle_colors[idx])
+                for n in range(0, circle[1]):
+                    frames[-1].append(color)
+                circle_colors[idx] += 7
+                if circle_colors[idx] >= 1024:
+                    circle_colors[idx] = 0
+        return frames
+
 
 
 def main():

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 import time
 from base import Base
 from settings import Settings
@@ -10,12 +11,14 @@ from imagecontroller import (
     GifFileImageController,
     URLImageController,
     NetworkWeatherImageController,
+    DiscAnimationsImageController,
 )
 
 
 class HawksSettings(Settings):
     def __init__(self):
         super().__init__(self)
+        self.load_from_file()
         self.hawks = None
         self.internal.add("hawks")
         self.internal.add("filepath")
@@ -56,6 +59,7 @@ class HawksSettings(Settings):
         self.set("url", "", helptext="Fetch image from url")
         self.set("urls", "", choices=[])
         self.set("urls_file", "", helptext="File containing image urls, one url per line")
+        self.set("config_file", ".hawks.json", helptext="Hawks config file for image urls and saved configs (JSON)")
         self.set(
             "disc",
             False,
@@ -84,7 +88,7 @@ class HawksSettings(Settings):
             "mode",
             "text",
             helptext="Valid modes are 'text', 'file', 'url', and 'network_weather'",
-            choices=["text", "file", "url", "network_weather"],
+            choices=["text", "file", "url", "network_weather", "disc_animations"],
         )
         self.set("gif_frame_no", 0, helptext="Frame number of gif to statically display (when not animating)")
         self.set("gif_speed", 1.0, helptext="Multiplier for gif animation speed")
@@ -162,6 +166,9 @@ class Hawks(Base):
 
     def __init__(self, *args, **kwargs):
         self.settings = HawksSettings()
+        self.settings.save("defaults")
+
+        self.debug_file = open(f"/tmp/{os.getpid()}", "w")
 
         preset = None
 
@@ -179,6 +186,9 @@ class Hawks(Base):
         if preset:
             self.apply_preset(preset)
 
+    def db(self, msg):
+        self.debug_file.write(f"{msg}\n")
+
     def apply_preset(self, preset):
         if preset in Hawks.PRESETS:
             for k, v in Hawks.PRESETS[preset].items():
@@ -187,7 +197,9 @@ class Hawks(Base):
             return True
         return False
 
-    def show(self, return_image=False):
+    def show(self):
+        self.db(time.time())
+        self.stop()
         img_ctrl = None
         if self.settings.mode == "url":
             if self.settings.url == "":
@@ -204,7 +216,10 @@ class Hawks(Base):
                 **self.settings.render(NetworkWeatherImageController.settings)
             )
         elif self.settings.mode == "disc_animations":
-            self.ctrl.disc_animations()
+            #self.ctrl.disc_animations()
+            img_ctrl = DiscAnimationsImageController(
+                **self.settings.render(DiscAnimationsImageController.settings)
+            )
         else:
             img_ctrl = TextImageController(
                 **self.settings.render(TextImageController.settings)
@@ -218,7 +233,10 @@ class Hawks(Base):
 
             self.ctrl.set_frames(frames)
 
-        return self.ctrl.show(return_image=return_image)
+        return self.ctrl.show()
+
+    def screenshot(self):
+        return self.ctrl.screenshot()
 
     def stop(self):
         return self.ctrl.stop()

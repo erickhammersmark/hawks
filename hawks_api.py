@@ -10,6 +10,12 @@ import time
 
 from urllib.parse import unquote
 
+class HawksApiValidationException(Exception):
+    def __init__(self, msg, status_code=400):
+        self.msg = msg
+        self.status_code = status_code
+        super().__init__(msg)
+
 def read_urls(hawks):
     urls = []
     try:
@@ -23,18 +29,10 @@ def read_urls(hawks):
 def run_api(ip, port, hawks):
     api = api_server.Api(prefix="/")
 
-    hawks.settings.set("urls", "", choices=read_urls(hawks))
+    hawks.settings.set("urls", "", choices=read_urls(hawks), show=False)
 
     def tups(parts):
-        return ((parts[2 * n], parts[2 * n + 1]) for n in range(0, int(len(parts) / 2)))
-
-    def ci_dict_get(dictionary, key):
-        if key in dictionary:
-            return dictionary.get(key)
-        for d_key in dictionary:
-            if key.lower() == d_key.lower():
-                return dictionary.get(d_key)
-        return None
+        return ((parts[n], parts[n+1]) for n in range(0, len(parts), 2))
 
     def usage(req, msg=""):
         settings_help = "\n".join(
@@ -50,6 +48,8 @@ Hawks API usage:
   /api/set/key/value      Modify a current setting. /key/value can be repeated.
   /api/do/image           Returns a PNG of the current image
   /api/do/preset/name     Apply the named preset
+  /api/do/save            Save the current configuration
+  /api/do/load            Load a saved configuration
 
 Settings:
 {0}
@@ -94,26 +94,21 @@ Settings:
             return False
         return True
 
-    def api_set(req, msg=None, respond=True):
-        # such a stupid hack
-        if respond:
-            send = req.send
-        else:
-            send = make_tuple
-
-        parts = dict(tups(req.parts[2:]))
-        for key, value in parts.items():
+    def normalize_data(data):
+        """
+        Use API-specific knowledge to validate and normalize settings input.
+        Raises HakwsApiValidationException with an error message and status_code.
+        """
+        for key, value in data.items():
             if key == "filename":
                 if not only_alpha(value):
-                    continue
-            if key == "text" or key == "url" or key == "urls":
+                    raise HawksApiValidationException(f"Invalid filename: {value}")
+            elif key == "text" or key == "url" or key == "urls":
                 value = unquote(value)
+                data[key] = value
                 if key == "url" and value:
                     if not test_url(value):
-                        return send(
-                            400,
-                            body=f"Unable to fetch image from {value}",
-                        )
+                        raise HawksApiValidationException(f"Unable to fetch image from {value}")
                     if value not in hawks.settings.choices["urls"]:
                         hawks.settings.choices["urls"].append(value)
                     if hawks.settings.urls_file:
@@ -129,38 +124,59 @@ Settings:
                     try:
                         value = float(value)
                     except:
-                        hawks.start()
-                        return send(
-                            400,
-                            body=f"Value for key {key} must be of type float",
-                        )
+                        raise HawksApiValidationException(f"Value for key {key} must be of type float")
                 elif type(_val) is int:
                     try:
                         value = int(value)
                     except:
-                        return send(
-                            400,
-                            body=f"Value for key {key} must be of type int",
-                        )
+                        raise HawksApiValidationException(f"Value for key {key} must be of type int")
                 elif type(_val) is bool:
-                    if value in ["True", "true"]:
+                    if value in ["True", "true", True]:
                         value = True
-                    elif value in ["False", "false"]:
+                    elif value in ["False", "false", False]:
                         value = False
                     else:
-                        return send(
-                            400,
-                            body=f"Value for key {key} must be of type bool",
-                        )
+                        raise HawksApiValidationException(f"Value for key {key} must be of type bool")
                 else:
                     value = value
-                hawks.settings.set(key, value, show=False)
+
+                data[key] = value
+
             else:
-                return send(404, body=f"Unknown attribute: {key}")
-        hawks.stop()
-        hawks.show()
+                raise HawksApiValidationException(f"Unknown attribute: {key}", status_code=404)
+
+        return data
+
+    def api_set(req, msg=None, respond=True):
+        # such a stupid hack
+        if respond:
+            send = req.send
+        else:
+            send = make_tuple
+
+        data = {}
+        try:
+            data = json.loads(req.data)
+        except:
+            pass
+        data.update(dict(tups(req.parts[2:])))
+
+        try:
+            data = normalize_data(data)
+        except HawksApiValidationException as e:
+            return send(e.status_code, body=e.msg)
+
+        show = False
+        for key, value in data.items():
+            if hawks.settings.get(key) != value:
+                hawks.settings.set(key, value, show=False)
+                show = True
+
+        if show:
+            hawks.show()
+
         if msg:
-            return send(200, msg)
+            return send(200, body=msg)
         return send(200)
 
     def api_do(req):
@@ -176,14 +192,40 @@ Settings:
                 return req.send(400, body=f"Unknown preset: {parts[1]}")
             else:
                 return usage(
-                    req, msg="Path must have non-zero, even number of elements"
+                    req, body="Path must have non-zero, even number of elements"
                 )
         elif parts[0] == "image":
             return req.send(
-                200, body=hawks.show(return_image=True), content_type="image/png"
+                200, body=hawks.screenshot(), content_type="image/png"
             )
+        elif parts[0] == "save":
+            if parts[1]:
+                hawks.settings.save(parts[1])
+                hawks.settings.save_to_file()
+                return req.send(
+                    200, body="config saved as \"{}\"".format(parts[1])
+                )
+            else:
+                return req.send(
+                    400, body="unable to save config"
+                )
+        elif parts[0] == "load":
+            if parts[1]:
+                if parts[1] in hawks.settings.configs:
+                    hawks.settings.load(parts[1])
+                    return req.send(
+                        200, body="config loaded from {}".format(parts[1])
+                    )
+                else:
+                    return req.send(
+                        404, body="unable to find saved config {}".format(parts[1])
+                    )
+            else:
+                return req.send(
+                    400, body="no config name specified"
+                )
         else:
-            return usage(req, msg == f"Unknown command: {parts[0]}")
+            return usage(req, body == f"Unknown command: {parts[0]}")
 
     def api_fetch(req):
         with open("/".join(unquote(part) for part in req.parts), "rb") as IMG:
@@ -229,7 +271,7 @@ Settings:
         except FileNotFoundError:
             hawks.settings.choices["filename"] = None
 
-        hawks.settings.set("urls", hawks.settings.url, choices=read_urls(hawks))
+        hawks.settings.set("urls", hawks.settings.url, choices=read_urls(hawks), show=False)
 
         body = []
         body.append(f"<html><head><title>Hawks UI</title><script>{api_js}</script></head><body><H1>Hawks UI</H1>")

@@ -47,6 +47,7 @@ class MatrixController(Base):
         self.image = None
         self.orig_frames = []
         self.frames = []
+        self.final_frames = []
         self.dot_frames = []
         self.frame_no = 0
         self.next_time = 0
@@ -245,6 +246,11 @@ class MatrixController(Base):
             image.save(output, format="PNG")
             return output.getvalue()
 
+    def screenshot(self):
+        if self.orig_frames:
+            return self.make_png(self.apply_transformations(self.orig_frames[0][0], max_brightness=True))
+        return self.make_png(Image.new("RGB", (self.cols, self.rows), "black"))
+
     def apply_transformations(self, image, max_brightness=False):
         if not self.disc:
             image = self.resize_image(image, self.cols, self.rows)
@@ -265,25 +271,18 @@ class MatrixController(Base):
     def SetFrame(self, frame_no):
         """
         Use instead of matrix.SetImage
-        This does live last-second post-processing before calling matrix.SetImage
+        This will write to the disc or to an rgb matrix
         """
         self.db(f"SetFrame({frame_no})")
+        image = self.final_frames[frame_no][0]
 
         if self.disc:
-            return self._disc.set_image(self.dot_frames[frame_no][0])
+            self.db("setting disc image")
+            return self._disc.set_image(image)
+            #return self._disc.set_image(self.dot_frames[frame_no][0])
 
-        self.db("Decomposing (if requierd) and setting matrix image")
-        image = self.frames[frame_no][0]
-
-        # TODO: why do I do this at SetFrame time? Why not pre-render this?
-        if self.decompose:
-            if self.mock:
-                self.matrix.SetImage(image)
-            else:
-                self.matrix.Clear()
-                self.matrix.SetImage(self.reshape(image))
-        else:
-            self.matrix.SetImage(image)
+        self.db("setting matrix image")
+        self.matrix.SetImage(image)
 
     def render(self):
         self.db("render()")
@@ -300,24 +299,24 @@ class MatrixController(Base):
 
         self.SetFrame(self.frame_no)
 
-        duration = self.frames[self.frame_no][1]
+        duration = self.final_frames[self.frame_no][1]
 
         self.frame_no += self.direction
         if self.back_and_forth:
-            if self.frame_no >= len(self.frames):
-                self.frame_no = len(self.frames) - 2
+            if self.frame_no >= len(self.final_frames):
+                self.frame_no = len(self.final_frames) - 2
                 self.direction = -1
             if self.frame_no <= 0:
                 self.frame_no = 0
                 self.direction = 1
         else:
-            if self.frame_no >= len(self.frames):
+            if self.frame_no >= len(self.final_frames):
                 self.frame_no = 0
 
         if duration:
             self.next_time += duration / 1000.0
-            duration = self.next_time - time.time()
-            self.timer = Timer(duration, self.render)
+            frame_interval = self.next_time - time.time()
+            self.timer = Timer(frame_interval, self.render)
             self.timer.start()
 
     def disc_animations(self):
@@ -403,18 +402,20 @@ class MatrixController(Base):
                     circle_colors[idx] = 0
             self._disc.show()
 
-    def show(self, return_image=False):
+    def show(self):
         """
         This is called every time something changes, like run_sign starting or
         a settings change via the API.  This is what the API calls to ensure
         that the changes it just set are acted upon.
+
+        Use self.orig_frames as the source data
+        Generate self.frames which are the device-agnostic expression of
+        self.orig_frames + all of the applied transformations
+        Generate self.final_frames which are self.frames with the
+        device-specific transformations also applied.
         """
 
-        self.db(f"show({return_image})")
-
-        if return_image:
-            self.db("Returning png")
-            return self.make_png(self.apply_transformations(self.orig_frames[0][0], max_brightness=True))
+        self.db(f"show()")
 
         self.db("transforming frames")
         self.frames = [
@@ -425,6 +426,15 @@ class MatrixController(Base):
         if self.disc:
             self.db("Sampling frames for disc")
             self.dot_frames = [(self._disc.sample_image(frame[0]), frame[1]) for frame in self.frames]
+            self.final_frames = self.dot_frames
+        else:
+            if self.decompose:
+                if self.mock:
+                    self.final_frames = self.frames
+                else:
+                    self.final_frames = [(self.reshape(f[0]), f[1]) for f in self.frames]
+            else:
+                self.final_frames = self.frames
 
         self.frame_no = 0
 

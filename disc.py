@@ -25,7 +25,7 @@ mock = False
 try:
     import adafruit_dotstar
     import board
-except NotImplementedError:
+except:
     from mock import adafruit_dotstar, board
     mock = True
 
@@ -54,6 +54,20 @@ class Disc(object):
         total_pixels    number of pixels in this circle
     """
 
+    # dotstar disc numbers, radius of and count of pixels in each circle
+    circles = [
+        (4.5, 48),
+        (4.0, 44),
+        (3.5, 40),
+        (3.0, 32),
+        (2.5, 28),
+        (2.0, 24),
+        (1.5, 20),
+        (1.0, 12),
+        (0.5, 6),
+        (0.0, 1),
+    ]
+
     def __init__(self, *args, **kwargs):
         self.pixels = []
         self.max_radius = None
@@ -71,7 +85,8 @@ class Disc(object):
         locations in the image and samples it.
         """
 
-        if len(image) != 255:
+        #if len(image) != 255:
+        if not isinstance(image, list):
             pixels = self.sample_image(image)
         else:
             pixels = image
@@ -84,36 +99,20 @@ class Disc(object):
             self.dots[idx] = (0, 0, 0)
         self.dots.show()
 
-    def get_pixels(self, xy_range, circles=None):
+    def get_pixels(self, xy_range):
         """
         Get all of the x,y pairs for the pixels on the disc.
         xy_range is a tuple of (x,y) sizes (result will start at 0)
         circles is a list of (radius, pixel_count) tuples.
         """
-        self.init_pixels(circles)
+        self.init_pixels()
         return (self.calculate_xy(px, xy_range) for px in self.pixels)
 
-    def init_pixels(self, circles=None):
+    def init_pixels(self):
         self.pixels = []
-        if not circles:
-            # dotstar disc numbers, radius of and count of pixels in each circle
-            circles = [
-                (4.5, 48),
-                (4.0, 44),
-                (3.5, 40),
-                (3.0, 32),
-                (2.5, 28),
-                (2.0, 24),
-                (1.5, 20),
-                (1.0, 12),
-                (0.5, 6),
-                (0.0, 1),
-            ]
-        for (radius, num_pixels) in circles:
+        for (radius, num_pixels) in self.circles:
             for n in range(num_pixels):
                 self.pixels.append(DotstarPixel(radius, n, num_pixels))
-
-        self.circles = circles
 
     def get_max_radius(self):
         if self.max_radius is None:
