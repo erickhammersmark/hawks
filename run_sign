@@ -41,6 +41,7 @@ def parse_args():
   parser.add_argument("--noapi", action="store_true", default=False, help="Do not run the API service, just do what the CLI says")
   parser.add_argument("--gif_override_duration_zero", action="store_true", default=False, help="Run gifs with duration 0 at pre-duration-standard timing")
   parser.add_argument("--filter", default="none", help="Filter to apply to image")
+  parser.add_argument("--animation", default="none")
 
   autosize = parser.add_mutually_exclusive_group(required=False)
   autosize.add_argument("--autosize", dest="autosize", action="store_true")

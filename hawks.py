@@ -43,7 +43,7 @@ class HawksSettings(Settings):
             "animation",
             "none",
             helptext='Options are "waving" or "none"',
-            choices=["none", "waving", "disc_animations"],
+            choices=["none", "waving", "disc_animations", "glitch"],
         )
         self.set("amplitude", 0.4, helptext="Amplitude of waving animation")
         self.set("fps", 16, helptext="FPS of waving animation")

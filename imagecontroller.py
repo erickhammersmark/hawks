@@ -138,6 +138,9 @@ class ImageController(object):
     def init_anim_frames(self, image):
         return [image.copy() for n in range(0, self.fps)]
 
+    def generate_glitch_frames(self, image):
+        return [(image, 0)]
+
     def generate_waving_frames(self, image):
         cols = self.cols
         frames = self.init_anim_frames(image)
@@ -232,6 +235,8 @@ class TextImageController(ImageController):
         if not ignore_animation:
             if self.animation == "waving":
                 return self.generate_waving_frames(image)
+            elif self.animation == "glitch":
+                return self.generate_glitch_frames(image)
 
         return [(image, 0)]
 
