@@ -200,8 +200,11 @@ class ImageController(object):
         return (int(g), int(r), int(b))
 
 
-    def init_anim_frames(self, image):
-        return [image.copy() for n in range(0, self.fps)]
+    def init_anim_frames(self, image, count=None):
+        if count:
+            return [image.copy() for n in range(0, count)]
+        else:
+            return [image.copy() for n in range(0, self.fps)]
 
     def generate_glitch_frames(self, image):
         return [(image, 0)]
@@ -234,6 +237,26 @@ class ImageController(object):
         frame_times = [ms_per_frame for frame in frames]
         return list(zip(frames, frame_times))
 
+    def generate_rainbow_frames(self, image):
+        frames = self.init_anim_frames(image)
+        color_delta = 1024.0 / (self.cols * self.rows)
+        bg_rgb = ImageColor.getrgb(self.bgcolor)
+        color_value = 0.0
+        for idx, frame in enumerate(frames):
+            color_value = 1024.0 * idx / len(frames)
+            pixels = frame.getdata()
+            new_pixels = []
+            for pixel in pixels:
+                if pixel == bg_rgb:
+                    new_pixels.append(self.rainbow_color_from_value(int(color_value)))
+                else:
+                    new_pixels.append(pixel)
+                color_value += color_delta
+                if color_value > 1024:
+                    color_value -= 1024
+            frame.putdata(new_pixels)
+        return list(zip(frames, [50 for frame in frames]))
+
     def filter_halloween(self, frames):
         spooky = (255, 127, 00)
         for frame in frames:
@@ -263,6 +286,7 @@ class TextImageController(ImageController):
         "bgcolor",
         "outercolor",
         "innercolor",
+        "bgrainbow",
         "font",
         "text",
         "textsize",
@@ -277,6 +301,7 @@ class TextImageController(ImageController):
         self.bgcolor = "blue"
         self.outercolor = "black"
         self.innercolor = "white"
+        self.bgrainbow = False
         self.font = "FreeSansBold"
         self.text = "12"
         self.textsize = 27
@@ -315,6 +340,8 @@ class TextImageController(ImageController):
                 return self.generate_waving_frames(image)
             elif self.animation == "glitch":
                 return self.generate_glitch_frames(image)
+            elif self.animation == "rainbow":
+                return self.generate_rainbow_frames(image)
 
         return [(image, 0)]
 
