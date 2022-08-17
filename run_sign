@@ -43,6 +43,7 @@ def parse_args():
   parser.add_argument("--filter", default="none", help="Filter to apply to image")
   parser.add_argument("--animation", default="none")
   parser.add_argument("--fps", default=16, help="fps")
+  parser.add_argument("--bgbrightness", default=0, help="background for rainbow background")
 
   autosize = parser.add_mutually_exclusive_group(required=False)
   autosize.add_argument("--autosize", dest="autosize", action="store_true")

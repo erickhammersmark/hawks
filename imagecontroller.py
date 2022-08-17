@@ -248,7 +248,10 @@ class ImageController(object):
             new_pixels = []
             for pixel in pixels:
                 if pixel == bg_rgb:
-                    new_pixels.append(self.rainbow_color_from_value(int(color_value)))
+                    new_pixel = self.rainbow_color_from_value(int(color_value))
+                    if self.bgbrightness:
+                        new_pixel = tuple([int(float(p)*float(self.bgbrightness)/255) for p in new_pixel])   
+                    new_pixels.append(new_pixel)
                 else:
                     new_pixels.append(pixel)
                 color_value += color_delta
@@ -287,6 +290,7 @@ class TextImageController(ImageController):
         "outercolor",
         "innercolor",
         "bgrainbow",
+        "bgbrightness",
         "font",
         "text",
         "textsize",
@@ -302,6 +306,7 @@ class TextImageController(ImageController):
         self.outercolor = "black"
         self.innercolor = "white"
         self.bgrainbow = False
+        self.bgbrightness = 0
         self.font = "FreeSansBold"
         self.text = "12"
         self.textsize = 27

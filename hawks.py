@@ -28,6 +28,7 @@ class HawksSettings(Settings):
         self.set("bgcolor", "blue", helptext="Background color when rendering text")
         self.set("outercolor", "black", helptext="Outer color of rendered text")
         self.set("innercolor", "green", helptext="Inner color of rendered text")
+        self.set("bgbrightness", 0, helptext="background brightness of rainbow background")
         self.set("font", "FreeSansBold", helptext="Font to use when rendering text")
         self.set("x", 0)
         self.set("y", 0)
