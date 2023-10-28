@@ -7,7 +7,8 @@ import sys
 import tempfile
 import time
 from matrixcontroller import MatrixController
-from PIL import Image, ImageDraw, ImageFont, ImageColor, GifImagePlugin
+from PIL import Image, ImageDraw, ImageFont, ImageColor, GifImagePlugin, UnidentifiedImageError
+from random import randint, choice
 from urllib.parse import unquote
 
 
@@ -59,7 +60,12 @@ class ImageController(object):
     @property
     def image(self):
         try:
-            return self.render()[0][0]
+            frames = self.render()
+            if len(frames) == 1:
+                return self.render()[0][0]
+            else:
+                Image.save("/tmp/tmp.gif", save_all=True, append_images=[frame[0] for frame in frames], duration=[frame[1] for frame in frames], loop=0)
+                return open("/tmp/tmp.gif", "rb").read()
         except TypeError or IndexError:
             return None
 
@@ -200,11 +206,36 @@ class ImageController(object):
         return (int(g), int(r), int(b))
 
 
-    def init_anim_frames(self, image):
-        return [image.copy() for n in range(0, self.fps)]
+    def init_anim_frames(self, image, count=None):
+        if count is None:
+            count = self.fps
+        return [image.copy() for n in range(0, count)]
 
-    def generate_glitch_frames(self, image):
-        return [(image, 0)]
+    def glitch_effect_flicker(self, image, color="black"):
+        blank = Image.new("RGB", (self.cols, self.rows), color)
+        return [(blank, randint(10, 50))]
+
+    def glitch_effect_shift(self, image, color="black"):
+        blank = Image.new("RGB", (self.cols, self.rows), color)
+        blank.paste(image, (randint(1, self.cols), randint(1, self.rows)))
+        return [(blank, randint(10, 50))]
+
+    def generate_glitch_frames(self, image, glitchiness=5):
+        """
+        glitchiness is the chance out of 100 that any given frame is going to be a glitch.
+        """
+        glitch_functions = [
+            self.glitch_effect_flicker,
+            self.glitch_effect_shift,
+        ]
+        count = randint(self.fps, 4*self.fps)
+        frames = []
+        for frame in range(count):
+            if randint(1, 100) <= glitchiness:
+                frames.extend(choice(glitch_functions)(image))
+            else:
+                frames.append((image, 500))
+        return frames
 
     def generate_waving_frames(self, image):
         cols = self.cols
@@ -447,7 +478,11 @@ class FileImageController(ImageController):
         super().__init__(**kwargs)
 
     def render(self):
-        image = Image.open(unquote(self.filename))
+        try:
+            image = Image.open(unquote(self.filename))
+        except UnidentifiedImageError as e:
+            print(f"Unable to open image file {self.filename}: {e}")
+            return []
 
         if hasattr(image, "is_animated") and image.is_animated:
             return GifFileImageController(
@@ -674,7 +709,7 @@ def main():
         else:
             ctrl.set_frames(FileImageController(sys.argv[1]).render())
     else:
-        ctrl.set_frames(TextImageController().render())
+        ctrl.set_frames(TextImageController(animation="glitch").render())
     ctrl.show()
     while True:
         time.sleep(1000)

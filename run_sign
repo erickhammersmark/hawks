@@ -5,12 +5,13 @@ import os
 import time
 from hawks import Hawks
 from hawks_api import run_api
+from subprocess import Popen, PIPE
 
 
 def parse_args():
   parser = argparse.ArgumentParser()
-  parser.add_argument("--text", default="12", help="Default is \"12\"")
-  parser.add_argument("--bgcolor", default="blue", help="Default is blue")
+  parser.add_argument("--text", default="hello")
+  parser.add_argument("--bgcolor", default="black", help="Default is black")
   parser.add_argument("--outercolor", default="black", help="Text outline color, default is black")
   parser.add_argument("--innercolor", default="white", help="Text inner color, default is white")
   parser.add_argument("--cols", type=int, default=32, help="Image width, default 32")
@@ -31,7 +32,7 @@ def parse_args():
   parser.add_argument("--url", default="", help="Load image from URL")
   parser.add_argument("--urls_file", default="", help="File containing URLs to show in web UI (one URL per line)")
   parser.add_argument("--debug", action="store_true", default=False)
-  parser.add_argument("--brightness", default=255, type=int, help="min 0, max 255")
+  parser.add_argument("--brightness", default=192, type=int, help="min 0, max 255, default 192")
   parser.add_argument("--disc", action="store_true", default=False,
                       help="Display is an Adafruit Dotstar disc")
   parser.add_argument("--mock", action="store_true", default=False, help="Display is mock rgbmatrix")
@@ -42,6 +43,7 @@ def parse_args():
   parser.add_argument("--gif_override_duration_zero", action="store_true", default=False, help="Run gifs with duration 0 at pre-duration-standard timing")
   parser.add_argument("--filter", default="none", help="Filter to apply to image")
   parser.add_argument("--animation", default="none")
+  parser.add_argument("--showip", action="store_true", default=False, help="show the hosts's IP address when the sign first starts")
 
   autosize = parser.add_mutually_exclusive_group(required=False)
   autosize.add_argument("--autosize", dest="autosize", action="store_true")
@@ -51,27 +53,33 @@ def parse_args():
   return parser.parse_args()
   return args
 
+def whatismyip():
+  proc = Popen("ip addr show dev $(netstat -nr |grep '^0.0.0.0 ' |awk '{print $NF}') |awk '/inet / {print $2}' |sed 's,/.*,,'", shell=True, stdout=PIPE, stderr=PIPE)
+  stdout, stderr = proc.communicate()
+  if proc.returncode == 0 and stdout:
+    return str(stdout, encoding='utf-8').strip()
+  return None 
+
+def splitip(ip):
+  octets = ip.split(".")
+  return "{}.{}.\n{}.{}".format(*octets)
+
 def main():
   args = parse_args()
   hawks_args = dict(args._get_kwargs())
   hawks_args.pop("port")
   hawks = Hawks(**hawks_args)
+  myip = whatismyip()
+  if args.showip:
+    hawks.settings.set("text", splitip(myip))
   hawks.show()
   hawks.settings.choices["font"] = [x.strip(".ttf") for x in os.listdir("/usr/share/fonts/truetype/freefont")]
-  run_api('', args.port, hawks)
-
-
-def main():
-    args = parse_args()
-    hawks_args = dict(args._get_kwargs())
-    hawks_args.pop("port")
-    hawks = Hawks(**hawks_args)
-    hawks.show()
-    if args.noapi:
-        while True:
-            time.sleep(1000)
-    else:
-        run_api("", args.port, hawks)
+  if args.noapi:
+    while True:
+      time.sleep(1000)
+  else:
+    print("Web UI at http://{}:{}/".format(myip, args.port))
+    run_api("", args.port, hawks)
 
 
 if __name__ == "__main__":

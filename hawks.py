@@ -227,9 +227,20 @@ class Hawks(Base):
 
         if img_ctrl:
             frames = img_ctrl.render()
+            if not frames:
+                print("Image controller returned empty frames, not setting frames")
+                return self.ctrl.show()
 
             if "filter" in self.settings and self.settings.filter and self.settings.filter != "none":
                 frames = getattr(img_ctrl, "filter_" + self.settings.filter)(frames)
+
+            if self.settings.animation == "glitch":
+                self.ctrl.render_state["callback"] = getattr(self.ctrl, "render_glitch", None)
+                flash_image_ctrl_settings = self.settings.render(FileImageController.settings)
+                flash_image_ctrl_settings["filename"] = "img/jack3.jpg"
+                flash_image_ctrl = FileImageController(**flash_image_ctrl_settings)
+                self.ctrl.render_state["flash_image"] = self.ctrl.transform_and_reshape(flash_image_ctrl.render())[0][0][0]
+                print(self.ctrl.render_state["flash_image"])
 
             self.ctrl.set_frames(frames)
 

@@ -17,7 +17,7 @@ All you need to get started is to call `run_sign` and tell it to write to a mock
 
 `./run_sign --mock`
 
-This should display a white-on-blue 12 in your terminal. You can now point a web browser at `http://localhost:1212/` to adjust the settings, or hit the API endpoint. Try `http://localhost:1212/api/help` to get started. You can also try `./run_sign --help` to see some of the settings you can change.
+This should display a white-on-blue 12 in your terminal. You can now point a web browser at `http://localhost/` to adjust the settings, or hit the API endpoint. Try `http://localhost/api/help` to get started. You can also try `./run_sign --help` to see some of the settings you can change.
 
 ## Components
 

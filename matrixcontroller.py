@@ -4,7 +4,9 @@ import io
 import sys
 import time
 from base import Base
+from math import pi, sin
 from PIL import Image
+from random import randint, choice
 from threading import Timer
 
 
@@ -61,6 +63,9 @@ class MatrixController(Base):
         self.y = 0
         self.fit = False
         self.debug = False
+        self.render_state = {"callback": None}
+        self.rendered_frames = None
+        self.blank = Image.new("RGB", (self.cols, self.rows), "black")
 
         for (k, v) in kwargs.items():
             setattr(self, k, v)
@@ -74,7 +79,7 @@ class MatrixController(Base):
 
         self.db("Initializing matrix")
 
-        self.frames = [(Image.new("RGB", (self.cols, self.rows), "black"), 0)]
+        self.frames = [(self.blank, 0)]
 
         if self.disc:
             import disc
@@ -95,7 +100,7 @@ class MatrixController(Base):
                 options.rows = self.rows
                 options.chain_length = 1
             options.parallel = 1
-            options.gpio_slowdown = 2
+            options.gpio_slowdown = 4
             options.hardware_mapping = (
                 "adafruit-hat-pwm"  # If you have an Adafruit HAT: "adafruit-hat" or "adafruit-hat-pwm"
                                     # https://github.com/hzeller/rpi-rgb-led-matrix#troubleshooting
@@ -246,9 +251,24 @@ class MatrixController(Base):
             image.save(output, format="PNG")
             return output.getvalue()
 
+    def make_gif(self, frames):
+        image = frames[0][0]
+        append_images = [frame[0] for frame in frames[1:]]
+        durations = [frame[1] for frame in frames]
+        if self.back_and_forth:
+            for frameno in range(len(append_images) - 2, -1, -1):
+                append_images.append(append_images[frameno])
+                durations.append(durations[frameno])
+        with io.BytesIO() as output:
+            image.save(output, format="GIF", save_all=True, append_images=append_images, duration=durations, loop=0, disposal=1)
+            return output.getvalue()
+
     def screenshot(self):
         if self.orig_frames:
-            return self.make_png(self.apply_transformations(self.orig_frames[0][0], max_brightness=True))
+            if len(self.orig_frames) == 1:
+                return self.make_png(self.apply_transformations(self.orig_frames[0][0], max_brightness=True))
+            else:
+                return self.make_gif([(self.apply_transformations(f[0], max_brightness=True), f[1]) for f in self.orig_frames])
         return self.make_png(Image.new("RGB", (self.cols, self.rows), "black"))
 
     def apply_transformations(self, image, max_brightness=False):
@@ -268,13 +288,14 @@ class MatrixController(Base):
 
         return image
 
-    def SetFrame(self, frame_no):
+    def SetFrame(self, frame):
         """
         Use instead of matrix.SetImage
         This will write to the disc or to an rgb matrix
+        Input is a tuple where the first element is an Image
         """
-        self.db(f"SetFrame({frame_no})")
-        image = self.final_frames[frame_no][0]
+        self.db(f"SetFrame({frame})")
+        image = frame[0]
 
         if self.disc:
             self.db("setting disc image")
@@ -291,33 +312,112 @@ class MatrixController(Base):
             self.timer.cancel()
             self.timer = None
 
-        if not self.frames:
+        if not self.final_frames:
             return
 
         if not self.go:
             return
 
-        self.SetFrame(self.frame_no)
+        frame = None
+        if self.rendered_frames:
+            try:
+                frame = next(self.rendered_frames)
+            except StopIteration:
+                self.rendered_frames = None
 
-        duration = self.final_frames[self.frame_no][1]
+        if not self.rendered_frames:
+            if self.render_state.get("callback", None):
+                self.rendered_frames = self.render_state["callback"](self.orig_frames[self.frame_no])
+            else:
+                self.rendered_frames = iter([self.final_frames[self.frame_no]])
+            frame = next(self.rendered_frames)
 
-        self.frame_no += self.direction
-        if self.back_and_forth:
-            if self.frame_no >= len(self.final_frames):
-                self.frame_no = len(self.final_frames) - 2
-                self.direction = -1
-            if self.frame_no <= 0:
-                self.frame_no = 0
-                self.direction = 1
-        else:
-            if self.frame_no >= len(self.final_frames):
-                self.frame_no = 0
+            # adjust frame_no for the next time we render() on an empty set of self.rendered_frames
+            self.frame_no += self.direction
+            if self.back_and_forth:
+                if self.frame_no >= len(self.final_frames):
+                    self.frame_no = len(self.final_frames) - 2
+                    self.direction = -1
+                if self.frame_no <= 0:
+                    self.frame_no = 0
+                    self.direction = 1
+            else:
+                if self.frame_no >= len(self.final_frames):
+                    self.frame_no = 0
+
+        self.SetFrame(frame)
+        duration = frame[1]
 
         if duration:
             self.next_time += duration / 1000.0
             frame_interval = self.next_time - time.time()
             self.timer = Timer(frame_interval, self.render)
             self.timer.start()
+
+    def skew_image(self, image, start_row=0, end_row=None, start_radians=0, end_radians=2*pi, skew_depth=None):
+        if end_row is None:
+            end_row = self.rows
+        if skew_depth is None:
+            skew_depth = randint(int(self.cols/20), int(self.cols/4))
+        skewed_image = Image.new("RGB", (self.cols, self.rows), "black")
+        radian_delta = float(end_row - start_row) / (end_radians - start_radians)
+        angle = start_radians
+        new_pixels = []
+        cur_row = 0
+        row_pixels = []
+        for idx, pixel in enumerate(image.getdata()):
+            row = int(idx / self.cols)
+            if row != cur_row:
+                if row >= start_row and row < end_row:
+                    new_left_col = int(sin(angle) * skew_depth)
+                    angle += radian_delta
+                    if new_left_col < 0:
+                        new_left_col += self.cols
+                    skewed_row_pixels = row_pixels[new_left_col:-1] + row_pixels[0:new_left_col]
+                    row_pixels = skewed_row_pixels
+                new_pixels.extend(row_pixels)
+                row_pixels = []
+                cur_row = row
+            row_pixels.append(pixel)
+        if cur_row >= start_row and cur_row < end_row:
+            new_left_col = int(sin(angle) * skew_depth)
+            angle += radian_delta
+            if new_left_col < 0:
+                new_left_col += self.cols
+            skewed_row_pixels = row_pixels[new_left_col:-1] + row_pixels[0:new_left_col]
+            new_pixels.extend(skewed_row_pixels)
+        else:
+            new_pixels.extend(row_pixels)
+        skewed_image.putdata(new_pixels)
+        return skewed_image
+
+    def render_glitch(self, frame):
+        next_glitch_time = self.render_state.get("next_glitch_time", time.time())
+        if time.time() >= next_glitch_time:
+            self.render_state["next_glitch_time"] = next_glitch_time + randint(1000, 15000) / 1000.0
+        else:
+            return iter([frame])
+
+        glitch_mode = choice(["flicker", "skew", "flash_image"])
+        print(f"{time.time()} {glitch_mode}")
+
+        if glitch_mode == "flicker":
+            off_frames = randint(2, 12)
+            rendered_frames = []
+            for x in range(0, off_frames):
+                rendered_frames.append((self.blank, randint(10, 30)))
+            return iter(self.transform_and_reshape(rendered_frames)[1])
+
+        if glitch_mode == "skew":
+            skew_depth = randint(0 - self.cols, self.cols)
+            skew_duration = randint(400, 1000)
+            return iter(self.transform_and_reshape([(self.skew_image(frame[0]), skew_duration)])[1])
+
+        if glitch_mode == "flash_image":
+            flash_duration = randint(1000, 3000)
+            print(self.render_state["flash_image"])
+            return iter(self.transform_and_reshape([(self.render_state["flash_image"], flash_duration)])[1])
+
 
     def disc_animations(self):
       
@@ -402,6 +502,25 @@ class MatrixController(Base):
                     circle_colors[idx] = 0
             self._disc.show()
 
+    def transform_and_reshape(self, frames):
+        transformed_frames = [
+            (self.apply_transformations(img), duration)
+            for img, duration in frames
+        ]
+
+        final_frames = transformed_frames
+        if self.disc:
+            self.db("Sampling frames for disc")
+            self.dot_frames = [(self._disc.sample_image(frame[0]), frame[1]) for frame in transformed_frames]
+            final_frames = self.dot_frames
+        else:
+            if self.decompose:
+                if self.mock:
+                    final_frames = transformed_frames
+                else:
+                    final_frames = [(self.reshape(f[0]), f[1]) for f in transformed_frames]
+        return (transformed_frames, final_frames)
+
     def show(self):
         """
         This is called every time something changes, like run_sign starting or
@@ -418,23 +537,7 @@ class MatrixController(Base):
         self.db(f"show()")
 
         self.db("transforming frames")
-        self.frames = [
-            (self.apply_transformations(img), duration)
-            for img, duration in self.orig_frames
-        ]
-
-        if self.disc:
-            self.db("Sampling frames for disc")
-            self.dot_frames = [(self._disc.sample_image(frame[0]), frame[1]) for frame in self.frames]
-            self.final_frames = self.dot_frames
-        else:
-            if self.decompose:
-                if self.mock:
-                    self.final_frames = self.frames
-                else:
-                    self.final_frames = [(self.reshape(f[0]), f[1]) for f in self.frames]
-            else:
-                self.final_frames = self.frames
+        self.frames, self.final_frames = self.transform_and_reshape(self.orig_frames)
 
         self.frame_no = 0
 
