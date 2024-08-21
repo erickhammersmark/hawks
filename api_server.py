@@ -128,8 +128,8 @@ class Api(object):
                 self.api = api
                 Api.RequestHandler.__init__(self, *a, **kw)
 
-        print("Calling HTTPServer on ({}, {}) running as {}".format(ip, port, getpass.getuser()))
-        http.server.HTTPServer((ip, port), ApiRequestHandler).serve_forever()
+        print("Calling HTTPServer on ({}, {}) running as {}".format("", port, getpass.getuser()))
+        http.server.HTTPServer(("", port), ApiRequestHandler).serve_forever()
 
 
 if __name__ == "__main__":
