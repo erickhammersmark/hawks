@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import getpass
 import http.server
 import json
 import unittest
@@ -127,6 +128,7 @@ class Api(object):
                 self.api = api
                 Api.RequestHandler.__init__(self, *a, **kw)
 
+        print("Calling HTTPServer on ({}, {}) running as {}".format(ip, port, getpass.getuser()))
         http.server.HTTPServer((ip, port), ApiRequestHandler).serve_forever()
 
 

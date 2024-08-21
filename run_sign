@@ -81,7 +81,7 @@ def main():
       time.sleep(1000)
   else:
     print("Web UI at http://{}:{}/".format(myip, args.port))
-    run_api("", args.port, hawks)
+    run_api(myip, args.port, hawks)
 
 
 if __name__ == "__main__":
