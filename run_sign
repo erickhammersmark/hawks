@@ -60,7 +60,7 @@ def whatismyip():
   stdout, stderr = proc.communicate()
   if proc.returncode == 0 and stdout:
     return str(stdout, encoding='utf-8').strip()
-  return None 
+  return ""
 
 def splitip(ip):
   octets = ip.split(".")
@@ -72,7 +72,7 @@ def main():
   hawks_args.pop("port")
   hawks = Hawks(**hawks_args)
   myip = whatismyip()
-  if args.showip:
+  if myip and args.showip:
     hawks.settings.set("text", splitip(myip))
   hawks.show()
   hawks.settings.choices["font"] = [x.strip(".ttf") for x in os.listdir("/usr/share/fonts/truetype/freefont")]
@@ -80,7 +80,7 @@ def main():
     while True:
       time.sleep(1000)
   else:
-    print("Web UI at http://{}:{}/".format(myip, args.port))
+    print("Web UI at http://{}:{}/".format(myip or "0.0.0.0", args.port))
     run_api(myip, args.port, hawks)
 
 
