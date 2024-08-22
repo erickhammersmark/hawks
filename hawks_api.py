@@ -104,6 +104,7 @@ Settings:
             if key == "filename":
                 if not only_alpha(value):
                     raise HawksApiValidationException(f"Invalid filename: {value}")
+                value = unquote(value)
             elif key == "text" or key == "url" or key == "urls":
                 value = unquote(value)
                 data[key] = value

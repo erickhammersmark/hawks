@@ -32,8 +32,8 @@ class HawksSettings(Settings):
         self.set("font", "FreeSansBold", helptext="Font to use when rendering text")
         self.set("x", 0)
         self.set("y", 0)
-        self.set("rows", 32, helptext="Image height", choices=[32, 64])
-        self.set("cols", 32, helptext="Image width", choices=[32, 64])
+        self.set("rows", 32, helptext="Image height", choices=[32, 64, 128])
+        self.set("cols", 32, helptext="Image width", choices=[32, 64, 128])
         self.set(
             "decompose",
             False,
