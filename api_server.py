@@ -88,6 +88,8 @@ class Api(object):
             if body:
                 self.send_header("Content-Type", content_type)
                 self.send_header("Content-Length", len(body))
+            else:
+                self.send_header("Content-Length: 0")
             self.end_headers()
             if body:
                 if content_type.startswith("text"):
