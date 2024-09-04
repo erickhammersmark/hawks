@@ -18,6 +18,8 @@ class MatrixController(Base):
     settings = [
         "rows",
         "cols",
+        "p_rows",
+        "p_cols",
         "back_and_forth",
         "brightness",
         "decompose",
@@ -37,6 +39,8 @@ class MatrixController(Base):
     def __init__(self, *args, **kwargs):
         self.rows = 32
         self.cols = 32
+        self.p_rows = 32
+        self.p_cols = 32
         self.decompose = False
         self.brightness = 255
         self.brightness_mask = None
@@ -226,6 +230,38 @@ class MatrixController(Base):
                 img_data.append(orig_data[r + col])
         img.putdata(img_data)
         return img
+
+    def new_reshape(self, image, p_rows=32, p_cols=128):
+        """
+        Map image of size self.rows x self.cols to fit a
+        p_rows x p_cols display. For example:
+
+        rows = 64           AAAAAAAA  |-->
+        cols = 96           AAAAAAAA  |-->  AAAAAAAABBBBBBBBCCCCCCCC
+        panel_rows = 32     AAAAAAAA  |-->  AAAAAAAABBBBBBBBCCCCCCCC
+        panel_cols = 192    BBBBBBBB  |-->  AAAAAAAABBBBBBBBCCCCCCCC
+                            BBBBBBBB  |-->
+                            BBBBBBBB  |-->
+                            CCCCCCCC  |-->
+                            CCCCCCCC  |-->
+                            CCCCCCCC  |-->
+
+        Build a new Image of panel_rows x panel_cols.
+        """
+
+        rows, cols = self.rows, self.cols
+        if rows * cols != p_rows * p_cols:
+            rows -= rows % p_rows
+            cols -= p_cols % cols
+        img = Image.new("RGB", (p_cols, p_rows), "black")
+        orig_data = image.getdata()
+        img_data = []
+        for row in range(0, p_rows):
+            for data in (orig_data[r:r+cols] for r in rows if r % row == 0):
+                img_data.extend(data)
+        img.putdata(img_data)
+        return img
+
 
     def brighten(self, image):
         """
@@ -518,7 +554,7 @@ class MatrixController(Base):
                 if self.mock:
                     final_frames = transformed_frames
                 else:
-                    final_frames = [(self.reshape(f[0]), f[1]) for f in transformed_frames]
+                    final_frames = [(self.new_reshape(f[0], p_rows=self.p_rows, p_cols=self.p_cols), f[1]) for f in transformed_frames]
         return (transformed_frames, final_frames)
 
     def show(self):
