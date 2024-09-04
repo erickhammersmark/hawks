@@ -250,16 +250,25 @@ class MatrixController(Base):
         """
 
         rows, cols = self.rows, self.cols
+
         if rows * cols != p_rows * p_cols:
             rows -= rows % p_rows
             cols -= p_cols % cols
+
         img = Image.new("RGB", (p_cols, p_rows), "black")
-        orig_data = image.getdata()
+        orig_data = list(image.getdata())
+
+        n_panels = int(rows / p_rows)
+        if n_panels < 2:
+            img.putdata(orig_data)
+            return img
+
         img_data = []
         for row in range(0, p_rows):
-            for data in (orig_data[r:r+cols] for r in rows if r % row == 0):
-                img_data.extend(data)
-        img.putdata(img_data)
+            for panel_no in range(0, n_panels):
+                r = row * cols + cols * p_rows * panel_no
+                img_data.extend(orig_data[r:r+cols])
+        img.putdata(img_data[:p_cols*p_rows])
         return img
 
 
