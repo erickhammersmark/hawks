@@ -35,7 +35,7 @@ class HawksSettings(Settings):
         self.set("rows", 32, helptext="Image height", choices=[32, 64, 128])
         self.set("cols", 32, helptext="Image width", choices=[32, 64, 128])
         self.set("p_rows", 32, helptext="Matrix height", choices=[32, 64, 128])
-        self.set("p_cols", 32, helptext="Matrix width", choices=[32, 64, 128])
+        self.set("p_cols", 32, helptext="Matrix width", choices=[32, 64, 128, 256])
         self.set(
             "decompose",
             False,
