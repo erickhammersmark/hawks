@@ -88,8 +88,6 @@ class Api(object):
             if body:
                 self.send_header("Content-Type", content_type)
                 self.send_header("Content-Length", len(body))
-            else:
-                self.send_header("Content-Length: 0")
             self.end_headers()
             if body:
                 if content_type.startswith("text"):
@@ -131,7 +129,7 @@ class Api(object):
                 Api.RequestHandler.__init__(self, *a, **kw)
 
         print("Calling HTTPServer on ({}, {}) running as {}".format("", port, getpass.getuser()))
-        http.server.HTTPServer(("", port), ApiRequestHandler).serve_forever()
+        http.server.ThreadingHTTPServer(("", port), ApiRequestHandler).serve_forever()
 
 
 if __name__ == "__main__":
