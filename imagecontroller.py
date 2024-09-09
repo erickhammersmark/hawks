@@ -8,6 +8,7 @@ import sys
 import tempfile
 import time
 from base import Base
+from copy import copy
 from math import pi, sin
 from matrixcontroller import MatrixController
 from PIL import Image, ImageDraw, ImageFont, ImageColor, GifImagePlugin, UnidentifiedImageError
@@ -95,6 +96,7 @@ class ImageController(Base):
 
         self.frame_queue = frame_queue
         self.static_frames = []
+        self.bright_frames = []
 
         self.cols = 32
         self.rows = 32
@@ -173,7 +175,7 @@ class ImageController(Base):
                 #flash_image_ctrl = FileImageController(**flash_image_ctrl_settings)
                 #self.ctrl.render_state["flash_image"] = self.ctrl.transform_and_reshape(flash_image_ctrl.render())[0][0][0]
                 #print(self.ctrl.render_state["flash_image"])
-            self.static_frames = self.transform(frames)
+            self.static_frames, self.bright_frames = self.transform(frames)
             self.frame_no = 0
             self.direction = 1
 
@@ -195,11 +197,13 @@ class ImageController(Base):
             transformed_frames will include all of the user-requested transformations,
             such as rotations, brightness, or mirroring.
         """
-        transformed_frames = [
-            (self.apply_transformations(img), duration)
-            for img, duration in static_frames
-        ]
-        return transformed_frames
+        transformed_frames = []
+        bright_frames = []
+        for img, duration in static_frames:
+            image, bright_image = self.apply_transformations(img)
+            transformed_frames.append((image, duration))
+            bright_frames.append((bright_image, duration))
+        return transformed_frames, bright_frames
 
     @property
     def image(self):
@@ -572,19 +576,16 @@ class ImageController(Base):
             return output.getvalue()
 
     def screenshot(self):
-        if self.static_frames:
-            if len(self.static_frames) == 1:
-                return self.make_png(self.static_frames[0][0])
+        if self.bright_frames:
+            if len(self.bright_frames) == 1:
+                return self.make_png(self.bright_frames[0][0])
             else:
-                return self.make_gif(self.static_frames)
+                return self.make_gif(self.bright_frames)
         return self.make_png(Image.new("RGB", (self.cols, self.rows), "black"))
 
     def apply_transformations(self, image, max_brightness=False):
         if not getattr(self, "disc", None):
             image = self.resize_image(image, self.cols, self.rows)
-
-        if self.brightness != 255 and not max_brightness:
-            image = self.brighten(image)
 
         if self.transpose != "none":
             operation = getattr(Image, self.transpose.upper(), None)
@@ -594,7 +595,11 @@ class ImageController(Base):
         if self.rotate != 0:
             image = image.rotate(self.rotate)
 
-        return image
+        bright_image = copy(image)
+        if self.brightness != 255 and not max_brightness:
+            image = self.brighten(image)
+
+        return (image, bright_image)
 
     """
     def skew_image(self, image, start_row=0, end_row=None, start_radians=0, end_radians=2*pi, skew_depth=None):
