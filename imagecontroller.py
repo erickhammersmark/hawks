@@ -572,11 +572,11 @@ class ImageController(Base):
             return output.getvalue()
 
     def screenshot(self):
-        if self.orig_frames:
-            if len(self.orig_frames) == 1:
-                return self.make_png(self.apply_transformations(self.orig_frames[0][0], max_brightness=True))
+        if self.static_frames:
+            if len(self.static_frames) == 1:
+                return self.make_png(self.static_frames[0][0])
             else:
-                return self.make_gif([(self.apply_transformations(f[0], max_brightness=True), f[1]) for f in self.orig_frames])
+                return self.make_gif(self.static_frames)
         return self.make_png(Image.new("RGB", (self.cols, self.rows), "black"))
 
     def apply_transformations(self, image, max_brightness=False):

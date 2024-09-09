@@ -206,51 +206,17 @@ class MatrixController(Base):
             self.timer.cancel()
             self.timer = None
 
-        # self.final_frames should contain frames already prepared for this matrix
-        #if not self.final_frames:
-        #    return
-
         # self.show() sets self.go to true, but hawks.show() will set it to false so
         # that we stop spending time drawing animations while it renders new frames.
         # This was originally implemented for a pi2 and might be unnecessary on a pi4.
         if not self.go:
             return
 
-        # rendered_frames is a way to wedge in last-minute animations, potentially
-        # expanding each frame to a sequence of frames. This is for stuff like
-        # random glitches, flashes, anything that needs randomness over time.
-        """
-        if self.rendered_frames:
-            try:
-                frame = next(self.rendered_frames)
-            except StopIteration:
-                self.rendered_frames = None
-
-        if not self.rendered_frames:
-            if self.render_state.get("callback", None):
-                self.rendered_frames = self.render_state["callback"](self.orig_frames[self.frame_no])
-            else:
-                # if we don't have a render callback defined, just wrap an interator around the current frame
-                self.rendered_frames = iter([self.final_frames[self.frame_no]])
-            frame = next(self.rendered_frames)
-
-            # adjust frame_no for the next time we render() on an empty set of self.rendered_frames
-            self.frame_no += self.direction
-            if self.back_and_forth:
-                if self.frame_no >= len(self.final_frames):
-                    self.frame_no = len(self.final_frames) - 2
-                    self.direction = -1
-                if self.frame_no <= 0:
-                    self.frame_no = 0
-                    self.direction = 1
-            else:
-                if self.frame_no >= len(self.final_frames):
-                    self.frame_no = 0
-        """
-
         # draw this frame on the hardware thingy (or the mock)
         self.SetFrame(self.frame)
+
         duration = self.frame[1]
+
         if self.img_ctrl:
             self.img_ctrl.render()
         if not self.frame_queue.empty():
@@ -286,6 +252,7 @@ class MatrixController(Base):
         self.next_time = time.time()
         self.go = True
         #self.direction = 1
+        self.render()
         self.render()
 
     def stop(self):
