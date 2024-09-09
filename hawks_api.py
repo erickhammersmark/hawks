@@ -227,7 +227,7 @@ Settings:
                     400, body="no config name specified"
                 )
         else:
-            return usage(req, body == f"Unknown command: {parts[0]}")
+            return usage(req, f"Unknown command: {parts[0]}")
 
     def api_fetch(req):
         with open("/".join(unquote(part) for part in req.parts), "rb") as IMG:

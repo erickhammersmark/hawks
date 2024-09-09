@@ -1,18 +1,22 @@
 #!/usr/bin/env python3
 
+import io
 import json
 import math
 import requests
 import sys
 import tempfile
 import time
+from base import Base
+from math import pi, sin
 from matrixcontroller import MatrixController
 from PIL import Image, ImageDraw, ImageFont, ImageColor, GifImagePlugin, UnidentifiedImageError
 from random import randint, choice
+#from threading import Timer
 from urllib.parse import unquote
 
 
-class ImageController(object):
+class ImageController(Base):
     """
     Image Controller renders a list of tuples of RGB PIL.Image objects and
     durations in ms. Configure it with a reference to a Matrix Controller that
@@ -24,17 +28,63 @@ class ImageController(object):
     """
 
     settings = [
-        "cols",
-        "rows",
-        "animation",
-        "period",
-        "fps",
         "amplitude",
+        "animate_gifs",
+        "animation",
+        "back_and_forth",
+        "bgcolor",
+        "bgbrightness",
+        "bgrainbow",
+        "brightness",
+        "debug",
+        "cols",
+        "filename",
         "filter",
+        "fit",
+        "font",
+        "fps",
+        "gif_frame_no",
+        "gif_speed",
+        "gif_loop_delay",
+        "gif_override_duration_zero",
+        "hawks",
+        "innercolor",
         "mock",
+        "outercolor",
+        "period",
+        "rotate",
+        "rows",
+        "text",
+        "textsize",
+        "thickness",
+        "transpose",
+        "url",
+        "urls",
+        "x",
+        "y",
+        "zoom",
+        "zoom_level",
+        "zoom_center",
+        "autosize",
+        "margin",
+        "x",
+        "y",
     ]
 
-    def __init__(self, *args, **kwargs):
+    #def transform(frames_returner):
+    #    """
+    #        transformed_frames will include all of the user-requested transformations,
+    #        such as rotations, brightness, or mirroring.
+    #    """
+    #    def transformer(*args, **kwargs):
+    #        self = args[0]
+    #        transformed_frames = [
+    #            (self.apply_transformations(img), duration)
+    #            for img, duration in frames_returner(*args, **kwargs)
+    #        ]
+    #        return transformed_frames
+    #    return transformer
+    def __init__(self, frame_queue, *args, **kwargs):
         """
         ImageController objects should not pre-render images in __init__, as
         some properties of the ImageController will be assigned by the
@@ -42,20 +92,114 @@ class ImageController(object):
         at MatrixController.show() time, which is infrequent. It is OK to to
         expensive calculations in render().
         """
-        self.brightness_mask = None
+
+        self.frame_queue = frame_queue
+        self.static_frames = []
+
         self.cols = 32
         self.rows = 32
+        self.brightness = 255
+        self.brightness_mask = None
+        self.transpose = "none"
+        self.rotate = 0
+        self.zoom = False
+        self.direction = 1
+        self.back_and_forth = False
+        self.zoom_level = 1.0
+        self.zoom_center = True
+        self.x = 0
+        self.y = 0
+        self.fit = False
+        self.debug = False
+        self.render_state = {"callback": None}
         self.period = 1000
         self.fps = 16
         self.amplitude = 1
         self.animation = None
         self.filter = None
+        self.blank = Image.new("RGB", (self.cols, self.rows), "black")
+
+        # render state
+        self.frame_no = 0
+        self.direction = 1
+
         for (k, v) in kwargs.items():
             setattr(self, k, v)
         super().__init__()
 
+    def render_settings_hack(self, _settings):
+        return dict([(setting, getattr(self, setting, None)) for setting in _settings])
+
+    def show(self, mode):
+        img_ctrl = None
+        if mode == "url":
+            if self.url == "":
+                self.url = self.urls
+            img_ctrl = URLImageController(
+                **self.render_settings_hack(URLImageController.settings)
+            )
+        elif mode == "file" and self.filename != "none":
+            img_ctrl = FileImageController(
+                **self.render_settings_hack(FileImageController.settings)
+            )
+        elif mode == "network_weather":
+            img_ctrl = NetworkWeatherImageController(
+                **self.render_settings_hack(NetworkWeatherImageController.settings)
+            )
+        elif mode == "disc_animations":
+            #self.ctrl.disc_animations()
+            img_ctrl = DiscAnimationsImageController(
+                **self.render_settings_hack(DiscAnimationsImageController.settings)
+            )
+        else:
+            img_ctrl = TextImageController(
+                **self.render_settings_hack(TextImageController.settings)
+            )
+
+        if img_ctrl:
+            frames = img_ctrl.render()
+            if not frames:
+                print("Image controller returned empty frames, not setting static_frames")
+                return
+
+            if self.filter and self.filter != "none":
+                frames = getattr(img_ctrl, "filter_" + self.filter)(frames)
+
+            if self.animation == "glitch":
+                pass
+                #self.ctrl.render_state["callback"] = getattr(self.ctrl, "render_glitch", None)
+                #flash_image_ctrl_settings = self.settings.render(FileImageController.settings)
+                #flash_image_ctrl_settings["filename"] = "img/jack3.jpg"
+                #flash_image_ctrl = FileImageController(**flash_image_ctrl_settings)
+                #self.ctrl.render_state["flash_image"] = self.ctrl.transform_and_reshape(flash_image_ctrl.render())[0][0][0]
+                #print(self.ctrl.render_state["flash_image"])
+            self.static_frames = self.transform(frames)
+            self.frame_no = 0
+            self.direction = 1
+
     def render(self):
-        return [()]
+        self.frame_no += self.direction
+        if self.frame_no >= len(self.static_frames):
+            if self.back_and_forth:
+                self.direction = -1
+                self.frame_no += self.direction
+            else:
+                self.frame_no = 0
+        elif self.frame_no < 0:
+            self.direction = 1
+            self.frame_no = 0
+        self.frame_queue.put(self.static_frames[self.frame_no])
+
+    def transform(self, static_frames):
+        """
+            transformed_frames will include all of the user-requested transformations,
+            such as rotations, brightness, or mirroring.
+        """
+        transformed_frames = [
+            (self.apply_transformations(img), duration)
+            for img, duration in static_frames
+        ]
+        return transformed_frames
 
     @property
     def image(self):
@@ -311,6 +455,301 @@ class ImageController(object):
             frame[0].putdata(new_frame)
         return frames
 
+    def fill_out(self, image):
+        """
+        If an image doesn't have enough rows or columns to fill the matrix,
+        fill it in with black rows or columns.
+        """
+        cols, rows = image.size
+        if cols >= self.cols and rows >= self.rows:
+            return image
+
+        new_image = Image.new("RGB", (self.cols, self.rows), "black")
+        x = int((self.cols - cols) / 2)
+        y = int((self.rows - rows) / 2)
+
+        data = list(image.getdata())
+        new_data = list(new_image.getdata())
+        old_pixels = cols * rows
+        new_pixels = self.cols * self.rows
+        pos = 0
+        new_pos = self.cols * y + x
+        while new_pos < new_pixels and pos < old_pixels:
+            new_data[new_pos : new_pos + cols] = data[pos : pos + cols]
+            pos += cols
+            new_pos += self.cols
+        new_image.putdata(new_data)
+        return new_image
+
+    def resize_image(self, image, cols, rows):
+        orig_image_c, orig_image_r = image.size
+        panel_c, panel_r = cols, rows
+        new_c, new_r = panel_c, panel_r
+        left, right, top, bottom = 0, orig_image_c - 1, 0, orig_image_r - 1
+
+        # all of the manipulations are in image pixel space
+        # the image is not scaled into panel space until the call to image.resize() at the end
+        if self.zoom:
+            image_c, image_r = image.size
+            # zoom in on a pixel position in the image
+            # calculate how much the image we are keeping in each dimension
+            # bring bottom and right in total - that much
+            zoomed_r = image_r / self.zoom_level
+            zoomed_c = image_c / self.zoom_level
+            if self.zoom_center:
+                left = (image_c - zoomed_c) / 2
+                right = image_c - left
+                top = (image_r - zoomed_r) / 2
+                bottom = image_r - top
+            else:
+                left = self.x
+                right = left + zoomed_c
+                top = self.y
+                bottom = self.y + zoomed_r
+            image = image.crop((left, top, right, bottom))
+        if self.fit:
+            # crop the image to be square, preserving all of one dimension
+            image_c, image_r = image.size
+            left, right, top, bottom = 0, image_c - 1, 0, image_r - 1
+            if image_r > image_c:
+                delta = image_r - image_c
+                top = delta / 2
+                bottom -= (delta - top)
+            elif image_c > image_r:
+                delta = image_c - image_r
+                left = delta / 2
+                right -= (delta - left)
+            image = image.crop((left, top, right, bottom))
+        else:
+            # scale such that the longest dimension of the image fits on the panel
+            # default is to scale to the size (panel_c, panel_r)
+            # if one dimension is longer than the other, scale the shorter one
+            # to less than panel_c or panel_r to preserve aspect ratio
+            image_c, image_r = image.size
+            if image_c > image_r:
+                new_r = panel_r * float(image_r) / image_c
+            elif image_r > image_c:
+                new_c = panel_c * float(image_c) / image_r
+        image = image.resize((int(new_c), int(new_r)))
+        if new_c < self.cols or new_r < self.rows:
+            image = self.fill_out(image)
+        return image
+
+    def brighten(self, image):
+        """
+        Fun fact: this will only ever darken.
+        """
+        if self.brightness == 255:
+            return image
+
+        data = list(image.getdata())
+        newdata = []
+        for idx, pixel in enumerate(data):
+            brt = self.brightness
+            if self.brightness_mask:
+                brt = self.brightness_mask[idx]
+                if brt < 0:
+                    brt = self.brightness
+            newdata.append(tuple(int(c * brt / 255) for c in pixel))
+        image.putdata(newdata)
+        return image
+
+    def make_png(self, image):
+        with io.BytesIO() as output:
+            image.save(output, format="PNG")
+            return output.getvalue()
+
+    def make_gif(self, frames):
+        image = frames[0][0]
+        append_images = [frame[0] for frame in frames[1:]]
+        durations = [frame[1] for frame in frames]
+        if self.back_and_forth:
+            for frameno in range(len(append_images) - 2, -1, -1):
+                append_images.append(append_images[frameno])
+                durations.append(durations[frameno])
+        with io.BytesIO() as output:
+            image.save(output, format="GIF", save_all=True, append_images=append_images, duration=durations, loop=0, disposal=1)
+            return output.getvalue()
+
+    def screenshot(self):
+        if self.orig_frames:
+            if len(self.orig_frames) == 1:
+                return self.make_png(self.apply_transformations(self.orig_frames[0][0], max_brightness=True))
+            else:
+                return self.make_gif([(self.apply_transformations(f[0], max_brightness=True), f[1]) for f in self.orig_frames])
+        return self.make_png(Image.new("RGB", (self.cols, self.rows), "black"))
+
+    def apply_transformations(self, image, max_brightness=False):
+        if not getattr(self, "disc", None):
+            image = self.resize_image(image, self.cols, self.rows)
+
+        if self.brightness != 255 and not max_brightness:
+            image = self.brighten(image)
+
+        if self.transpose != "none":
+            operation = getattr(Image, self.transpose.upper(), None)
+            if operation != None:
+                image = image.transpose(operation)
+
+        if self.rotate != 0:
+            image = image.rotate(self.rotate)
+
+        return image
+
+    """
+    def skew_image(self, image, start_row=0, end_row=None, start_radians=0, end_radians=2*pi, skew_depth=None):
+        if end_row is None:
+            end_row = self.rows
+        if skew_depth is None:
+            skew_depth = randint(int(self.cols/20), int(self.cols/4))
+        skewed_image = Image.new("RGB", (self.cols, self.rows), "black")
+        radian_delta = float(end_row - start_row) / (end_radians - start_radians)
+        angle = start_radians
+        new_pixels = []
+        cur_row = 0
+        row_pixels = []
+        for idx, pixel in enumerate(image.getdata()):
+            row = int(idx / self.cols)
+            if row != cur_row:
+                if row >= start_row and row < end_row:
+                    new_left_col = int(sin(angle) * skew_depth)
+                    angle += radian_delta
+                    if new_left_col < 0:
+                        new_left_col += self.cols
+                    skewed_row_pixels = row_pixels[new_left_col:-1] + row_pixels[0:new_left_col]
+                    row_pixels = skewed_row_pixels
+                new_pixels.extend(row_pixels)
+                row_pixels = []
+                cur_row = row
+            row_pixels.append(pixel)
+        if cur_row >= start_row and cur_row < end_row:
+            new_left_col = int(sin(angle) * skew_depth)
+            angle += radian_delta
+            if new_left_col < 0:
+                new_left_col += self.cols
+            skewed_row_pixels = row_pixels[new_left_col:-1] + row_pixels[0:new_left_col]
+            new_pixels.extend(skewed_row_pixels)
+        else:
+            new_pixels.extend(row_pixels)
+        skewed_image.putdata(new_pixels)
+        return skewed_image
+    """
+
+    """
+    def render_glitch(self, frame):
+        next_glitch_time = self.render_state.get("next_glitch_time", time.time())
+        if time.time() >= next_glitch_time:
+            self.render_state["next_glitch_time"] = next_glitch_time + randint(1000, 15000) / 1000.0
+        else:
+            return iter([frame])
+
+        glitch_mode = choice(["flicker", "skew", "flash_image"])
+        print(f"{time.time()} {glitch_mode}")
+
+        if glitch_mode == "flicker":
+            off_frames = randint(2, 12)
+            rendered_frames = []
+            for x in range(0, off_frames):
+                rendered_frames.append((self.blank, randint(10, 30)))
+            return iter(self.transform_and_reshape(rendered_frames)[1])
+
+        if glitch_mode == "skew":
+            skew_depth = randint(0 - self.cols, self.cols)
+            skew_duration = randint(400, 1000)
+            return iter(self.transform_and_reshape([(self.skew_image(frame[0]), skew_duration)])[1])
+
+        if glitch_mode == "flash_image":
+            flash_duration = randint(1000, 3000)
+            print(self.render_state["flash_image"])
+            return iter(self.transform_and_reshape([(self.render_state["flash_image"], flash_duration)])[1])
+    """
+
+
+    """
+    def disc_animations(self):
+      
+        circle_colors = []
+        color = 100
+        for circle in self._disc.circles:
+            circle_colors.append(color)
+            color += 100
+
+        def rainbow_color_from_value(value):
+          border = 0
+          num_buckets = 6
+          max_value = 1024 # implicit min value of 0
+          bucket = (max_value - border * 2) / num_buckets
+          value = min(value, bucket * num_buckets) # bucket * num_buckets is the actual max value
+          r = 0
+          g = 0
+          b = 0
+          bright = self.brightness
+      
+          if value < border:
+            # red
+            r = bright
+            g = 0
+            b = 0
+          elif value < border + bucket * 1:
+            # red + increasing green
+            value -= border + bucket * 0
+            value = (value * bright) / bucket
+            r = bright
+            g = value
+            b = 0
+          elif value < border + bucket * 2:
+            # green + decreasing red
+            value -= border + bucket * 1
+            value = bucket - value
+            value = (value * bright) / bucket
+            r = value
+            g = bright
+            b = 0
+          elif value < border + bucket * 3:
+            # green + increasing blue
+            value -= border + bucket * 2
+            value = (value * bright) / bucket
+            r = 0
+            g = bright
+            b = value
+          elif value < border + bucket * 4:
+            # blue + decreasing green
+            value -= border + bucket * 3
+            value = bucket - value
+            value = (value * bright) / bucket
+            r = 0
+            g = value
+            b = bright
+          elif value < border + bucket * 5:
+            # blue + increasing red
+            value -= border + bucket * 4
+            value = (value * bright) / bucket
+            r = value
+            g = 0
+            b = bright
+          else:
+            # red + decreasing blue
+            value -= border + bucket * 5
+            value = bucket - value
+            value = (value * bright) / bucket
+            r = bright
+            g = 0
+            b = value
+          return (int(g), int(r), int(b))
+      
+        while True:
+            p = 0
+            for idx, circle in enumerate(self._disc.circles):
+                color = rainbow_color_from_value(circle_colors[idx])
+                for n in range(0, circle[1]):
+                    self._disc.dots[p] = color
+                    p += 1
+                circle_colors[idx] += 7
+                if circle_colors[idx] >= 1024:
+                    circle_colors[idx] = 0
+            self._disc.show()
+    """
+
 
 class TextImageController(ImageController):
     settings = ImageController.settings + [
@@ -343,7 +782,7 @@ class TextImageController(ImageController):
         self.margin = 2
         self.x = 0
         self.y = 0
-        super().__init__(*args, **kwargs)
+        super().__init__(None, *args, **kwargs)
 
     def render(self, autosize=True, ignore_animation=False):
         image = Image.new("RGB", (self.cols, self.rows), self.bgcolor)
@@ -504,7 +943,7 @@ class FileImageController(ImageController):
         self.gif_speed = 1
         self.gif_loop_delay = 0
         self.override_duration_zero = False
-        super().__init__(**kwargs)
+        super().__init__(None, **kwargs)
 
     def render(self):
         try:
@@ -595,7 +1034,7 @@ class NetworkWeatherImageController(ImageController):
     """
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(None, *args, **kwargs)
         self.network_weather_data = None
         self.network_weather_image = Image.new("RGB", (self.cols, self.rows), "black")
 
@@ -671,7 +1110,7 @@ class NetworkWeatherImageController(ImageController):
                 self.not_gcp_logo_pixels.append(n)
             n += 1
 
-        super().__init__(*args, **kwargs)
+        super().__init__(None, *args, **kwargs)
 
     def render(self):
         self.network_color = "black"
@@ -702,7 +1141,7 @@ class NetworkWeatherImageController(ImageController):
 
 class DiscAnimationsImageController(ImageController):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(None, *args, **kwargs)
 
     def render(self):
         import disc
@@ -738,7 +1177,9 @@ def main():
         else:
             ctrl.set_frames(FileImageController(sys.argv[1]).render())
     else:
-        ctrl.set_frames(TextImageController(animation="glitch").render())
+        #ctrl.set_frames(TextImageController(animation="glitch").render())
+        print(TextImageController().render())
+        ctrl.set_frames(TextImageController().render())
     ctrl.show()
     while True:
         time.sleep(1000)
@@ -746,3 +1187,66 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+"""
+def matrix_render(self):
+    self.db("render()")
+
+    # If we have a frame update pending, cancel it
+    if self.timer:
+        self.timer.cancel()
+        self.timer = None
+
+    # self.final_frames should contain frames already prepared for this matrix
+    if not self.final_frames:
+        return
+
+    # self.show() sets self.go to true, but hawks.show() will set it to false so
+    # that we stop spending time drawing animations while it renders new frames.
+    # This was originally implemented for a pi2 and might be unnecessary on a pi4.
+    if not self.go:
+        return
+
+    frame = None
+    # rendered_frames is a way to wedge in last-minute animations, potentially
+    # expanding each frame to a sequence of frames. This is for stuff like
+    # random glitches, flashes, anything that needs randomness over time.
+    if self.rendered_frames:
+        try:
+            frame = next(self.rendered_frames)
+        except StopIteration:
+            self.rendered_frames = None
+
+    if not self.rendered_frames:
+        if self.render_state.get("callback", None):
+            self.rendered_frames = self.render_state["callback"](self.orig_frames[self.frame_no])
+        else:
+            # if we don't have a render callback defined, just wrap an interator around the current frame
+            self.rendered_frames = iter([self.final_frames[self.frame_no]])
+        frame = next(self.rendered_frames)
+
+        # adjust frame_no for the next time we render() on an empty set of self.rendered_frames
+        self.frame_no += self.direction
+        if self.back_and_forth:
+            if self.frame_no >= len(self.final_frames):
+                self.frame_no = len(self.final_frames) - 2
+                self.direction = -1
+            if self.frame_no <= 0:
+                self.frame_no = 0
+                self.direction = 1
+        else:
+            if self.frame_no >= len(self.final_frames):
+                self.frame_no = 0
+
+    # draw this frame on the hardware thingy (or the mock)
+    self.SetFrame(frame)
+    duration = frame[1]
+
+    if duration:
+        # duration is in ms
+        self.next_time += duration / 1000.0
+        frame_interval = self.next_time - time.time()
+        self.timer = Timer(frame_interval, self.render)
+        self.timer.start()
+"""

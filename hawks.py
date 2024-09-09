@@ -5,14 +5,9 @@ import time
 from base import Base
 from settings import Settings
 from matrixcontroller import MatrixController
-from imagecontroller import (
-    TextImageController,
-    FileImageController,
-    GifFileImageController,
-    URLImageController,
-    NetworkWeatherImageController,
-    DiscAnimationsImageController,
-)
+from imagecontroller import ImageController
+from queue import Queue
+from threading import Thread
 
 
 class HawksSettings(Settings):
@@ -183,7 +178,9 @@ class Hawks(Base):
             else:
                 setattr(self, k, v)
 
-        self.ctrl = MatrixController(**self.settings.render(MatrixController.settings))
+        self.frame_queue = Queue()
+
+        self.ctrl = MatrixController(self.frame_queue, **self.settings.render(MatrixController.settings))
         self.settings.hawks = self
 
         if preset:
@@ -203,50 +200,9 @@ class Hawks(Base):
     def show(self):
         self.db(time.time())
         self.stop()
-        img_ctrl = None
-        if self.settings.mode == "url":
-            if self.settings.url == "":
-                self.settings.url = self.settings.urls
-            img_ctrl = URLImageController(
-                **self.settings.render(URLImageController.settings)
-            )
-        elif self.settings.mode == "file" and self.settings.filename != "none":
-            img_ctrl = FileImageController(
-                **self.settings.render(FileImageController.settings)
-            )
-        elif self.settings.mode == "network_weather":
-            img_ctrl = NetworkWeatherImageController(
-                **self.settings.render(NetworkWeatherImageController.settings)
-            )
-        elif self.settings.mode == "disc_animations":
-            #self.ctrl.disc_animations()
-            img_ctrl = DiscAnimationsImageController(
-                **self.settings.render(DiscAnimationsImageController.settings)
-            )
-        else:
-            img_ctrl = TextImageController(
-                **self.settings.render(TextImageController.settings)
-            )
-
-        if img_ctrl:
-            frames = img_ctrl.render()
-            if not frames:
-                print("Image controller returned empty frames, not setting frames")
-                return self.ctrl.show()
-
-            if "filter" in self.settings and self.settings.filter and self.settings.filter != "none":
-                frames = getattr(img_ctrl, "filter_" + self.settings.filter)(frames)
-
-            if self.settings.animation == "glitch":
-                self.ctrl.render_state["callback"] = getattr(self.ctrl, "render_glitch", None)
-                flash_image_ctrl_settings = self.settings.render(FileImageController.settings)
-                flash_image_ctrl_settings["filename"] = "img/jack3.jpg"
-                flash_image_ctrl = FileImageController(**flash_image_ctrl_settings)
-                self.ctrl.render_state["flash_image"] = self.ctrl.transform_and_reshape(flash_image_ctrl.render())[0][0][0]
-                print(self.ctrl.render_state["flash_image"])
-
-            self.ctrl.set_frames(frames)
-
+        img_ctrl = ImageController(self.frame_queue, **self.settings.render(ImageController.settings))
+        img_ctrl.show(self.settings.mode)
+        self.ctrl.set_img_ctrl(img_ctrl)
         return self.ctrl.show()
 
     def screenshot(self):
