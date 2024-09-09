@@ -20,19 +20,9 @@ class MatrixController(Base):
         "cols",
         "p_rows",
         "p_cols",
-        "back_and_forth",
-        "brightness",
         "decompose",
         "disc",
-        "transpose",
-        "rotate",
         "mock",
-        "zoom",
-        "zoom_level",
-        "zoom_center",
-        "x",
-        "y",
-        "fit",
         "debug",
     ]
 
@@ -42,33 +32,15 @@ class MatrixController(Base):
         self.p_rows = 32
         self.p_cols = 32
         self.decompose = False
-        self.brightness = 255
-        self.brightness_mask = None
         self.disc = False
         self._disc = None
-        self.transpose = "none"
-        self.rotate = 0
         self.mock = False
-        self.zoom = False
-        self.image = None
-        self.orig_frames = []
+        self.debug = False
         self.frames = []
-        self.final_frames = []
         self.dot_frames = []
-        self.frame_no = 0
         self.next_time = 0
         self.timer = None
         self.go = True
-        self.direction = 1
-        self.back_and_forth = False
-        self.zoom_level = 1.0
-        self.zoom_center = True
-        self.x = 0
-        self.y = 0
-        self.fit = False
-        self.debug = False
-        self.render_state = {"callback": None}
-        self.rendered_frames = None
         self.blank = Image.new("RGB", (self.cols, self.rows), "black")
         self.frame_queue = frame_queue
         self.frame = (self.blank, 0)
@@ -117,7 +89,6 @@ class MatrixController(Base):
     def set_img_ctrl(self, img_ctrl):
         self.img_ctrl = img_ctrl
 
-
     def reshape(self, image, p_rows=32, p_cols=128):
         """
         Map image of size self.rows x self.cols to fit a
@@ -160,8 +131,8 @@ class MatrixController(Base):
 
     def shape_one_for_display(self, frame):
         """
-            final_frames are the frames that also have the hardware-specific
-            changes applied, such as rendering for the dotstar disc or a chain of
+            apply the hardware-specific changes to one frame,
+            such as rendering for the dotstar disc or a chain of
             LED matrix panels.
         """
         if self.disc:
@@ -191,14 +162,19 @@ class MatrixController(Base):
         if self.disc:
             self.db("setting disc image")
             return self._disc.set_image(image)
-            #return self._disc.set_image(self.dot_frames[frame_no][0])
 
         self.db("setting matrix image")
         self.matrix.SetImage(image)
 
+    def update_frame(self):
+        if self.img_ctrl:
+            self.img_ctrl.render()
+        if not self.frame_queue.empty():
+            self.frame = self.shape_one_for_display(self.frame_queue.get())
+
     def render(self):
-        start_time = time.time()
         # new methodology: display self.frame, ask image controller for another frame, wait, repeat
+        start_time = time.time()
         self.db("render()")
 
         # If we have a frame update pending, cancel it
@@ -213,14 +189,14 @@ class MatrixController(Base):
             return
 
         # draw this frame on the hardware thingy (or the mock)
+        if not self.frame:
+            self.frame=(self.blank, 0)
+            self.update_frame()
         self.SetFrame(self.frame)
 
         duration = self.frame[1]
 
-        if self.img_ctrl:
-            self.img_ctrl.render()
-        if not self.frame_queue.empty():
-            self.frame = self.shape_one_for_display(self.frame_queue.get())
+        self.update_frame()
 
         if duration:
             # duration is in ms
@@ -234,25 +210,15 @@ class MatrixController(Base):
         This is called every time something changes, like run_sign starting or
         a settings change via the API.  This is what the API calls to ensure
         that the changes it just set are acted upon.
-
-        Use self.orig_frames as the source data
-        Generate self.frames which are the device-agnostic expression of
-        self.orig_frames + all of the applied transformations
-        Generate self.final_frames which are self.frames with the
-        device-specific transformations also applied.
         """
 
         self.db(f"show()")
 
         self.db("transforming frames")
-        #self.final_frames = self.notransform_and_reshape(self.orig_frames)
-
-        #self.frame_no = 0
 
         self.next_time = time.time()
+        self.frame = None
         self.go = True
-        #self.direction = 1
-        self.render()
         self.render()
 
     def stop(self):
