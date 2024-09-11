@@ -13,7 +13,7 @@ from math import pi, sin
 from matrixcontroller import MatrixController
 from PIL import Image, ImageDraw, ImageFont, ImageColor, GifImagePlugin, UnidentifiedImageError
 from random import randint, choice
-#from threading import Timer
+from threading import Timer
 from urllib.parse import unquote
 
 
@@ -72,19 +72,6 @@ class ImageController(Base):
         "y",
     ]
 
-    #def transform(frames_returner):
-    #    """
-    #        transformed_frames will include all of the user-requested transformations,
-    #        such as rotations, brightness, or mirroring.
-    #    """
-    #    def transformer(*args, **kwargs):
-    #        self = args[0]
-    #        transformed_frames = [
-    #            (self.apply_transformations(img), duration)
-    #            for img, duration in frames_returner(*args, **kwargs)
-    #        ]
-    #        return transformed_frames
-    #    return transformer
     def __init__(self, frame_queue, *args, **kwargs):
         """
         ImageController objects should not pre-render images in __init__, as
@@ -120,6 +107,9 @@ class ImageController(Base):
         self.animation = None
         self.filter = None
         self.blank = Image.new("RGB", (self.cols, self.rows), "black")
+        self.queue_target_depth = 20
+        self.render_calls = 0
+        self.go = True
 
         # render state
         self.frame_no = 0
@@ -179,18 +169,30 @@ class ImageController(Base):
             self.frame_no = 0
             self.direction = 1
 
+    def stop(self):
+        self.go = False
+
     def render(self):
-        self.frame_no += self.direction
-        if self.frame_no >= len(self.static_frames):
-            if self.back_and_forth:
-                self.direction = -1
-                self.frame_no += self.direction
-            else:
+        #self.render_calls += 1
+        #print(f"{self.render_calls}, {self.frame_queue.qsize()}")
+        if getattr(self, "timer", None):
+            self.timer.cancel()
+        if not self.go:
+            return
+        while self.frame_queue.qsize() < self.queue_target_depth:
+            self.frame_no += self.direction
+            if self.frame_no >= len(self.static_frames):
+                if self.back_and_forth:
+                    self.direction = -1
+                    self.frame_no += self.direction
+                else:
+                    self.frame_no = 0
+            elif self.frame_no < 0:
+                self.direction = 1
                 self.frame_no = 0
-        elif self.frame_no < 0:
-            self.direction = 1
-            self.frame_no = 0
-        self.frame_queue.put(self.static_frames[self.frame_no])
+            self.frame_queue.put(self.static_frames[self.frame_no])
+        self.timer = Timer(0.100, self.render)
+        self.timer.start()
 
     def transform(self, static_frames):
         """
@@ -204,18 +206,6 @@ class ImageController(Base):
             transformed_frames.append((image, duration))
             bright_frames.append((bright_image, duration))
         return transformed_frames, bright_frames
-
-    @property
-    def image(self):
-        try:
-            frames = self.render()
-            if len(frames) == 1:
-                return self.render()[0][0]
-            else:
-                Image.save("/tmp/tmp.gif", save_all=True, append_images=[frame[0] for frame in frames], duration=[frame[1] for frame in frames], loop=0)
-                return open("/tmp/tmp.gif", "rb").read()
-        except TypeError or IndexError:
-            return None
 
     def shift_column(self, image, column, delta):
         rows = self.rows
@@ -1193,65 +1183,3 @@ def main():
 if __name__ == "__main__":
     main()
 
-
-"""
-def matrix_render(self):
-    self.db("render()")
-
-    # If we have a frame update pending, cancel it
-    if self.timer:
-        self.timer.cancel()
-        self.timer = None
-
-    # self.final_frames should contain frames already prepared for this matrix
-    if not self.final_frames:
-        return
-
-    # self.show() sets self.go to true, but hawks.show() will set it to false so
-    # that we stop spending time drawing animations while it renders new frames.
-    # This was originally implemented for a pi2 and might be unnecessary on a pi4.
-    if not self.go:
-        return
-
-    frame = None
-    # rendered_frames is a way to wedge in last-minute animations, potentially
-    # expanding each frame to a sequence of frames. This is for stuff like
-    # random glitches, flashes, anything that needs randomness over time.
-    if self.rendered_frames:
-        try:
-            frame = next(self.rendered_frames)
-        except StopIteration:
-            self.rendered_frames = None
-
-    if not self.rendered_frames:
-        if self.render_state.get("callback", None):
-            self.rendered_frames = self.render_state["callback"](self.orig_frames[self.frame_no])
-        else:
-            # if we don't have a render callback defined, just wrap an interator around the current frame
-            self.rendered_frames = iter([self.final_frames[self.frame_no]])
-        frame = next(self.rendered_frames)
-
-        # adjust frame_no for the next time we render() on an empty set of self.rendered_frames
-        self.frame_no += self.direction
-        if self.back_and_forth:
-            if self.frame_no >= len(self.final_frames):
-                self.frame_no = len(self.final_frames) - 2
-                self.direction = -1
-            if self.frame_no <= 0:
-                self.frame_no = 0
-                self.direction = 1
-        else:
-            if self.frame_no >= len(self.final_frames):
-                self.frame_no = 0
-
-    # draw this frame on the hardware thingy (or the mock)
-    self.SetFrame(frame)
-    duration = frame[1]
-
-    if duration:
-        # duration is in ms
-        self.next_time += duration / 1000.0
-        frame_interval = self.next_time - time.time()
-        self.timer = Timer(frame_interval, self.render)
-        self.timer.start()
-"""

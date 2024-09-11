@@ -83,6 +83,9 @@ class HawksSettings(Settings):
             "mock", False, helptext="Display is mock rgbmatrix", choices=[False, True]
         )
         self.set(
+            "nodisplay", False, helptext="Do not output to a display, including the mock", choices=[False, True]
+        )
+        self.set(
             "mode",
             "text",
             helptext="Valid modes are 'text', 'file', 'url', and 'network_weather'",
@@ -100,7 +103,7 @@ class HawksSettings(Settings):
         self.set("filter", "none", choices=["none", "halloween"], helptext="Filter to apply to image")
         
 
-    def set(self, name, value, show=True, **kwargs):
+    def set(self, name, value, **kwargs):
         """
         Write the value to ourself.
         If we are configured with a reference to a Hawks object, check the settings of its
@@ -114,8 +117,8 @@ class HawksSettings(Settings):
         if self.hawks:
             if name in self.hawks.ctrl.settings:
                 setattr(self.hawks.ctrl, name, self.get(name))
-            if show:
-                self.hawks.show()
+            if name in self.hawks.img_ctrl.settings:
+                setattr(self.hawks.img_ctrl, name, self.get(name))
 
     def render(self, names):
         """
@@ -181,9 +184,10 @@ class Hawks(Base):
         self.frame_queue = Queue()
 
         self.ctrl = MatrixController(self.frame_queue, **self.settings.render(MatrixController.settings))
+        self.img_ctrl = ImageController(self.frame_queue, **self.settings.render(ImageController.settings))
         self.settings.hawks = self
 
-        if preset:
+        if preset and preset != "none":
             self.apply_preset(preset)
 
     def db(self, msg):
@@ -192,24 +196,25 @@ class Hawks(Base):
     def apply_preset(self, preset):
         if preset in Hawks.PRESETS:
             for k, v in Hawks.PRESETS[preset].items():
-                self.settings.set(k, v, show=False)
-            self.show()
+                self.settings.set(k, v)
             return True
         return False
 
     def show(self):
         self.db(time.time())
         self.stop()
-        img_ctrl = ImageController(self.frame_queue, **self.settings.render(ImageController.settings))
-        img_ctrl.show(self.settings.mode)
-        self.ctrl.set_img_ctrl(img_ctrl)
+        self.img_ctrl = ImageController(self.frame_queue, **self.settings.render(ImageController.settings))
+        self.img_ctrl.show(self.settings.mode)
+        self.img_ctrl_render_thread = Thread(target=self.img_ctrl.render)
+        self.img_ctrl_render_thread.start()
         return self.ctrl.show()
 
     def screenshot(self):
         return self.ctrl.img_ctrl.screenshot()
 
     def stop(self):
-        return self.ctrl.stop()
+        self.img_ctrl.stop()
+        self.ctrl.stop()
 
     def start(self):
         return self.ctrl.start()

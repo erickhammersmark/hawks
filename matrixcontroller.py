@@ -1,12 +1,8 @@
 #!/usr/bin/env python3
 
-import io
-import sys
 import time
 from base import Base
-from math import pi, sin
 from PIL import Image
-from random import randint, choice
 from threading import Timer
 
 
@@ -23,6 +19,7 @@ class MatrixController(Base):
         "decompose",
         "disc",
         "mock",
+        "nodisplay",
         "debug",
     ]
 
@@ -134,6 +131,8 @@ class MatrixController(Base):
             apply the hardware-specific changes to one frame,
             such as rendering for the dotstar disc or a chain of
             LED matrix panels.
+
+            Consider some kind of cache for this.
         """
         if self.disc:
             return (self._disc.sample_image(frame[0]), frame[1])
@@ -158,6 +157,8 @@ class MatrixController(Base):
         """
         self.db(f"SetFrame({frame})")
         image = frame[0]
+        if self.nodisplay:
+            return
 
         if self.disc:
             self.db("setting disc image")
@@ -166,15 +167,7 @@ class MatrixController(Base):
         self.db("setting matrix image")
         self.matrix.SetImage(image)
 
-    def update_frame(self):
-        if self.img_ctrl:
-            self.img_ctrl.render()
-        if not self.frame_queue.empty():
-            self.frame = self.shape_one_for_display(self.frame_queue.get())
-
     def render(self):
-        # new methodology: display self.frame, ask image controller for another frame, wait, repeat
-        start_time = time.time()
         self.db("render()")
 
         # If we have a frame update pending, cancel it
@@ -184,23 +177,30 @@ class MatrixController(Base):
 
         # self.show() sets self.go to true, but hawks.show() will set it to false so
         # that we stop spending time drawing animations while it renders new frames.
-        # This was originally implemented for a pi2 and might be unnecessary on a pi4.
+        # Also used by hawks.show() to make this ImageController exit so a new one
+        # can be the only thing writing to the frame queue.
         if not self.go:
             return
 
         # draw this frame on the hardware thingy (or the mock)
+        if self.frame and self.frame_queue.empty():
+            # we were showing something and have nothing: leave it up for another duration ms
+            pass
+        elif not self.frame_queue.empty():
+            # it's time for a new one and there's something in the queue. get it.
+            self.frame = self.shape_one_for_display(self.frame_queue.get())
         if not self.frame:
-            self.frame=(self.blank, 0)
-            self.update_frame()
+            # if it's time for a new frame and we don't have one at all,
+            # blank for 100ms, then try again
+            self.frame=(self.blank, 100)
+
         self.SetFrame(self.frame)
 
         duration = self.frame[1]
 
-        self.update_frame()
-
         if duration:
             # duration is in ms
-            self.next_time = start_time + duration / 1000.0
+            self.next_time = self.next_time + duration / 1000.0
             frame_interval = self.next_time - time.time()
             self.timer = Timer(frame_interval, self.render)
             self.timer.start()

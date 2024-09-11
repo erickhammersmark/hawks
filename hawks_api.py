@@ -30,7 +30,7 @@ def read_urls(hawks):
 def run_api(ip, port, hawks):
     api = api_server.Api(prefix="/")
 
-    hawks.settings.set("urls", "", choices=read_urls(hawks), show=False)
+    hawks.settings.set("urls", "", choices=read_urls(hawks))
 
     def tups(parts):
         return ((parts[n], parts[n+1]) for n in range(0, len(parts), 2))
@@ -171,7 +171,7 @@ Settings:
         show = False
         for key, value in data.items():
             if hawks.settings.get(key) != value:
-                hawks.settings.set(key, value, show=False)
+                hawks.settings.set(key, value)
                 show = True
 
         if show:
