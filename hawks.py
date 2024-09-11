@@ -215,6 +215,8 @@ class Hawks(Base):
     def stop(self):
         self.img_ctrl.stop()
         self.ctrl.stop()
+        while not self.frame_queue.empty():
+            self.frame_queue.get()
 
     def start(self):
         return self.ctrl.start()

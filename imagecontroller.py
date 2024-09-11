@@ -123,6 +123,7 @@ class ImageController(Base):
         return dict([(setting, getattr(self, setting, None)) for setting in _settings])
 
     def show(self, mode):
+        self.go = True
         img_ctrl = None
         if mode == "url":
             if self.url == "":
@@ -168,9 +169,12 @@ class ImageController(Base):
             self.static_frames, self.bright_frames = self.transform(frames)
             self.frame_no = 0
             self.direction = 1
+        self.render()
 
     def stop(self):
         self.go = False
+        if getattr(self, "timer", None):
+            self.timer.cancel()
 
     def render(self):
         #self.render_calls += 1
@@ -178,6 +182,8 @@ class ImageController(Base):
         if getattr(self, "timer", None):
             self.timer.cancel()
         if not self.go:
+            return
+        if not self.static_frames:
             return
         while self.frame_queue.qsize() < self.queue_target_depth:
             self.frame_no += self.direction

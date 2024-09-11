@@ -226,6 +226,8 @@ class MatrixController(Base):
         Stop displaying new frames.
         """
         self.go = False
+        if getattr(self, "timer", None):
+            self.timer.cancel()
 
     def start(self):
         """
