@@ -210,7 +210,7 @@ class Hawks(Base):
         return self.ctrl.show()
 
     def screenshot(self):
-        return self.ctrl.img_ctrl.screenshot()
+        return self.img_ctrl.screenshot()
 
     def stop(self):
         self.img_ctrl.stop()
