@@ -20,6 +20,7 @@ class MatrixController(Base):
         "disc",
         "mock",
         "nodisplay",
+        "row_address_type",
         "debug",
     ]
 
@@ -67,6 +68,7 @@ class MatrixController(Base):
 
             options = RGBMatrixOptions()
             options.cols = self.cols
+            options.row_address_type = self.row_address_type
             if self.decompose:
                 options.rows = int(self.rows / 2)
                 options.chain_length = 2

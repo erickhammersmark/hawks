@@ -39,6 +39,7 @@ def parse_args():
                       help="Display is an Adafruit Dotstar disc")
   parser.add_argument("--mock", action="store_true", default=False, help="Display is mock rgbmatrix")
   parser.add_argument("--nodisplay", action="store_true", default=False, help="Do not output to a display, not even the mock")
+  parser.add_argument("--row_address_type", default=0, type=int, help="rpi-rgb-led-matrix led-row-addr-type, default 0")
   parser.add_argument("--mode", default="text",
                       help="Mode of operation.  Valid values are 'text', 'file', 'url', 'disc_animations', and 'network_weather'")
   parser.add_argument("--fontdir", default="/usr/share/fonts/truetype/freefont", help="TrueType font directory (only for webui)")

@@ -37,6 +37,12 @@ class HawksSettings(Settings):
             helptext="Display is a chain of two 64x32 RGB LED matrices arranged to form a big square",
             choices=[False, True],
         )
+        self.set(
+            "row_address_type",
+            0,
+            helptext="rpi-rgb-led-matrix option led-row-addr-type, default 0",
+            choices=[0, 1, 2, 3, 4],
+        )
         self.set("text", "12", helptext='Text to render (if filename is "none")')
         self.set("textsize", 27)
         self.set("thickness", 1, helptext="Thickness of outercolor border around text")
