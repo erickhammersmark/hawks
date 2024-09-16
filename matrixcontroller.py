@@ -39,13 +39,14 @@ class MatrixController(Base):
         self.next_time = 0
         self.timer = None
         self.go = True
-        self.blank = Image.new("RGB", (self.cols, self.rows), "black")
         self.frame_queue = frame_queue
-        self.frame = (self.blank, 0)
         self.img_ctrl = None
 
         for (k, v) in kwargs.items():
             setattr(self, k, v)
+
+        self.blank = Image.new("RGB", (self.cols, self.rows), "black")
+        self.frame = (self.blank, 0)
 
         self.init_matrix()
 
@@ -67,14 +68,13 @@ class MatrixController(Base):
                 from rgbmatrix import RGBMatrix, RGBMatrixOptions
 
             options = RGBMatrixOptions()
-            options.cols = self.cols
             options.row_address_type = self.row_address_type
+
+            options.cols = self.p_cols
+            options.rows = self.p_rows
+            options.chain_length = 1
             if self.decompose:
-                options.rows = int(self.rows / 2)
-                options.chain_length = 2
-            else:
-                options.rows = self.rows
-                options.chain_length = 1
+                options.chain_length = int(self.rows / self.p_rows)
             options.parallel = 1
             options.gpio_slowdown = 4
             options.hardware_mapping = (
@@ -88,7 +88,7 @@ class MatrixController(Base):
     def set_img_ctrl(self, img_ctrl):
         self.img_ctrl = img_ctrl
 
-    def reshape(self, image, p_rows=32, p_cols=128):
+    def reshape(self, image):
         """
         Map image of size self.rows x self.cols to fit a
         p_rows x p_cols display. For example:
@@ -107,6 +107,7 @@ class MatrixController(Base):
         """
 
         rows, cols = self.rows, self.cols
+        p_rows, p_cols = self.p_rows, self.p_cols
 
         if rows * cols != p_rows * p_cols:
             rows -= rows % p_rows
@@ -116,7 +117,7 @@ class MatrixController(Base):
         orig_data = list(image.getdata())
 
         n_panels = int(rows / p_rows)
-        if n_panels < 2:
+        if n_panels == 1:
             img.putdata(orig_data)
             return img
 
@@ -143,7 +144,7 @@ class MatrixController(Base):
                 if self.mock:
                     return frame
                 else:
-                    return (self.reshape(frame[0], p_rows=self.p_rows, p_cols=self.p_cols), frame[1])
+                    return (self.reshape(frame[0]), frame[1])
             return frame
 
     def shape_for_display(self, frames):

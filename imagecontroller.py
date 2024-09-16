@@ -106,7 +106,6 @@ class ImageController(Base):
         self.amplitude = 1
         self.animation = None
         self.filter = None
-        self.blank = Image.new("RGB", (self.cols, self.rows), "black")
         self.queue_target_depth = 20
         self.render_calls = 0
         self.go = True
@@ -118,6 +117,8 @@ class ImageController(Base):
         for (k, v) in kwargs.items():
             setattr(self, k, v)
         super().__init__()
+
+        self.blank = Image.new("RGB", (self.cols, self.rows), "black")
 
     def render_settings_hack(self, _settings):
         return dict([(setting, getattr(self, setting, None)) for setting in _settings])
