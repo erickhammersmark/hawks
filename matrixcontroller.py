@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import math
 import time
 from base import Base
 from PIL import Image
@@ -70,11 +71,20 @@ class MatrixController(Base):
             options = RGBMatrixOptions()
             options.row_address_type = self.row_address_type
 
-            options.cols = self.p_cols
-            options.rows = self.p_rows
+            m_rows = self.rows
+            m_cols = self.cols
+
             options.chain_length = 1
             if self.decompose:
-                options.chain_length = int(self.rows / self.p_rows)
+                options.chain_length = 2
+                if not self.p_rows or self.p_rows == self.rows:
+                    self.p_rows = int(self.rows / 2)
+                    self.p_cols = int(2 * self.cols)
+                m_cols = self.cols
+                m_rows = self.p_rows
+
+            options.cols = m_cols
+            options.rows = m_rows
             options.parallel = 1
             options.gpio_slowdown = 4
             options.hardware_mapping = (
