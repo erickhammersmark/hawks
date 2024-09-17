@@ -4,6 +4,7 @@ import math
 import time
 from base import Base
 from PIL import Image
+from queue import Queue
 from threading import Timer
 
 
@@ -40,8 +41,10 @@ class MatrixController(Base):
         self.next_time = 0
         self.timer = None
         self.go = True
+        self.nodisplay = False
         self.frame_queue = frame_queue
         self.img_ctrl = None
+        self.row_address_type = 0
 
         for (k, v) in kwargs.items():
             setattr(self, k, v)
@@ -91,12 +94,23 @@ class MatrixController(Base):
                 "adafruit-hat"  # If you have an Adafruit HAT: "adafruit-hat" or "adafruit-hat-pwm"
                                     # https://github.com/hzeller/rpi-rgb-led-matrix#troubleshooting
             )
+            print(options.cols, options.rows, options.chain_length)
             self.matrix = RGBMatrix(options=options)
 
         self.show()
 
     def set_img_ctrl(self, img_ctrl):
         self.img_ctrl = img_ctrl
+
+    def set_image(self, image):
+        self.stop()
+        if self.img_ctrl:
+            self.img_ctrl.stop()
+            self.img_ctrl = None
+        while not self.frame_queue.empty():
+            self.frame_queue.get()
+        self.frame_queue.put((image, 0))
+        self.show()
 
     def reshape(self, image):
         """
@@ -250,9 +264,9 @@ class MatrixController(Base):
 
 
 def main():
-    ctrl = MatrixController(mock=True)
+    frame_queue = Queue()
+    ctrl = MatrixController(frame_queue, rows=128, cols=128, p_cols=128, p_rows=64, decompose=True)
     ctrl.set_image(Image.open("img/hawks.png").convert("RGB"))
-    ctrl.show()
     while True:
         time.sleep(1000)
 
