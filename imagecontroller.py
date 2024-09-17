@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import disc
 import io
 import json
 import math
@@ -109,6 +110,7 @@ class ImageController(Base):
         self.queue_target_depth = 20
         self.render_calls = 0
         self.go = True
+        self.img_ctrl = None
 
         # render state
         self.frame_no = 0
@@ -141,6 +143,7 @@ class ImageController(Base):
                 **self.render_settings_hack(NetworkWeatherImageController.settings)
             )
         elif mode == "disc_animations":
+            self.static_frames = []
             #self.ctrl.disc_animations()
             img_ctrl = DiscAnimationsImageController(
                 **self.render_settings_hack(DiscAnimationsImageController.settings)
@@ -151,31 +154,44 @@ class ImageController(Base):
             )
 
         if img_ctrl:
+            self.img_ctrl = img_ctrl
             frames = img_ctrl.render()
-            if not frames:
-                print("Image controller returned empty frames, not setting static_frames")
-                return
+            if type(frames) == list:
+                # Assume this list is a set of static frames
 
-            if self.filter and self.filter != "none":
-                frames = getattr(img_ctrl, "filter_" + self.filter)(frames)
+                if self.filter and self.filter != "none":
+                    frames = getattr(img_ctrl, "filter_" + self.filter)(frames)
 
-            if self.animation == "glitch":
-                pass
-                #self.ctrl.render_state["callback"] = getattr(self.ctrl, "render_glitch", None)
-                #flash_image_ctrl_settings = self.settings.render(FileImageController.settings)
-                #flash_image_ctrl_settings["filename"] = "img/jack3.jpg"
-                #flash_image_ctrl = FileImageController(**flash_image_ctrl_settings)
-                #self.ctrl.render_state["flash_image"] = self.ctrl.transform_and_reshape(flash_image_ctrl.render())[0][0][0]
-                #print(self.ctrl.render_state["flash_image"])
-            self.static_frames, self.bright_frames = self.transform(frames)
-            self.frame_no = 0
-            self.direction = 1
+                if self.animation == "glitch":
+                    pass
+                    #self.ctrl.render_state["callback"] = getattr(self.ctrl, "render_glitch", None)
+                    #flash_image_ctrl_settings = self.settings.render(FileImageController.settings)
+                    #flash_image_ctrl_settings["filename"] = "img/jack3.jpg"
+                    #flash_image_ctrl = FileImageController(**flash_image_ctrl_settings)
+                    #self.ctrl.render_state["flash_image"] = self.ctrl.transform_and_reshape(flash_image_ctrl.render())[0][0][0]
+                    #print(self.ctrl.render_state["flash_image"])
+                self.static_frames, self.bright_frames = self.transform(frames)
+                self.frame_no = 0
+                self.direction = 1
         self.render()
 
     def stop(self):
         self.go = False
         if getattr(self, "timer", None):
             self.timer.cancel()
+
+    def next_static_frame(self):
+        self.frame_no += self.direction
+        if self.frame_no >= len(self.static_frames):
+            if self.back_and_forth:
+                self.direction = -1
+                self.frame_no += self.direction
+            else:
+                self.frame_no = 0
+        elif self.frame_no < 0:
+            self.direction = 1
+            self.frame_no = 0
+        return self.static_frames[self.frame_no]
 
     def render(self):
         #self.render_calls += 1
@@ -184,20 +200,16 @@ class ImageController(Base):
             self.timer.cancel()
         if not self.go:
             return
-        if not self.static_frames:
+        if not self.static_frames and not self.img_ctrl:
             return
         while self.frame_queue.qsize() < self.queue_target_depth:
-            self.frame_no += self.direction
-            if self.frame_no >= len(self.static_frames):
-                if self.back_and_forth:
-                    self.direction = -1
-                    self.frame_no += self.direction
-                else:
-                    self.frame_no = 0
-            elif self.frame_no < 0:
-                self.direction = 1
-                self.frame_no = 0
-            self.frame_queue.put(self.static_frames[self.frame_no])
+            if self.static_frames:
+                frame = self.next_static_frame()
+            elif self.img_ctrl:
+                frame = self.img_ctrl.render()
+            else:
+                break
+            self.frame_queue.put(frame)
         self.timer = Timer(0.100, self.render)
         self.timer.start()
 
@@ -1144,30 +1156,22 @@ class NetworkWeatherImageController(ImageController):
 class DiscAnimationsImageController(ImageController):
     def __init__(self, *args, **kwargs):
         super().__init__(None, *args, **kwargs)
-
-    def render(self):
-        import disc
-
-        circle_colors = []
+        self.circle_colors = []
         color = 100
         for circle in disc.Disc.circles:
-            circle_colors.append(color)
+            self.circle_colors.append(color)
             color += 100
 
-        frames = []
-        while True:
-            if frames and circle_colors[0] == frames[0][0]:
-                break
-            frames.append([])
-            for idx, circle in enumerate(disc.Disc.circles):
-                color = self.rainbow_color_from_value(circle_colors[idx])
-                for n in range(0, circle[1]):
-                    frames[-1].append(color)
-                circle_colors[idx] += 7
-                if circle_colors[idx] >= 1024:
-                    circle_colors[idx] = 0
-        return frames
-
+    def render(self):
+        frame = []
+        for idx, circle in enumerate(disc.Disc.circles):
+            color = self.rainbow_color_from_value(self.circle_colors[idx])
+            for n in range(0, circle[1]):
+                frame.append(color)
+            self.circle_colors[idx] += 7
+            if self.circle_colors[idx] >= 1024:
+                self.circle_colors[idx] = 0
+        return (frame, 50)
 
 
 def main():

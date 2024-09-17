@@ -160,8 +160,18 @@ class MatrixController(Base):
             LED matrix panels.
 
             Consider some kind of cache for this.
+
+            Doing this in real time for a decomposed matrix is fine, with
+            a fast enough pi. On the pi zero I use to run my Dotstar disc,
+            doing the sampling in real time will be very slow. Caching may
+            be enough for a repeating animation, but it will not help for
+            a continuously generated visualization.
         """
         if self.disc:
+            if type(frame[0]) == list:
+                # if the frame is already a list of pixels specifically
+                # for the disc, just keep it.
+                return frame
             return (self._disc.sample_image(frame[0]), frame[1])
         else:
             if self.decompose:
