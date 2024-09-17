@@ -57,7 +57,7 @@ class HawksSettings(Settings):
         self.set("period", 2000, helptext="Period of waving animation")
         self.set("filename", "none", helptext='Image file to display (or "none")')
         self.set("autosize", True, choices=[True, False])
-        self.set("margin", 2, helptext="Margin of background color around text")
+        self.set("text_margin", 2, helptext="Margin of background color around text")
         self.set("brightness", 255, helptext="Image brighness, full bright = 255")
         self.set("back_and_forth", False, helptext="Loop GIF back and forth", choices=[False, True])
         self.set("url", "", helptext="Fetch image from url")
@@ -107,6 +107,7 @@ class HawksSettings(Settings):
         self.set("zoom_level", 1.0, helptext="Custom zoom level")
         self.set("fit", False, choices=[True, False], helptext="Fit image to display")
         self.set("filter", "none", choices=["none", "halloween"], helptext="Filter to apply to image")
+        self.set("underscan", 0, helptext="Number of border rows and columns to leave blank")
         
 
     def set(self, name, value, **kwargs):

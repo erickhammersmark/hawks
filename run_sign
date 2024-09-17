@@ -18,7 +18,7 @@ def parse_args():
   parser.add_argument("--rows", type=int, default=32, help="Image height, default 32")
   parser.add_argument("--p_cols", type=int, default=0, help="Matrix width for decompose, default 128")
   parser.add_argument("--p_rows", type=int, default=0, help="Matrix height for decompose, default 32")
-  parser.add_argument("--margin", type=int, default=2, help="Margin of bgcolor around text")
+  parser.add_argument("--text_margin", type=int, default=2, help="Margin of bgcolor around text")
   parser.add_argument("--thickness", type=int, default=1,
                       help="Thickness of outercolor border around text")
   parser.add_argument("--decompose", action="store_true", default=False,
@@ -50,6 +50,7 @@ def parse_args():
   parser.add_argument("--showip", action="store_true", default=False, help="show the hosts's IP address when the sign first starts")
   parser.add_argument("--fps", default=16, help="fps")
   parser.add_argument("--bgbrightness", default=0, help="background for rainbow background")
+  parser.add_argument("--underscan", default=0, type=int, help="Number of columns and rows to leave blank at edges")
 
   autosize = parser.add_mutually_exclusive_group(required=False)
   autosize.add_argument("--autosize", dest="autosize", action="store_true")

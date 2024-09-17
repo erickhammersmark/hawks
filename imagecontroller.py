@@ -68,9 +68,10 @@ class ImageController(Base):
         "zoom_level",
         "zoom_center",
         "autosize",
-        "margin",
+        "text_margin",
         "x",
         "y",
+        "underscan",
     ]
 
     def __init__(self, frame_queue, *args, **kwargs):
@@ -111,6 +112,8 @@ class ImageController(Base):
         self.render_calls = 0
         self.go = True
         self.img_ctrl = None
+        self.underscan = 0
+
 
         # render state
         self.frame_no = 0
@@ -120,7 +123,8 @@ class ImageController(Base):
             setattr(self, k, v)
         super().__init__()
 
-        self.blank = Image.new("RGB", (self.cols, self.rows), "black")
+        self.active_cols = self.cols - self.underscan * 2
+        self.active_rows = self.rows - self.underscan * 2
 
     def render_settings_hack(self, _settings):
         return dict([(setting, getattr(self, setting, None)) for setting in _settings])
@@ -227,7 +231,7 @@ class ImageController(Base):
         return transformed_frames, bright_frames
 
     def shift_column(self, image, column, delta):
-        rows = self.rows
+        rows = self.active_rows
         if delta == 0:
             return image
         if delta > 0:
@@ -369,12 +373,12 @@ class ImageController(Base):
         return [image.copy() for n in range(0, count)]
 
     def glitch_effect_flicker(self, image, color="black"):
-        blank = Image.new("RGB", (self.cols, self.rows), color)
+        blank = Image.new("RGB", (self.active_cols, self.active_rows), color)
         return [(blank, randint(10, 50))]
 
     def glitch_effect_shift(self, image, color="black"):
-        blank = Image.new("RGB", (self.cols, self.rows), color)
-        blank.paste(image, (randint(1, self.cols), randint(1, self.rows)))
+        blank = Image.new("RGB", (self.active_cols, self.active_rows), color)
+        blank.paste(image, (randint(1, self.active_cols), randint(1, self.active_rows)))
         return [(blank, randint(10, 50))]
 
     def generate_glitch_frames(self, image, glitchiness=5):
@@ -395,7 +399,7 @@ class ImageController(Base):
         return frames
 
     def generate_waving_frames(self, image):
-        cols = self.cols
+        cols = self.active_cols
         frames = self.init_anim_frames(image)
         ms_per_frame = self.period / self.fps
         wavelength_radians = math.pi * 2.0
@@ -424,7 +428,7 @@ class ImageController(Base):
 
     def generate_rainbow_frames(self, image):
         frames = self.init_anim_frames(image)
-        color_delta = 1024.0 / (self.cols * self.rows)
+        color_delta = 1024.0 / (self.active_cols * self.active_rows)
         bg_rgb = ImageColor.getrgb(self.bgcolor)
         color_value = 0.0
         for idx, frame in enumerate(frames):
@@ -474,23 +478,23 @@ class ImageController(Base):
         fill it in with black rows or columns.
         """
         cols, rows = image.size
-        if cols >= self.cols and rows >= self.rows:
+        if cols >= self.active_cols and rows >= self.active_rows:
             return image
 
-        new_image = Image.new("RGB", (self.cols, self.rows), "black")
-        x = int((self.cols - cols) / 2)
-        y = int((self.rows - rows) / 2)
+        new_image = Image.new("RGB", (self.active_cols, self.active_rows), "black")
+        x = int((self.active_cols - cols) / 2)
+        y = int((self.active_rows - rows) / 2)
 
         data = list(image.getdata())
         new_data = list(new_image.getdata())
         old_pixels = cols * rows
-        new_pixels = self.cols * self.rows
+        new_pixels = self.active_cols * self.active_rows
         pos = 0
-        new_pos = self.cols * y + x
+        new_pos = self.active_cols * y + x
         while new_pos < new_pixels and pos < old_pixels:
             new_data[new_pos : new_pos + cols] = data[pos : pos + cols]
             pos += cols
-            new_pos += self.cols
+            new_pos += self.active_cols
         new_image.putdata(new_data)
         return new_image
 
@@ -544,7 +548,7 @@ class ImageController(Base):
             elif image_r > image_c:
                 new_c = panel_c * float(image_c) / image_r
         image = image.resize((int(new_c), int(new_r)))
-        if new_c < self.cols or new_r < self.rows:
+        if new_c < self.active_cols or new_r < self.active_rows:
             image = self.fill_out(image)
         return image
 
@@ -590,11 +594,11 @@ class ImageController(Base):
                 return self.make_png(self.bright_frames[0][0])
             else:
                 return self.make_gif(self.bright_frames)
-        return self.make_png(Image.new("RGB", (self.cols, self.rows), "black"))
+        return self.make_png(Image.new("RGB", (self.active_cols, self.active_rows), "black"))
 
     def apply_transformations(self, image, max_brightness=False):
         if not getattr(self, "disc", None):
-            image = self.resize_image(image, self.cols, self.rows)
+            image = self.resize_image(image, self.active_cols, self.active_rows)
 
         if self.transpose != "none":
             operation = getattr(Image, self.transpose.upper(), None)
@@ -607,6 +611,12 @@ class ImageController(Base):
         bright_image = copy(image)
         if self.brightness != 255 and not max_brightness:
             image = self.brighten(image)
+
+        if self.underscan:
+            print(self.cols, self.rows, self.underscan, image.size)
+            new_image = Image.new("RGB", (self.cols, self.rows), "black")
+            new_image.paste(image, (self.underscan, self.underscan))
+            image = new_image
 
         return (image, bright_image)
 
@@ -777,7 +787,7 @@ class TextImageController(ImageController):
         "textsize",
         "thickness",
         "autosize",
-        "margin",
+        "text_margin",
         "x",
         "y",
     ]
@@ -793,10 +803,12 @@ class TextImageController(ImageController):
         self.textsize = 27
         self.thickness = 1
         self.autosize = True
-        self.margin = 2
+        self.text_margin = 2
         self.x = 0
         self.y = 0
         super().__init__(None, *args, **kwargs)
+        self.rows = self.active_rows
+        self.cols = self.active_cols
 
     def render(self, autosize=True, ignore_animation=False):
         image = Image.new("RGB", (self.cols, self.rows), self.bgcolor)
@@ -892,7 +904,7 @@ class TextImageController(ImageController):
         top_margin = self.measure_top_margin(image_data)
         self.y = 0
 
-        if self.margin != left_margin or self.margin != top_margin:
+        if self.text_margin != left_margin or self.text_margin != top_margin:
             image = self.render(autosize=False, ignore_animation=True)
             image_data = image[0][0].getdata()
 
@@ -912,7 +924,7 @@ class TextImageController(ImageController):
 
         # make the text big enough
         count = 0
-        while right_margin > self.margin and bottom_margin > self.margin:
+        while right_margin > self.text_margin and bottom_margin > self.text_margin:
             self.textsize += 1
             (
                 left_margin,
@@ -924,7 +936,7 @@ class TextImageController(ImageController):
 
         # make sure it is not too big
         while (
-            right_margin < self.margin or bottom_margin < self.margin
+            right_margin < self.text_margin or bottom_margin < self.text_margin
         ) and self.textsize > 0:
             self.textsize -= 1
             (
@@ -958,6 +970,8 @@ class FileImageController(ImageController):
         self.gif_loop_delay = 0
         self.override_duration_zero = False
         super().__init__(None, **kwargs)
+        self.cols = self.active_cols
+        self.rows = self.active_rows
 
     def render(self):
         try:
@@ -1020,6 +1034,8 @@ class URLImageController(FileImageController):
     def __init__(self, url, **kwargs):
         self.url = url
         super().__init__(**kwargs)
+        self.cols = self.active_cols
+        self.rows = self.active_rows
         self.filename = tempfile.mktemp()
         self.fetch_image()
 
@@ -1049,6 +1065,8 @@ class NetworkWeatherImageController(ImageController):
 
     def __init__(self, *args, **kwargs):
         super().__init__(None, *args, **kwargs)
+        self.cols = self.active_cols
+        self.rows = self.active_rows
         self.network_weather_data = None
         self.network_weather_image = Image.new("RGB", (self.cols, self.rows), "black")
 
@@ -1156,6 +1174,8 @@ class NetworkWeatherImageController(ImageController):
 class DiscAnimationsImageController(ImageController):
     def __init__(self, *args, **kwargs):
         super().__init__(None, *args, **kwargs)
+        self.cols = self.active_cols
+        self.rows = self.active_rows
         self.circle_colors = []
         color = 100
         for circle in disc.Disc.circles:
