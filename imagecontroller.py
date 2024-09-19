@@ -4,6 +4,7 @@ import disc
 import io
 import json
 import math
+import os
 import requests
 import sys
 import tempfile
@@ -34,6 +35,7 @@ class ImageController(Base):
         "animate_gifs",
         "animation",
         "back_and_forth",
+        "noloop",
         "bgcolor",
         "bgbrightness",
         "bgrainbow",
@@ -48,7 +50,7 @@ class ImageController(Base):
         "gif_frame_no",
         "gif_speed",
         "gif_loop_delay",
-        "gif_override_duration_zero",
+        "no_gif_override_duration_zero",
         "hawks",
         "innercolor",
         "mock",
@@ -72,6 +74,8 @@ class ImageController(Base):
         "x",
         "y",
         "underscan",
+        "slideshow_directory",
+        "slideshow_hold_sec",
     ]
 
     def __init__(self, frame_queue, *args, **kwargs):
@@ -113,6 +117,9 @@ class ImageController(Base):
         self.go = True
         self.img_ctrl = None
         self.underscan = 0
+        self.noloop = False
+        self.slideshow_directory = "img"
+        self.slideshow_hold_sec = 15.0
 
 
         # render state
@@ -128,6 +135,10 @@ class ImageController(Base):
 
     def render_settings_hack(self, _settings):
         return dict([(setting, getattr(self, setting, None)) for setting in _settings])
+
+    def drain_queue(self):
+        while not self.frame_queue.empty():
+            self.frame_queue.get()
 
     def show(self, mode):
         self.go = True
@@ -152,6 +163,32 @@ class ImageController(Base):
             img_ctrl = DiscAnimationsImageController(
                 **self.render_settings_hack(DiscAnimationsImageController.settings)
             )
+        elif mode == "slideshow":
+            imgctrl_settings = self.render_settings_hack(ImageController.settings)
+            while self.go:
+                for filename in os.listdir(self.slideshow_directory):
+                    hold_time_ms = self.slideshow_hold_sec * 1000
+                    fullpath = os.path.join(self.slideshow_directory, filename)
+                    if os.path.isdir(fullpath):
+                        continue
+
+                    if img_ctrl:
+                        img_ctrl.stop()
+                    imgctrl_settings["filename"] = fullpath
+                    img_ctrl = ImageController(self.frame_queue, **imgctrl_settings)
+                    if not img_ctrl:
+                        continue
+
+                    self.hawks.ctrl.stop()
+                    self.drain_queue()
+                    img_ctrl.show("file")
+                    self.hawks.ctrl.show()
+
+                    duration = sum(f[1] for f in img_ctrl.static_frames)
+                    if duration > hold_time_ms:
+                        hold_time_ms = duration
+
+                    time.sleep(float(hold_time_ms) / 1000.0)
         else:
             img_ctrl = TextImageController(
                 **self.render_settings_hack(TextImageController.settings)
@@ -175,7 +212,7 @@ class ImageController(Base):
                     #self.ctrl.render_state["flash_image"] = self.ctrl.transform_and_reshape(flash_image_ctrl.render())[0][0][0]
                     #print(self.ctrl.render_state["flash_image"])
                 self.static_frames, self.bright_frames = self.transform(frames)
-                self.frame_no = 0
+                self.frame_no = -1
                 self.direction = 1
         self.render()
 
@@ -187,6 +224,8 @@ class ImageController(Base):
     def next_static_frame(self):
         self.frame_no += self.direction
         if self.frame_no >= len(self.static_frames):
+            if self.noloop or len(self.static_frames) == 1:
+                return None
             if self.back_and_forth:
                 self.direction = -1
                 self.frame_no += self.direction
@@ -213,6 +252,8 @@ class ImageController(Base):
                 frame = self.img_ctrl.render()
             else:
                 break
+            if not frame:
+                return
             self.frame_queue.put(frame)
         self.timer = Timer(0.100, self.render)
         self.timer.start()
@@ -958,7 +999,7 @@ class FileImageController(ImageController):
       "gif_frame_no",
       "gif_speed",
       "gif_loop_delay",
-      "gif_override_duration_zero",
+      "no_gif_override_duration_zero",
     ]
     settings.extend(ImageController.settings)
 
@@ -968,7 +1009,7 @@ class FileImageController(ImageController):
         self.gif_frame_no = 0
         self.gif_speed = 1
         self.gif_loop_delay = 0
-        self.override_duration_zero = False
+        self.no_gif_override_duration_zero = False
         super().__init__(None, **kwargs)
         self.cols = self.active_cols
         self.rows = self.active_rows
@@ -987,7 +1028,7 @@ class FileImageController(ImageController):
                 gif_frame_no=self.gif_frame_no,
                 gif_speed=self.gif_speed,
                 gif_loop_delay=self.gif_loop_delay,
-                gif_override_duration_zero=self.gif_override_duration_zero,
+                no_gif_override_duration_zero=self.no_gif_override_duration_zero,
             ).render()
 
         image = image.convert("RGB")
@@ -1007,7 +1048,7 @@ class GifFileImageController(FileImageController):
                 image = gif.convert("RGB")
                 if self.animate_gifs:
                     duration = int(gif.info["duration"])
-                    if duration == 0 and self.gif_override_duration_zero:
+                    if duration == 0 and not self.no_gif_override_duration_zero:
                         duration = 100
                     if n == gif.n_frames - 1:
                         duration += self.gif_loop_delay * self.gif_speed  # hack
@@ -1053,7 +1094,7 @@ class URLImageController(FileImageController):
             gif_frame_no = self.gif_frame_no,
             gif_speed = self.gif_speed,
             gif_loop_delay = self.gif_loop_delay,
-            gif_override_duration_zero = self.gif_override_duration_zero,
+            no_gif_override_duration_zero = self.no_gif_override_duration_zero,
         ).render()
         os.unlink(self.filename)
 
