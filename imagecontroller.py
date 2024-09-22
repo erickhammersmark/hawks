@@ -170,6 +170,14 @@ class ImageController(Base):
                 **self.render_settings_hack(DiscAnimationsImageController.settings)
             )
         elif mode == "slideshow":
+            # slideshow works by itself calling this function against each of the
+            # images in this directory, each on a new instance of ImageController.
+            # Once it has called show() on the MatrixController for each image,
+            # it sets a timer, after which it will loop again, stop the old
+            # ImageController and make a new one. If the file being shown has a total
+            # duration longer than the slideshow hold time, that timer will adjust to
+            # let the file play at least one time through. Animations shorter than the
+            # hold time can loop.
             imgctrl_settings = self.render_settings_hack(ImageController.settings)
             while self.go:
                 for filename in os.listdir(self.slideshow_directory):
