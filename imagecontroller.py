@@ -76,6 +76,9 @@ class ImageController(Base):
         "underscan",
         "slideshow_directory",
         "slideshow_hold_sec",
+        "transition",
+        "transition_duration_ms",
+        "transition_frames_max",
     ]
 
     def __init__(self, frame_queue, *args, **kwargs):
@@ -120,6 +123,9 @@ class ImageController(Base):
         self.noloop = False
         self.slideshow_directory = "img"
         self.slideshow_hold_sec = 15.0
+        self.transition = None
+        self.transition_duration_ms = 250
+        self.transition_frames_max = 18
 
 
         # render state
@@ -203,17 +209,15 @@ class ImageController(Base):
                 if self.filter and self.filter != "none":
                     frames = getattr(img_ctrl, "filter_" + self.filter)(frames)
 
-                if self.animation == "glitch":
-                    pass
-                    #self.ctrl.render_state["callback"] = getattr(self.ctrl, "render_glitch", None)
-                    #flash_image_ctrl_settings = self.settings.render(FileImageController.settings)
-                    #flash_image_ctrl_settings["filename"] = "img/jack3.jpg"
-                    #flash_image_ctrl = FileImageController(**flash_image_ctrl_settings)
-                    #self.ctrl.render_state["flash_image"] = self.ctrl.transform_and_reshape(flash_image_ctrl.render())[0][0][0]
-                    #print(self.ctrl.render_state["flash_image"])
                 self.static_frames, self.bright_frames = self.transform(frames)
                 self.frame_no = -1
                 self.direction = 1
+        if self.static_frames:
+            prev_frame = self.hawks.ctrl.frame
+            next_frame = self.static_frames[0]
+            if self.transition:
+                # some function that shoves frames into the queue, < the queue depth
+                self.do_transition(prev_frame, next_frame)
         self.render()
 
     def stop(self):
@@ -343,6 +347,47 @@ class ImageController(Base):
             if idx == 0 or idx == num_frames:
                 continue
             saf[frame_no].putdata(new_data[idx])
+
+    def do_transition(self, prev_frame, next_frame):
+        if self.transition == "fade":
+            return self.transition_fade(prev_frame, next_frame)
+        if "wipe" in self.transition:
+            return self.transition_wipe(prev_frame, next_frame)
+
+    def transition_fade(self, prev_frame, next_frame):
+        duration = self.transition_duration_ms / self.transition_frames_max
+        for n in range(1, self.transition_frames_max):
+            next_pct = float(n) / self.transition_frames_max
+            image = Image.blend(prev_frame[0], next_frame[0], next_pct)
+            self.frame_queue.put((image, duration))
+
+    def transition_wipe(self, prev_frame, next_frame):
+        duration = self.transition_duration_ms / self.transition_frames_max
+        delta_c = prev_frame[0].width / self.transition_frames_max
+        delta_r = prev_frame[0].height / self.transition_frames_max
+        sz = prev_frame[0].size # tuple. 0 is width/cols, 1 is height/rows
+        for n in range(1, self.transition_frames_max):
+            image = Image.new("RGB", sz)
+            image.paste(prev_frame[0], (0, 0))
+            nc = int(n * delta_c)
+            nr = int(n * delta_r)
+            if self.transition == "wiperight":
+                box = (0, 0, nc, sz[1])
+                pos = (0, 0)
+            elif self.transition == "wipedown":
+                box = (0, 0, sz[0], nr)
+                pos = (0, 0)
+            elif self.transition == "wipeup":
+                y = sz[1] - nr
+                box = (0, y, sz[0], sz[1])
+                pos = (0, y)
+            else: # "wipe", "wipeleft"
+                x = sz[0] - nc
+                box = (x, 0, sz[0], sz[1])
+                pos = (x, 0)
+            image.paste(next_frame[0].crop(box), pos)
+            self.frame_queue.put((image, duration))
+
 
     def rainbow_color_from_value(self, value):
         border = 0
@@ -1067,7 +1112,6 @@ class GifFileImageController(FileImageController):
         return self.frames
 
 
-
 class URLImageController(FileImageController):
     settings = [ "url" ]
     settings.extend(FileImageController.settings)
@@ -1211,6 +1255,7 @@ class NetworkWeatherImageController(ImageController):
         except ConnectionError as e:
             # Couldn't connect, try again next time
             pass
+
 
 class DiscAnimationsImageController(ImageController):
     def __init__(self, *args, **kwargs):

@@ -111,6 +111,9 @@ class HawksSettings(Settings):
         self.set("noloop", True, choices=[True, False], helptext="Do not loop animated GIFs")
         self.set("slideshow_directory", "img", helptext="directory full of images for slideshow")
         self.set("slideshow_hold_sec", 10.0, helptext="length of time to display each image in a slideshow")
+        self.set("transition", "none", choices=["none", "fade", "wipe"], helptext="Slideshow transition")
+        self.set("transition_duration_ms", 250, helptext="Slideshow transition duration in ms")
+        self.set("transition_frames_max", 18, helptext="Max number of frames to render for slideshow transition")
         
 
     def set(self, name, value, **kwargs):
