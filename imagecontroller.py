@@ -4,6 +4,7 @@ import disc
 import io
 import json
 import math
+import os
 import requests
 import sys
 import tempfile
@@ -34,6 +35,7 @@ class ImageController(Base):
         "animate_gifs",
         "animation",
         "back_and_forth",
+        "noloop",
         "bgcolor",
         "bgbrightness",
         "bgrainbow",
@@ -48,7 +50,7 @@ class ImageController(Base):
         "gif_frame_no",
         "gif_speed",
         "gif_loop_delay",
-        "gif_override_duration_zero",
+        "no_gif_override_duration_zero",
         "hawks",
         "innercolor",
         "mock",
@@ -72,6 +74,11 @@ class ImageController(Base):
         "x",
         "y",
         "underscan",
+        "slideshow_directory",
+        "slideshow_hold_sec",
+        "transition",
+        "transition_duration_ms",
+        "transition_frames_max",
     ]
 
     def __init__(self, frame_queue, *args, **kwargs):
@@ -113,6 +120,12 @@ class ImageController(Base):
         self.go = True
         self.img_ctrl = None
         self.underscan = 0
+        self.noloop = False
+        self.slideshow_directory = "img"
+        self.slideshow_hold_sec = 15.0
+        self.transition = None
+        self.transition_duration_ms = 250
+        self.transition_frames_max = 18
 
 
         # render state
@@ -128,6 +141,10 @@ class ImageController(Base):
 
     def render_settings_hack(self, _settings):
         return dict([(setting, getattr(self, setting, None)) for setting in _settings])
+
+    def drain_queue(self):
+        while not self.frame_queue.empty():
+            self.frame_queue.get()
 
     def show(self, mode):
         self.go = True
@@ -152,6 +169,40 @@ class ImageController(Base):
             img_ctrl = DiscAnimationsImageController(
                 **self.render_settings_hack(DiscAnimationsImageController.settings)
             )
+        elif mode == "slideshow":
+            # slideshow works by itself calling this function against each of the
+            # images in this directory, each on a new instance of ImageController.
+            # Once it has called show() on the MatrixController for each image,
+            # it sets a timer, after which it will loop again, stop the old
+            # ImageController and make a new one. If the file being shown has a total
+            # duration longer than the slideshow hold time, that timer will adjust to
+            # let the file play at least one time through. Animations shorter than the
+            # hold time can loop.
+            imgctrl_settings = self.render_settings_hack(ImageController.settings)
+            while self.go:
+                for filename in os.listdir(self.slideshow_directory):
+                    hold_time_ms = self.slideshow_hold_sec * 1000
+                    fullpath = os.path.join(self.slideshow_directory, filename)
+                    if os.path.isdir(fullpath):
+                        continue
+
+                    if img_ctrl:
+                        img_ctrl.stop()
+                    imgctrl_settings["filename"] = fullpath
+                    img_ctrl = ImageController(self.frame_queue, **imgctrl_settings)
+                    if not img_ctrl:
+                        continue
+
+                    self.hawks.ctrl.stop()
+                    self.drain_queue()
+                    img_ctrl.show("file")
+                    self.hawks.ctrl.show()
+
+                    duration = sum(f[1] for f in img_ctrl.static_frames)
+                    if duration > hold_time_ms:
+                        hold_time_ms = duration
+
+                    time.sleep(float(hold_time_ms) / 1000.0)
         else:
             img_ctrl = TextImageController(
                 **self.render_settings_hack(TextImageController.settings)
@@ -166,17 +217,15 @@ class ImageController(Base):
                 if self.filter and self.filter != "none":
                     frames = getattr(img_ctrl, "filter_" + self.filter)(frames)
 
-                if self.animation == "glitch":
-                    pass
-                    #self.ctrl.render_state["callback"] = getattr(self.ctrl, "render_glitch", None)
-                    #flash_image_ctrl_settings = self.settings.render(FileImageController.settings)
-                    #flash_image_ctrl_settings["filename"] = "img/jack3.jpg"
-                    #flash_image_ctrl = FileImageController(**flash_image_ctrl_settings)
-                    #self.ctrl.render_state["flash_image"] = self.ctrl.transform_and_reshape(flash_image_ctrl.render())[0][0][0]
-                    #print(self.ctrl.render_state["flash_image"])
                 self.static_frames, self.bright_frames = self.transform(frames)
-                self.frame_no = 0
+                self.frame_no = -1
                 self.direction = 1
+        if self.static_frames:
+            prev_frame = self.hawks.ctrl.frame
+            next_frame = self.static_frames[0]
+            if self.transition:
+                # some function that shoves frames into the queue, < the queue depth
+                self.do_transition(prev_frame, next_frame)
         self.render()
 
     def stop(self):
@@ -187,6 +236,8 @@ class ImageController(Base):
     def next_static_frame(self):
         self.frame_no += self.direction
         if self.frame_no >= len(self.static_frames):
+            if self.noloop or len(self.static_frames) == 1:
+                return None
             if self.back_and_forth:
                 self.direction = -1
                 self.frame_no += self.direction
@@ -213,6 +264,8 @@ class ImageController(Base):
                 frame = self.img_ctrl.render()
             else:
                 break
+            if not frame:
+                return
             self.frame_queue.put(frame)
         self.timer = Timer(0.100, self.render)
         self.timer.start()
@@ -302,6 +355,47 @@ class ImageController(Base):
             if idx == 0 or idx == num_frames:
                 continue
             saf[frame_no].putdata(new_data[idx])
+
+    def do_transition(self, prev_frame, next_frame):
+        if self.transition == "fade":
+            return self.transition_fade(prev_frame, next_frame)
+        if "wipe" in self.transition:
+            return self.transition_wipe(prev_frame, next_frame)
+
+    def transition_fade(self, prev_frame, next_frame):
+        duration = self.transition_duration_ms / self.transition_frames_max
+        for n in range(1, self.transition_frames_max):
+            next_pct = float(n) / self.transition_frames_max
+            image = Image.blend(prev_frame[0], next_frame[0], next_pct)
+            self.frame_queue.put((image, duration))
+
+    def transition_wipe(self, prev_frame, next_frame):
+        duration = self.transition_duration_ms / self.transition_frames_max
+        delta_c = prev_frame[0].width / self.transition_frames_max
+        delta_r = prev_frame[0].height / self.transition_frames_max
+        sz = prev_frame[0].size # tuple. 0 is width/cols, 1 is height/rows
+        for n in range(1, self.transition_frames_max):
+            image = Image.new("RGB", sz)
+            image.paste(prev_frame[0], (0, 0))
+            nc = int(n * delta_c)
+            nr = int(n * delta_r)
+            if self.transition == "wiperight":
+                box = (0, 0, nc, sz[1])
+                pos = (0, 0)
+            elif self.transition == "wipedown":
+                box = (0, 0, sz[0], nr)
+                pos = (0, 0)
+            elif self.transition == "wipeup":
+                y = sz[1] - nr
+                box = (0, y, sz[0], sz[1])
+                pos = (0, y)
+            else: # "wipe", "wipeleft"
+                x = sz[0] - nc
+                box = (x, 0, sz[0], sz[1])
+                pos = (x, 0)
+            image.paste(next_frame[0].crop(box), pos)
+            self.frame_queue.put((image, duration))
+
 
     def rainbow_color_from_value(self, value):
         border = 0
@@ -958,7 +1052,7 @@ class FileImageController(ImageController):
       "gif_frame_no",
       "gif_speed",
       "gif_loop_delay",
-      "gif_override_duration_zero",
+      "no_gif_override_duration_zero",
     ]
     settings.extend(ImageController.settings)
 
@@ -968,7 +1062,7 @@ class FileImageController(ImageController):
         self.gif_frame_no = 0
         self.gif_speed = 1
         self.gif_loop_delay = 0
-        self.override_duration_zero = False
+        self.no_gif_override_duration_zero = False
         super().__init__(None, **kwargs)
         self.cols = self.active_cols
         self.rows = self.active_rows
@@ -987,7 +1081,7 @@ class FileImageController(ImageController):
                 gif_frame_no=self.gif_frame_no,
                 gif_speed=self.gif_speed,
                 gif_loop_delay=self.gif_loop_delay,
-                gif_override_duration_zero=self.gif_override_duration_zero,
+                no_gif_override_duration_zero=self.no_gif_override_duration_zero,
             ).render()
 
         image = image.convert("RGB")
@@ -1007,7 +1101,7 @@ class GifFileImageController(FileImageController):
                 image = gif.convert("RGB")
                 if self.animate_gifs:
                     duration = int(gif.info["duration"])
-                    if duration == 0 and self.gif_override_duration_zero:
+                    if duration == 0 and not self.no_gif_override_duration_zero:
                         duration = 100
                     if n == gif.n_frames - 1:
                         duration += self.gif_loop_delay * self.gif_speed  # hack
@@ -1024,7 +1118,6 @@ class GifFileImageController(FileImageController):
 
     def render(self):
         return self.frames
-
 
 
 class URLImageController(FileImageController):
@@ -1053,7 +1146,7 @@ class URLImageController(FileImageController):
             gif_frame_no = self.gif_frame_no,
             gif_speed = self.gif_speed,
             gif_loop_delay = self.gif_loop_delay,
-            gif_override_duration_zero = self.gif_override_duration_zero,
+            no_gif_override_duration_zero = self.no_gif_override_duration_zero,
         ).render()
         os.unlink(self.filename)
 
@@ -1170,6 +1263,7 @@ class NetworkWeatherImageController(ImageController):
         except ConnectionError as e:
             # Couldn't connect, try again next time
             pass
+
 
 class DiscAnimationsImageController(ImageController):
     def __init__(self, *args, **kwargs):

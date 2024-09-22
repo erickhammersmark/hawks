@@ -100,7 +100,7 @@ class HawksSettings(Settings):
         self.set("gif_frame_no", 0, helptext="Frame number of gif to statically display (when not animating)")
         self.set("gif_speed", 1.0, helptext="Multiplier for gif animation speed")
         self.set("gif_loop_delay", 0, helptext="Delay (ms) between repeatations of an animated gif")
-        self.set("gif_override_duration_zero", False, helptext="Use 100ms frame time instead of 0", choices=[True, False])
+        self.set("no_gif_override_duration_zero", False, helptext="Don't use 100ms frame time instead of 0", choices=[True, False])
         self.set("animate_gifs", True, choices=[True, False], helptext="Animate animated GIFs")
         self.set("zoom", False, choices=[True, False], helptext="Crop images to fill screen")
         self.set("zoom_center", True, choices=[True, False], helptext="When zooming, zoom into center of image")
@@ -108,6 +108,12 @@ class HawksSettings(Settings):
         self.set("fit", False, choices=[True, False], helptext="Fit image to display")
         self.set("filter", "none", choices=["none", "halloween"], helptext="Filter to apply to image")
         self.set("underscan", 0, helptext="Number of border rows and columns to leave blank")
+        self.set("noloop", True, choices=[True, False], helptext="Do not loop animated GIFs")
+        self.set("slideshow_directory", "img", helptext="directory full of images for slideshow")
+        self.set("slideshow_hold_sec", 10.0, helptext="length of time to display each image in a slideshow")
+        self.set("transition", "none", choices=["none", "fade", "wipe"], helptext="Slideshow transition")
+        self.set("transition_duration_ms", 250, helptext="Slideshow transition duration in ms")
+        self.set("transition_frames_max", 18, helptext="Max number of frames to render for slideshow transition")
         
 
     def set(self, name, value, **kwargs):
