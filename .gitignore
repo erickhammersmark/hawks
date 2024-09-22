@@ -1,1 +1,5 @@
 *.pyc
+urls.txt
+img/
+jpg/
+test.py
