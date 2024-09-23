@@ -69,7 +69,12 @@ class MatrixController(Base):
             if self.mock:
                 from mock import RGBMatrix, RGBMatrixOptions
             else:
-                from rgbmatrix import RGBMatrix, RGBMatrixOptions
+                try:
+                    from rgbmatrix import RGBMatrix, RGBMatrixOptions
+                except ModuleNotFoundError:
+                    self.mock = True
+                    print("module 'rgbmatrix' not found, using mock instead")
+                    from mock import RGBMatrix, RGBMatrixOptions
 
             options = RGBMatrixOptions()
             options.row_address_type = self.row_address_type

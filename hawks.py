@@ -20,55 +20,59 @@ class HawksSettings(Settings):
         self.internal.add("debug")
         self.set("filepath", "")
         self.set("debug", False)
-        self.set("bgcolor", "blue", helptext="Background color when rendering text")
-        self.set("outercolor", "black", helptext="Outer color of rendered text")
-        self.set("innercolor", "green", helptext="Inner color of rendered text")
-        self.set("bgbrightness", 0, helptext="background brightness of rainbow background")
-        self.set("font", "FreeSansBold", helptext="Font to use when rendering text")
-        self.set("x", 0)
-        self.set("y", 0)
-        self.set("rows", 32, helptext="Image height", choices=[32, 64, 128])
-        self.set("cols", 32, helptext="Image width", choices=[32, 64, 128])
-        self.set("p_rows", 32, helptext="Matrix height", choices=[32, 64, 128])
-        self.set("p_cols", 32, helptext="Matrix width", choices=[32, 64, 128, 256])
+        self.set("bgcolor", "blue", helptext="Background color when rendering text", category="text")
+        self.set("outercolor", "black", helptext="Outer color of rendered text", category="text")
+        self.set("innercolor", "green", helptext="Inner color of rendered text", category="text")
+        self.set("bgbrightness", 0, helptext="background brightness of rainbow background", category="matrix")
+        self.set("font", "FreeSansBold", helptext="Font to use when rendering text", category="text")
+        self.set("x", 0, category="file")
+        self.set("y", 0, category="file")
+        self.set("rows", 32, helptext="Image height", choices=[32, 64, 128], category="matrix")
+        self.set("cols", 32, helptext="Image width", choices=[32, 64, 128], category="matrix")
+        self.set("p_rows", 32, helptext="Matrix height", choices=[32, 64, 128], category="matrix")
+        self.set("p_cols", 32, helptext="Matrix width", choices=[32, 64, 128, 256], category="matrix")
         self.set(
             "decompose",
             False,
             helptext="Display is a chain of two 64x32 RGB LED matrices arranged to form a big square",
             choices=[False, True],
+            category="matrix",
         )
         self.set(
             "row_address_type",
             0,
             helptext="rpi-rgb-led-matrix option led-row-addr-type, default 0",
             choices=[0, 1, 2, 3, 4],
+            category="matrix",
         )
-        self.set("text", "12", helptext='Text to render (if filename is "none")')
-        self.set("textsize", 27)
-        self.set("thickness", 1, helptext="Thickness of outercolor border around text")
+        self.set("text", "12", helptext='Text to render (if filename is "none")', category="text")
+        self.set("textsize", 27, category="text")
+        self.set("thickness", 1, helptext="Thickness of outercolor border around text", category="text")
         self.set(
             "animation",
             "none",
             helptext='Options are "waving" or "none"',
             choices=["none", "waving", "disc_animations", "glitch"],
+            category="matrix",
         )
-        self.set("amplitude", 0.4, helptext="Amplitude of waving animation")
-        self.set("fps", 16, helptext="FPS of waving animation")
-        self.set("period", 2000, helptext="Period of waving animation")
-        self.set("filename", "none", helptext='Image file to display (or "none")')
-        self.set("autosize", True, choices=[True, False])
-        self.set("text_margin", 2, helptext="Margin of background color around text")
-        self.set("brightness", 255, helptext="Image brighness, full bright = 255")
-        self.set("back_and_forth", False, helptext="Loop GIF back and forth", choices=[False, True])
-        self.set("url", "", helptext="Fetch image from url")
-        self.set("urls", "", choices=[])
-        self.set("urls_file", "", helptext="File containing image urls, one url per line")
+        self.set("amplitude", 0.4, helptext="Amplitude of waving animation", category="matrix")
+        self.set("fps", 16, helptext="FPS of waving animation", category="matrix")
+        self.set("period", 2000, helptext="Period of waving animation", category="matrix")
+        self.set("filename", "none", helptext='Image file to display (or "none")', category="file")
+        self.set("autosize", True, choices=[True, False], category="text")
+        self.set("text_margin", 2, helptext="Margin of background color around text", category="text")
+        self.set("brightness", 255, helptext="Image brighness, full bright = 255", category="matrix")
+        self.set("back_and_forth", False, helptext="Loop GIF back and forth", choices=[False, True], category="file")
+        self.set("url", "", helptext="Fetch image from url", category="url")
+        self.set("urls", "", choices=[], category="url")
+        self.set("urls_file", "", helptext="File containing image urls, one url per line", category="url")
         self.set("config_file", ".hawks.json", helptext="Hawks config file for image urls and saved configs (JSON)")
         self.set(
             "disc",
             False,
             helptext="Display is a 255-element DotStar disc",
             choices=[False, True],
+            category="matrix",
         )
         self.set(
             "transpose",
@@ -83,38 +87,40 @@ class HawksSettings(Settings):
                 "ROTATE_270",
                 "TRANSPOSE",
             ],
+            category="matrix",
         )
-        self.set("rotate", 0, helptext="Rotation in degrees")
+        self.set("rotate", 0, helptext="Rotation in degrees", category="matrix")
         self.set(
-            "mock", False, helptext="Display is mock rgbmatrix", choices=[False, True]
+            "mock", False, helptext="Display is mock rgbmatrix", choices=[False, True], category="matrix"
         )
         self.set(
-            "nodisplay", False, helptext="Do not output to a display, including the mock", choices=[False, True]
+            "nodisplay", False, helptext="Do not output to a display, including the mock", choices=[False, True], category="matrix"
         )
         self.set(
             "mode",
             "text",
             helptext="Valid modes are 'text', 'file', 'url', and 'network_weather'",
             choices=["text", "file", "url", "network_weather", "disc_animations"],
+            category="matrix",
         )
-        self.set("gif_frame_no", 0, helptext="Frame number of gif to statically display (when not animating)")
-        self.set("gif_speed", 1.0, helptext="Multiplier for gif animation speed")
-        self.set("gif_loop_delay", 0, helptext="Delay (ms) between repeatations of an animated gif")
-        self.set("no_gif_override_duration_zero", False, helptext="Don't use 100ms frame time instead of 0", choices=[True, False])
-        self.set("animate_gifs", True, choices=[True, False], helptext="Animate animated GIFs")
-        self.set("zoom", False, choices=[True, False], helptext="Crop images to fill screen")
-        self.set("zoom_center", True, choices=[True, False], helptext="When zooming, zoom into center of image")
-        self.set("zoom_level", 1.0, helptext="Custom zoom level")
-        self.set("fit", False, choices=[True, False], helptext="Fit image to display")
-        self.set("filter", "none", choices=["none", "halloween"], helptext="Filter to apply to image")
-        self.set("underscan", 0, helptext="Number of border rows and columns to leave blank")
-        self.set("noloop", True, choices=[True, False], helptext="Do not loop animated GIFs")
-        self.set("slideshow_directory", "img", helptext="directory full of images for slideshow")
-        self.set("slideshow_hold_sec", 10.0, helptext="length of time to display each image in a slideshow")
-        self.set("transition", "none", choices=["none", "fade", "wipe"], helptext="Slideshow transition")
-        self.set("transition_duration_ms", 250, helptext="Slideshow transition duration in ms")
-        self.set("transition_frames_max", 18, helptext="Max number of frames to render for slideshow transition")
-        
+        self.set("gif_frame_no", 0, helptext="Frame number of gif to statically display (when not animating)", category="file")
+        self.set("gif_speed", 1.0, helptext="Multiplier for gif animation speed", category="file")
+        self.set("gif_loop_delay", 0, helptext="Delay (ms) between repeatations of an animated gif", category="file")
+        self.set("no_gif_override_duration_zero", False, helptext="Don't use 100ms frame time instead of 0", choices=[True, False], category="file")
+        self.set("animate_gifs", True, choices=[True, False], helptext="Animate animated GIFs", category="file")
+        self.set("zoom", False, choices=[True, False], helptext="Crop images to fill screen", category="matrix")
+        self.set("zoom_center", True, choices=[True, False], helptext="When zooming, zoom into center of image", category="matrix")
+        self.set("zoom_level", 1.0, helptext="Custom zoom level", category="matrix")
+        self.set("fit", False, choices=[True, False], helptext="Fit image to display", category="matrix")
+        self.set("filter", "none", choices=["none", "halloween"], helptext="Filter to apply to image", category="matrix")
+        self.set("underscan", 0, helptext="Number of border rows and columns to leave blank", category="matrix")
+        self.set("noloop", True, choices=[True, False], helptext="Do not loop animated GIFs", category="file")
+        self.set("slideshow_directory", "img", helptext="directory full of images for slideshow", category="file")
+        self.set("slideshow_hold_sec", 10.0, helptext="length of time to display each image in a slideshow", category="file")
+        self.set("transition", "none", choices=["none", "fade", "wipe"], helptext="Slideshow transition", category="file")
+        self.set("transition_duration_ms", 250, helptext="Slideshow transition duration in ms", category="file")
+        self.set("transition_frames_max", 18, helptext="Max number of frames to render for slideshow transition", category="file")
+
 
     def set(self, name, value, **kwargs):
         """
@@ -233,3 +239,15 @@ class Hawks(Base):
 
     def start(self):
         return self.ctrl.start()
+
+def unit_tests():
+    hawks = Hawks(nodisplay=True)
+    print(len(list(hawks.settings.list())))
+    print(hawks.settings.list_categories())
+    print([foo for foo in hawks.settings.all_in_category(list(hawks.settings.list_categories())[0])])
+
+    
+
+if __name__ == "__main__":
+    unit_tests()
+

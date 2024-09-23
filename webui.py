@@ -24,6 +24,26 @@ class Webui(object):
             img_tag = document.getElementById("preview")
             img_tag.src = value
         }}
+        var add_category_hiders = function(value) {{
+            var categories = document.getElementsByClassName("category")
+            for (let n = 0; n < categories.length; n++) {{
+                let settings_toggler = function() {{
+                    console.log(categories[n]);
+                    console.log(categories[n].title);
+                    let settings = document.getElementsByClassName(categories[n].title);
+                    for (let s = 0; s < settings.length; s++) {{
+                        if (settings[s].style.display == 'none') {{
+                            settings[s].style.display = 'table-row';
+                        }} else {{
+                            settings[s].style.display = 'none';
+                        }}
+                    }}
+                }}
+                categories[n].addEventListener('click', settings_toggler);
+            }}
+        }}
+        window.onload = add_category_hiders;
+        
         '''
 
         try:
@@ -42,48 +62,52 @@ class Webui(object):
             body.append(f"<h3>{time.asctime()}: {message}</h3>")
         body.append('<form method="post" action="/"><table>')
         body.append('<tr><td></td><td></td><td rowspan=4><img height="64" src="/api/do/image"></img></td></tr>')
-        for setting, value in self.hawks.settings:
-            if setting == "filename":
-                value = unquote(value).replace(f"{filepath}/", "")
-            body.append("<tr>")
-            if setting in self.hawks.settings.helptext:
-                helptext = self.hawks.settings.helptext[setting]
-                body.append(f'<td title="{helptext}">')
-            else:
-                body.append("<td>")
-            body.append(f"{setting}</td><td>")
-            if setting in self.hawks.settings.choices and self.hawks.settings.choices[setting]:
-                choices = self.hawks.settings.choices[setting]
+        categories = ["matrix", "file", "text", "url"]
+        categories.extend(list(set(self.hawks.settings.list_categories()).difference(set(categories))))
+        for category in categories:
+            body.append(f"<tr class=\"category\" title=\"{category}\"><td><strong>{category} settings</strong></td></tr>")
+            for setting, value in self.hawks.settings.all_from_category(category):
+                body.append(f"<tr class=\"{category}\">")
                 if setting == "filename":
-                    choices.sort()
-                    body.append(f'<select name={setting} value={value} size=12 oninput="update_preview(this.value)">')
-                    for choice in choices:
-                        if choice == value:
-                            body.append(f'<option value="{choice}" selected="selected">{choice}</option>')
-                        else:
-                            body.append(f'<option value="{choice}">{choice}</option>')
-                    body.append("</select></td><td rowspan=1><img style=\"max-height: 200px;\" id=\"preview\"</img>")
-                elif setting == "urls":
-                    choices.sort()
-                    body.append(f'<select name={setting} value={value} size=12 oninput="update_url(this.value)">')
-                    for choice in choices:
-                        if choice == value:
-                            body.append(f'<option value="{choice}" selected="selected">{choice}</option>')
-                        else:
-                            body.append(f'<option value="{choice}">{choice}</option>')
-                    body.append("</select></td><td rowspan=1>")
+                    value = unquote(value).replace(f"{filepath}/", "")
+                if setting in self.hawks.settings.helptext:
+                    helptext = self.hawks.settings.helptext[setting]
+                    body.append(f'<td title="{helptext}">')
                 else:
-                    body.append(f"<select name={setting} value={value}>")
-                    choices.sort(key=lambda x: x != value)
-                    for choice in choices:
-                        body.append(f'<option value="{choice}">{choice}</option>')
-                    body.append("</select>")
-            else:
-                if setting == "url":
-                    body.append(f'<input name={setting} value="{value}" type=text style="width:100%;box-sizing:border-box;"></input>')
+                    body.append("<td>")
+                body.append(f"{setting}</td><td>")
+                if setting in self.hawks.settings.choices and self.hawks.settings.choices[setting]:
+                    choices = self.hawks.settings.choices[setting]
+                    if setting == "filename":
+                        choices.sort()
+                        body.append(f'<select name={setting} value={value} size=12 oninput="update_preview(this.value)">')
+                        for choice in choices:
+                            if choice == value:
+                                body.append(f'<option value="{choice}" selected="selected">{choice}</option>')
+                            else:
+                                body.append(f'<option value="{choice}">{choice}</option>')
+                        body.append("</select></td><td rowspan=1><img style=\"max-height: 200px;\" id=\"preview\"</img>")
+                    elif setting == "urls":
+                        choices.sort()
+                        body.append(f'<select name={setting} value={value} size=12 oninput="update_url(this.value)">')
+                        for choice in choices:
+                            if choice == value:
+                                body.append(f'<option value="{choice}" selected="selected">{choice}</option>')
+                            else:
+                                body.append(f'<option value="{choice}">{choice}</option>')
+                        body.append("</select></td><td rowspan=1>")
+                    else:
+                        body.append(f"<select name={setting} value={value}>")
+                        choices.sort(key=lambda x: x != value)
+                        for choice in choices:
+                            body.append(f'<option value="{choice}">{choice}</option>')
+                        body.append("</select>")
                 else:
-                    body.append(f"<input name={setting} value=\"{value}\" type=text></input>")
-            body.append("</td></tr>")
+                    if setting == "url":
+                        body.append(f'<input name={setting} value="{value}" type=text style="width:100%;box-sizing:border-box;"></input>')
+                    else:
+                        body.append(f"<input name={setting} value=\"{value}\" type=text></input>")
+                body.append("</td></tr>")
         body.append("</table><br><input type=submit>")
         body.append("</form></body></html>")
         req.send(200, body="".join(body))

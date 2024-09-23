@@ -3,29 +3,16 @@
 from base import Base
 from copy import deepcopy
 
-
-class SettingsIterator(object):
-    def __init__(self, settings):
-        self.kvs = settings.list()
-        self.pointer = 0
-
-    def __next__(self):
-        if self.pointer >= len(self.kvs):
-            raise StopIteration
-        result = self.kvs[self.pointer]
-        self.pointer += 1
-        return result
-
-
 class Settings(Base):
     def __init__(self, *args, **kwargs):
         super().__init__()
         self.helptext = {}
         self.choices = {}
         self.hooks = {}
+        self.categories = {}
         self.config_file = ".hawks.json"
         self.configs = {}
-        self.internal = set(["helptext", "choices", "internal", "hooks", "config_file"])
+        self.internal = set(["helptext", "choices", "internal", "hooks", "categories", "config_file"])
 
         for k, v in kwargs.items():
             self.set(k, v)
@@ -69,13 +56,15 @@ class Settings(Base):
     def __contains__(self, name):
         return name in self.__dict__
 
-    def set(self, name, value, helptext=None, choices=None, hooks=None):
+    def set(self, name, value, helptext=None, choices=None, hooks=None, category=None):
         if helptext is not None:
             self.helptext[name] = helptext
         if choices is not None:
             self.choices[name] = choices
         if hooks is not None:
             self.hooks[name] = hooks
+        if category is not None:
+            self.categories[name] = category
 
         existing = self.get(name)
         if type(existing) == int:
@@ -101,12 +90,20 @@ class Settings(Base):
         ]
 
     def __iter__(self):
-        return SettingsIterator(self)
+        return iter(self.list())
 
     def get(self, name):
         if hasattr(self, name):
             return getattr(self, name)
         return None
+
+    def list_categories(self):
+        cats = list(set(self.categories.values()))
+        cats.sort(key=lambda x: {"matrix": 0, "misc": 1, "file": 2, "text": 3}.get(x, 4))
+        return cats
+
+    def all_from_category(self, category):
+        return (kv for kv in self.list() if self.categories.get(kv[0], None) == category)
 
 
 if __name__ == "__main__":
