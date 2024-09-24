@@ -29,15 +29,12 @@ class Webui(object):
         var add_category_hiders = function(value) {{
             var adv_checkbox = document.getElementById("advanced");
             var categories = document.getElementsByClassName("category");
-            console.log(categories);
             for (let c = 0; c < categories.length; c++) {{
                 window.l.categories[categories[c].title] = true;
             }}
             for (let n = 0; n < categories.length; n++) {{
 
                 let settings_toggler = function() {{
-                    console.log(categories[n]);
-                    console.log(categories[n].title);
                     let cat_title = categories[n].title;
                     if (window.l.categories[cat_title] == false) {{
                         window.l.categories[cat_title] = true;
@@ -63,6 +60,7 @@ class Webui(object):
                 }}
 
                 categories[n].addEventListener('click', settings_toggler);
+                window.l.togglers[categories[n].title] = settings_toggler;
             }}
 
             let advanced_toggler = function() {{
@@ -81,13 +79,39 @@ class Webui(object):
                 }}
             }}
             adv_checkbox.addEventListener('change', advanced_toggler);
-            advanced_toggler();
+            if ("{self.hawks.settings.advanced}" == "False") {{
+                advanced_toggler();
+            }}
         }}
 
+        var one_mode_only = function(mode) {{
+            if ("{self.hawks.settings.no_webui_one_mode_only}" == "True") {{
+                return;
+            }}
+            if (mode == "slideshow") {{
+                mode = "file"
+            }}
+            var categories = document.getElementsByClassName("category");
+            for (let c = 0; c < categories.length; c++) {{
+                if (categories[c].title == "matrix") {{
+                    continue;
+                }}
+                if (categories[c].title == mode) {{
+                    if (window.l.categories[categories[c].title] == false) {{
+                        window.l.togglers[categories[c].title]();
+                    }}
+                    continue;
+                }}
+                if (window.l.categories[categories[c].title] == true) {{
+                    window.l.togglers[categories[c].title]();
+                }}
+            }}
+        }}
 
         var add_hiders = function(value) {{
-            window.l = {{ categories: {{ }} }};
+            window.l = {{ categories: {{ }}, togglers: {{ }} }};
             add_category_hiders();
+            one_mode_only("{self.hawks.settings.mode}");
         }}
 
         window.onload = add_hiders;
@@ -109,7 +133,7 @@ class Webui(object):
         if message:
             body.append(f"<h3>{time.asctime()}: {message}</h3>")
         body.append('<form method="post" action="/"><table>')
-        body.append('<tr><td><input label="Advanced" type="checkbox" id="advanced" unchecked/>Advanced</td><td></td><td rowspan=4><img height="64" src="/api/do/image"></img></td></tr>')
+        body.append(f'<tr><td><input label="Advanced" type="checkbox" name="advanced" id="advanced" {"checked" if self.hawks.settings.get("advanced") else ""} />Advanced</td><td></td><td rowspan=4><img height="64" src="/api/do/image"></img></td></tr>')
         categories = ["matrix", "file", "text", "url"]
         categories.extend(list(set(self.hawks.settings.list_categories()).difference(set(categories))))
         for category in categories:
@@ -140,6 +164,12 @@ class Webui(object):
                             else:
                                 body.append(f'<option value="{choice}">{choice}</option>')
                         body.append("</select></td><td rowspan=1><img style=\"max-height: 200px;\" id=\"preview\"</img>")
+                    elif setting == "mode":
+                        body.append(f'<select name={setting} value={value} oninput="one_mode_only(this.value)">')
+                        choices.sort(key=lambda x: x != value)
+                        for choice in choices:
+                            body.append(f'<option value="{choice}">{choice}</option>')
+                        body.append("</select>")
                     elif setting == "urls":
                         choices.sort()
                         body.append(f'<select name={setting} value={value} size=12 oninput="update_url(this.value)">')
@@ -179,6 +209,8 @@ class Webui(object):
             if key == "filename":
                 value = f"{filepath}/{value}"
             req.parts.extend([key, value])
+        if "advanced" not in req.parts:
+            req.parts.extend(["advanced", False])
         code, message = self.api_set(req, msg="Settings accepted", respond=False)
         return message
 

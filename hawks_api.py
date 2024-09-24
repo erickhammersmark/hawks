@@ -133,9 +133,9 @@ Settings:
                     except:
                         raise HawksApiValidationException(f"Value for key {key} must be of type int")
                 elif type(_val) is bool:
-                    if value in ["True", "true", True]:
+                    if value in ["True", "true", "on", True]:
                         value = True
-                    elif value in ["False", "false", False]:
+                    elif value in ["False", "false", "off", False]:
                         value = False
                     else:
                         raise HawksApiValidationException(f"Value for key {key} must be of type bool")

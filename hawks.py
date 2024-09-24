@@ -18,8 +18,10 @@ class HawksSettings(Settings):
         self.internal.add("hawks")
         self.internal.add("filepath")
         self.internal.add("debug")
+        self.internal.add("advanced")
         self.set("filepath", "")
         self.set("debug", False)
+        self.set("advanced", False)
         self.set("bgcolor", "blue", helptext="Background color when rendering text", category="text")
         self.set("outercolor", "black", helptext="Outer color of rendered text", category="text")
         self.set("innercolor", "green", helptext="Inner color of rendered text", category="text")
@@ -101,8 +103,8 @@ class HawksSettings(Settings):
         self.set(
             "mode",
             "text",
-            helptext="Valid modes are 'text', 'file', 'url', and 'network_weather'",
-            choices=["text", "file", "url", "network_weather", "disc_animations"],
+            helptext="Valid modes are 'text', 'file', 'url', 'slideshow', and 'disc_animations'",
+            choices=["text", "file", "url", "slideshow", "disc_animations"],
             category="matrix",
         )
         self.set("gif_frame_no", 0, helptext="Frame number of gif to statically display (when not animating)", category="file", tags=["advanced"])
@@ -122,6 +124,7 @@ class HawksSettings(Settings):
         self.set("transition", "none", choices=["none", "fade", "wipe"], helptext="Slideshow transition", category="file")
         self.set("transition_duration_ms", 250, helptext="Slideshow transition duration in ms", category="file")
         self.set("transition_frames_max", 18, helptext="Max number of frames to render for slideshow transition", category="file", tags=["advanced"])
+        self.set("no_webui_one_mode_only", False, choices=[True, False], helptext="Prevent webui from hiding unused mode settings", category="matrix", tags=["advanced"])
 
 
     def set(self, name, value, **kwargs):
