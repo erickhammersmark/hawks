@@ -10,6 +10,7 @@ class Settings(Base):
         self.choices = {}
         self.hooks = {}
         self.categories = {}
+        self.tags = {}
         self.config_file = ".hawks.json"
         self.configs = {}
         self.internal = set(["helptext", "choices", "internal", "hooks", "categories", "config_file"])
@@ -56,7 +57,7 @@ class Settings(Base):
     def __contains__(self, name):
         return name in self.__dict__
 
-    def set(self, name, value, helptext=None, choices=None, hooks=None, category=None):
+    def set(self, name, value, helptext=None, choices=None, hooks=None, category=None, tags=None):
         if helptext is not None:
             self.helptext[name] = helptext
         if choices is not None:
@@ -65,6 +66,8 @@ class Settings(Base):
             self.hooks[name] = hooks
         if category is not None:
             self.categories[name] = category
+        if tags is not None:
+            self.tags[name] = tags
 
         existing = self.get(name)
         if type(existing) == int:
@@ -104,6 +107,9 @@ class Settings(Base):
 
     def all_from_category(self, category):
         return (kv for kv in self.list() if self.categories.get(kv[0], None) == category)
+
+    def get_tags(self, name):
+        return self.tags.get(name, [])
 
 
 if __name__ == "__main__":

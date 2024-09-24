@@ -18,31 +18,79 @@ class Webui(object):
             img_tag = document.getElementById("preview")
             img_tag.src="{filepath}/" + value
         }}
+
         var update_url = function(value) {{
             url_field = document.getElementsByName("url")[0]
             url_field.value = value
             img_tag = document.getElementById("preview")
             img_tag.src = value
         }}
+
         var add_category_hiders = function(value) {{
-            var categories = document.getElementsByClassName("category")
+            var adv_checkbox = document.getElementById("advanced");
+            var categories = document.getElementsByClassName("category");
+            console.log(categories);
+            for (let c = 0; c < categories.length; c++) {{
+                window.l.categories[categories[c].title] = true;
+            }}
             for (let n = 0; n < categories.length; n++) {{
+
                 let settings_toggler = function() {{
                     console.log(categories[n]);
                     console.log(categories[n].title);
-                    let settings = document.getElementsByClassName(categories[n].title);
+                    let cat_title = categories[n].title;
+                    if (window.l.categories[cat_title] == false) {{
+                        window.l.categories[cat_title] = true;
+                    }} else {{
+                        window.l.categories[cat_title] = false;
+                    }}
+                    let settings = document.getElementsByClassName(cat_title);
                     for (let s = 0; s < settings.length; s++) {{
-                        if (settings[s].style.display == 'none') {{
-                            settings[s].style.display = 'table-row';
+                        if (window.l.categories[cat_title] == true) {{
+                            if (settings[s].classList.contains("advanced")) {{
+                                if (adv_checkbox.checked) {{
+                                    settings[s].style.display = 'table-row';
+                                }} else {{
+                                    settings[s].style.display = 'none';
+                                }}
+                            }} else {{ 
+                                settings[s].style.display = 'table-row';
+                            }}
                         }} else {{
                             settings[s].style.display = 'none';
                         }}
                     }}
                 }}
+
                 categories[n].addEventListener('click', settings_toggler);
             }}
+
+            let advanced_toggler = function() {{
+                var adv_checkbox = document.getElementById("advanced");
+                let settings = document.getElementsByClassName("advanced");
+                for (let s = 0; s < settings.length; s++) {{
+                    s_cls = settings[s].classList[0];
+                    if (window.l.categories[s_cls] == false) {{
+                        continue;
+                    }}
+                    if (adv_checkbox.checked) {{
+                        settings[s].style.display = 'table-row';
+                    }} else {{
+                        settings[s].style.display = 'none';
+                    }}
+                }}
+            }}
+            adv_checkbox.addEventListener('change', advanced_toggler);
+            advanced_toggler();
         }}
-        window.onload = add_category_hiders;
+
+
+        var add_hiders = function(value) {{
+            window.l = {{ categories: {{ }} }};
+            add_category_hiders();
+        }}
+
+        window.onload = add_hiders;
         
         '''
 
@@ -61,13 +109,18 @@ class Webui(object):
         if message:
             body.append(f"<h3>{time.asctime()}: {message}</h3>")
         body.append('<form method="post" action="/"><table>')
-        body.append('<tr><td></td><td></td><td rowspan=4><img height="64" src="/api/do/image"></img></td></tr>')
+        body.append('<tr><td><input label="Advanced" type="checkbox" id="advanced" unchecked/>Advanced</td><td></td><td rowspan=4><img height="64" src="/api/do/image"></img></td></tr>')
         categories = ["matrix", "file", "text", "url"]
         categories.extend(list(set(self.hawks.settings.list_categories()).difference(set(categories))))
         for category in categories:
             body.append(f"<tr class=\"category\" title=\"{category}\"><td><strong>{category} settings</strong></td></tr>")
-            for setting, value in self.hawks.settings.all_from_category(category):
-                body.append(f"<tr class=\"{category}\">")
+            cat_settings = list(self.hawks.settings.all_from_category(category))
+            cat_settings.sort(key=lambda x: 1 if "advanced" in self.hawks.settings.get_tags(x[0]) else 0)
+            for setting, value in cat_settings:
+                setting_class = category
+                if "advanced" in self.hawks.settings.get_tags(setting):
+                    setting_class += " advanced"
+                body.append(f"<tr class=\"{setting_class}\">")
                 if setting == "filename":
                     value = unquote(value).replace(f"{filepath}/", "")
                 if setting in self.hawks.settings.helptext:
@@ -107,7 +160,8 @@ class Webui(object):
                         body.append(f'<input name={setting} value="{value}" type=text style="width:100%;box-sizing:border-box;"></input>')
                     else:
                         body.append(f"<input name={setting} value=\"{value}\" type=text></input>")
-                body.append("</td></tr>")
+                body.append("</td>")
+                body.append("</tr>")
         body.append("</table><br><input type=submit>")
         body.append("</form></body></html>")
         req.send(200, body="".join(body))

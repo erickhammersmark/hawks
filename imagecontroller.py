@@ -37,7 +37,6 @@ class ImageController(Base):
         "back_and_forth",
         "noloop",
         "bgcolor",
-        "bgbrightness",
         "bgrainbow",
         "brightness",
         "debug",
@@ -532,8 +531,8 @@ class ImageController(Base):
             for pixel in pixels:
                 if pixel == bg_rgb:
                     new_pixel = self.rainbow_color_from_value(int(color_value))
-                    if self.bgbrightness:
-                        new_pixel = tuple([int(float(p)*float(self.bgbrightness)/255) for p in new_pixel])   
+                    if self.brightness < 255:
+                        new_pixel = tuple([int(float(p)*float(self.brightness)/255) for p in new_pixel])   
                     new_pixels.append(new_pixel)
                 else:
                     new_pixels.append(pixel)
@@ -875,7 +874,6 @@ class TextImageController(ImageController):
         "outercolor",
         "innercolor",
         "bgrainbow",
-        "bgbrightness",
         "font",
         "text",
         "textsize",
@@ -891,7 +889,6 @@ class TextImageController(ImageController):
         self.outercolor = "black"
         self.innercolor = "white"
         self.bgrainbow = False
-        self.bgbrightness = 0
         self.font = "FreeSansBold"
         self.text = "12"
         self.textsize = 27
