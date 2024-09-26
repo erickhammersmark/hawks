@@ -13,7 +13,7 @@ class Settings(Base):
         self.tags = {}
         self.config_file = ".hawks.json"
         self.configs = {}
-        self.internal = set(["helptext", "choices", "internal", "hooks", "categories", "config_file"])
+        self.internal = set(["helptext", "choices", "internal", "hooks", "categories", "config_file", "tags"])
 
         for k, v in kwargs.items():
             self.set(k, v)

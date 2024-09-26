@@ -30,57 +30,7 @@ class ImageController(Base):
     non-negative, the matrix must leave pixels at the specified brightness.
     """
 
-    settings = [
-        "amplitude",
-        "animate_gifs",
-        "animation",
-        "back_and_forth",
-        "noloop",
-        "bgcolor",
-        "bgrainbow",
-        "brightness",
-        "debug",
-        "cols",
-        "filename",
-        "filter",
-        "fit",
-        "font",
-        "fps",
-        "gif_frame_no",
-        "gif_speed",
-        "gif_loop_delay",
-        "no_gif_override_duration_zero",
-        "hawks",
-        "innercolor",
-        "mock",
-        "outercolor",
-        "period",
-        "rotate",
-        "rows",
-        "text",
-        "textsize",
-        "thickness",
-        "transpose",
-        "url",
-        "urls",
-        "x",
-        "y",
-        "zoom",
-        "zoom_level",
-        "zoom_center",
-        "autosize",
-        "text_margin",
-        "x",
-        "y",
-        "underscan",
-        "slideshow_directory",
-        "slideshow_hold_sec",
-        "transition",
-        "transition_duration_ms",
-        "transition_frames_max",
-    ]
-
-    def __init__(self, frame_queue, *args, **kwargs):
+    def __init__(self, frame_queue, settings):
         """
         ImageController objects should not pre-render images in __init__, as
         some properties of the ImageController will be assigned by the
@@ -90,6 +40,8 @@ class ImageController(Base):
         """
 
         self.frame_queue = frame_queue
+        self.settings = settings
+        self.hawks = self.settings.hawks
         self.static_frames = []
         self.bright_frames = []
 
@@ -131,15 +83,12 @@ class ImageController(Base):
         self.frame_no = 0
         self.direction = 1
 
-        for (k, v) in kwargs.items():
+        for (k, v) in self.settings:
             setattr(self, k, v)
         super().__init__()
 
         self.active_cols = self.cols - self.underscan * 2
         self.active_rows = self.rows - self.underscan * 2
-
-    def render_settings_hack(self, _settings):
-        return dict([(setting, getattr(self, setting, None)) for setting in _settings])
 
     def drain_queue(self):
         while not self.frame_queue.empty():
@@ -151,23 +100,15 @@ class ImageController(Base):
         if mode == "url":
             if self.url == "":
                 self.url = self.urls
-            img_ctrl = URLImageController(
-                **self.render_settings_hack(URLImageController.settings)
-            )
+            img_ctrl = URLImageController(self.settings)
         elif mode == "file" and self.filename != "none":
-            img_ctrl = FileImageController(
-                **self.render_settings_hack(FileImageController.settings)
-            )
+            img_ctrl = FileImageController(self.settings)
         elif mode == "network_weather":
-            img_ctrl = NetworkWeatherImageController(
-                **self.render_settings_hack(NetworkWeatherImageController.settings)
-            )
+            img_ctrl = NetworkWeatherImageController(self.settings)
         elif mode == "disc_animations":
             self.static_frames = []
             #self.ctrl.disc_animations()
-            img_ctrl = DiscAnimationsImageController(
-                **self.render_settings_hack(DiscAnimationsImageController.settings)
-            )
+            img_ctrl = DiscAnimationsImageController(self.settings)
         elif mode == "slideshow":
             # slideshow works by itself calling this function against each of the
             # images in this directory, each on a new instance of ImageController.
@@ -177,7 +118,6 @@ class ImageController(Base):
             # duration longer than the slideshow hold time, that timer will adjust to
             # let the file play at least one time through. Animations shorter than the
             # hold time can loop.
-            imgctrl_settings = self.render_settings_hack(ImageController.settings)
             while self.go:
                 for filename in os.listdir(self.slideshow_directory):
                     hold_time_ms = self.slideshow_hold_sec * 1000
@@ -187,8 +127,9 @@ class ImageController(Base):
 
                     if img_ctrl:
                         img_ctrl.stop()
-                    imgctrl_settings["filename"] = fullpath
-                    img_ctrl = ImageController(self.frame_queue, **imgctrl_settings)
+                    settings = copy(self.settings)
+                    settings.set("filename", fullpath, propagate=False)
+                    img_ctrl = ImageController(self.frame_queue, settings)
                     if not img_ctrl:
                         continue
 
@@ -203,9 +144,7 @@ class ImageController(Base):
 
                     time.sleep(float(hold_time_ms) / 1000.0)
         else:
-            img_ctrl = TextImageController(
-                **self.render_settings_hack(TextImageController.settings)
-            )
+            img_ctrl = TextImageController(self.settings)
 
         if img_ctrl:
             self.img_ctrl = img_ctrl
@@ -869,22 +808,9 @@ class ImageController(Base):
 
 
 class TextImageController(ImageController):
-    settings = ImageController.settings + [
-        "bgcolor",
-        "outercolor",
-        "innercolor",
-        "bgrainbow",
-        "font",
-        "text",
-        "textsize",
-        "thickness",
-        "autosize",
-        "text_margin",
-        "x",
-        "y",
-    ]
+    def __init__(self, settings):
+        self.settings = settings
 
-    def __init__(self, *args, **kwargs):
         self.bgcolor = "blue"
         self.outercolor = "black"
         self.innercolor = "white"
@@ -897,7 +823,7 @@ class TextImageController(ImageController):
         self.text_margin = 2
         self.x = 0
         self.y = 0
-        super().__init__(None, *args, **kwargs)
+        super().__init__(None, settings)
         self.rows = self.active_rows
         self.cols = self.active_cols
 
@@ -1043,24 +969,14 @@ class TextImageController(ImageController):
 
 
 class FileImageController(ImageController):
-    settings = [
-      "filename",
-      "animate_gifs",
-      "gif_frame_no",
-      "gif_speed",
-      "gif_loop_delay",
-      "no_gif_override_duration_zero",
-    ]
-    settings.extend(ImageController.settings)
-
-    def __init__(self, filename, **kwargs):
-        self.filename = filename
+    def __init__(self, settings):
+        self.settings = settings
         self.animate_gifs = True
         self.gif_frame_no = 0
         self.gif_speed = 1
         self.gif_loop_delay = 0
         self.no_gif_override_duration_zero = False
-        super().__init__(None, **kwargs)
+        super().__init__(None, settings)
         self.cols = self.active_cols
         self.rows = self.active_rows
 
@@ -1072,22 +988,16 @@ class FileImageController(ImageController):
             return []
 
         if hasattr(image, "is_animated") and image.is_animated:
-            return GifFileImageController(
-                self.filename,
-                animate_gifs=self.animate_gifs,
-                gif_frame_no=self.gif_frame_no,
-                gif_speed=self.gif_speed,
-                gif_loop_delay=self.gif_loop_delay,
-                no_gif_override_duration_zero=self.no_gif_override_duration_zero,
-            ).render()
+            return GifFileImageController(self.settings).render()
 
         image = image.convert("RGB")
         return [(image, 0)]
 
 
 class GifFileImageController(FileImageController):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, settings):
+        self.settings = settings
+        super().__init__(filename, settings)
         self.init_frames()
 
     def init_frames(self):
@@ -1118,15 +1028,13 @@ class GifFileImageController(FileImageController):
 
 
 class URLImageController(FileImageController):
-    settings = [ "url" ]
-    settings.extend(FileImageController.settings)
-
-    def __init__(self, url, **kwargs):
-        self.url = url
-        super().__init__(**kwargs)
+    def __init__(self, settings):
+        self.settings = settings
+        super().__init__(settings)
         self.cols = self.active_cols
         self.rows = self.active_rows
         self.filename = tempfile.mktemp()
+        self.settings.filename = self.filename
         self.fetch_image()
 
     def fetch_image(self):
@@ -1137,15 +1045,9 @@ class URLImageController(FileImageController):
             TMPFILE.write(response.content)
 
     def render(self):
-        return FileImageController(
-            self.filename,
-            animate_gifs = self.animate_gifs,
-            gif_frame_no = self.gif_frame_no,
-            gif_speed = self.gif_speed,
-            gif_loop_delay = self.gif_loop_delay,
-            no_gif_override_duration_zero = self.no_gif_override_duration_zero,
-        ).render()
+        frames = FileImageController(self.settings).render()
         os.unlink(self.filename)
+        return frames
 
 
 class NetworkWeatherImageController(ImageController):
@@ -1153,8 +1055,9 @@ class NetworkWeatherImageController(ImageController):
     WIP
     """
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(None, *args, **kwargs)
+    def __init__(self, settings):
+        self.settings = settings
+        super().__init__(None, settings)
         self.cols = self.active_cols
         self.rows = self.active_rows
         self.network_weather_data = None
@@ -1263,8 +1166,9 @@ class NetworkWeatherImageController(ImageController):
 
 
 class DiscAnimationsImageController(ImageController):
-    def __init__(self, *args, **kwargs):
-        super().__init__(None, *args, **kwargs)
+    def __init__(self, settings):
+        self.settings = settings
+        super().__init__(None, settings)
         self.cols = self.active_cols
         self.rows = self.active_rows
         self.circle_colors = []
@@ -1286,17 +1190,17 @@ class DiscAnimationsImageController(ImageController):
 
 
 def main():
-    ctrl = MatrixController(mock=True)
+    ctrl = MatrixController((("mock", True)))
     ctrl.debug = True
     if len(sys.argv) > 1:
         if sys.argv[1].endswith(".gif"):
-            ctrl.set_frames(GifFileImageController(sys.argv[1]).render())
+            ctrl.set_frames(GifFileImageController((("filename", sys.argv[1]))).render())
         else:
-            ctrl.set_frames(FileImageController(sys.argv[1]).render())
+            ctrl.set_frames(FileImageController((("filename", sys.argv[1]))).render())
     else:
         #ctrl.set_frames(TextImageController(animation="glitch").render())
-        print(TextImageController().render())
-        ctrl.set_frames(TextImageController().render())
+        print(TextImageController(()).render())
+        ctrl.set_frames(TextImageController(()).render())
     ctrl.show()
     while True:
         time.sleep(1000)

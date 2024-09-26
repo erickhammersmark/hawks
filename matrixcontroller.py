@@ -13,20 +13,10 @@ class MatrixController(Base):
     Implements an RGB Matrix and Dotstar Disc controller
     """
 
-    settings = [
-        "rows",
-        "cols",
-        "p_rows",
-        "p_cols",
-        "decompose",
-        "disc",
-        "mock",
-        "nodisplay",
-        "row_address_type",
-        "debug",
-    ]
+    def __init__(self, frame_queue, settings):
+        self.frame_queue = frame_queue
+        self.settings = settings
 
-    def __init__(self, frame_queue, *args, **kwargs):
         self.rows = 32
         self.cols = 32
         self.p_rows = 32
@@ -42,11 +32,10 @@ class MatrixController(Base):
         self.timer = None
         self.go = True
         self.nodisplay = False
-        self.frame_queue = frame_queue
         self.img_ctrl = None
         self.row_address_type = 0
 
-        for (k, v) in kwargs.items():
+        for (k, v) in self.settings:
             setattr(self, k, v)
 
         self.blank = Image.new("RGB", (self.cols, self.rows), "black")
@@ -280,7 +269,7 @@ class MatrixController(Base):
 
 def main():
     frame_queue = Queue()
-    ctrl = MatrixController(frame_queue, rows=128, cols=128, p_cols=128, p_rows=64, decompose=True)
+    ctrl = MatrixController(frame_queue, (("rows", 128), ("cols", 128), ("p_cols", 128), ("p_rows", 64), ("decompose", True)))
     ctrl.set_image(Image.open("img/hawks.png").convert("RGB"))
     while True:
         time.sleep(1000)

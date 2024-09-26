@@ -127,7 +127,7 @@ class HawksSettings(Settings):
         self.set("no_webui_one_mode_only", False, choices=[True, False], helptext="Prevent webui from hiding unused mode settings", category="matrix", tags=["advanced"])
 
 
-    def set(self, name, value, **kwargs):
+    def set(self, name, value, propagate=True, **kwargs):
         """
         Write the value to ourself.
         If we are configured with a reference to a Hawks object, check the settings of its
@@ -138,11 +138,9 @@ class HawksSettings(Settings):
         """
 
         super().set(name, value, **kwargs)
-        if self.hawks:
-            if name in self.hawks.ctrl.settings:
-                setattr(self.hawks.ctrl, name, self.get(name))
-            if name in self.hawks.img_ctrl.settings:
-                setattr(self.hawks.img_ctrl, name, self.get(name))
+        if propagate and self.hawks:
+            setattr(self.hawks.ctrl, name, self.get(name))
+            setattr(self.hawks.img_ctrl, name, self.get(name))
 
     def render(self, names):
         """
@@ -207,9 +205,9 @@ class Hawks(Base):
 
         self.frame_queue = Queue()
 
-        self.ctrl = MatrixController(self.frame_queue, **self.settings.render(MatrixController.settings))
-        self.img_ctrl = ImageController(self.frame_queue, **self.settings.render(ImageController.settings))
         self.settings.hawks = self
+        self.ctrl = MatrixController(self.frame_queue, self.settings)
+        self.img_ctrl = ImageController(self.frame_queue, self.settings)
 
         if preset and preset != "none":
             self.apply_preset(preset)
@@ -227,7 +225,7 @@ class Hawks(Base):
     def show(self):
         self.db(time.time())
         self.stop()
-        self.img_ctrl = ImageController(self.frame_queue, **self.settings.render(ImageController.settings))
+        self.img_ctrl = ImageController(self.frame_queue, self.settings)
         self.img_ctrl.show(self.settings.mode)
         self.img_ctrl_render_thread = Thread(target=self.img_ctrl.render)
         self.img_ctrl_render_thread.start()
