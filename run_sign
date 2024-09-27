@@ -32,6 +32,7 @@ def parse_args():
     parser.add_argument("--port", type=int, default="1212", help="TCP port number for the API and webui")
     parser.add_argument("--showip", action="store_true", default=False, help="display IP address on start")
     parser.add_argument("--noapi", action="store_true", default=False, help="prevent execution of a local webserver for the API and webui")
+    parser.add_argument("--preset", default="none", choices=Hawks.PRESETS.keys())
 
     args = parser.parse_args()
 
@@ -54,7 +55,6 @@ def splitip(ip):
 def main():
     args = parse_args()
     hawks_args = dict(args._get_kwargs())
-    print(hawks_args)
     hawks_args.pop("port")
     hawks = Hawks(**hawks_args)
     myip = whatismyip()
