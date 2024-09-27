@@ -30,8 +30,8 @@ class HawksSettings(Settings):
         self.set("y", 0, category="file", tags=["advanced"])
         self.set("rows", 32, helptext="Image height", choices=[32, 64, 128], category="matrix", tags=["advanced"])
         self.set("cols", 32, helptext="Image width", choices=[32, 64, 128], category="matrix", tags=["advanced"])
-        self.set("p_rows", 32, helptext="Matrix height", choices=[32, 64, 128], category="matrix", tags=["advanced"])
-        self.set("p_cols", 32, helptext="Matrix width", choices=[32, 64, 128, 256], category="matrix", tags=["advanced"])
+        self.set("p_rows", 0, helptext="Matrix height", choices=[32, 64, 128], category="matrix", tags=["advanced"])
+        self.set("p_cols", 0, helptext="Matrix width", choices=[32, 64, 128, 256], category="matrix", tags=["advanced"])
         self.set(
             "decompose",
             False,
