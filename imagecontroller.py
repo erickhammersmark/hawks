@@ -645,7 +645,6 @@ class ImageController(Base):
             image = self.brighten(image)
 
         if self.underscan:
-            print(self.cols, self.rows, self.underscan, image.size)
             new_image = Image.new("RGB", (self.cols, self.rows), "black")
             new_image.paste(image, (self.underscan, self.underscan))
             image = new_image
@@ -997,7 +996,7 @@ class FileImageController(ImageController):
 class GifFileImageController(FileImageController):
     def __init__(self, settings):
         self.settings = settings
-        super().__init__(filename, settings)
+        super().__init__(settings)
         self.init_frames()
 
     def init_frames(self):
