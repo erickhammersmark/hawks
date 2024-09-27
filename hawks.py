@@ -118,7 +118,7 @@ class HawksSettings(Settings):
         self.set("fit", False, choices=[True, False], helptext="Fit image to display", category="matrix")
         self.set("filter", "none", choices=["none", "halloween"], helptext="Filter to apply to image", category="matrix")
         self.set("underscan", 0, helptext="Number of border rows and columns to leave blank", category="matrix")
-        self.set("noloop", True, choices=[True, False], helptext="Do not loop animated GIFs", category="file", tags=["advanced"])
+        self.set("noloop", False, choices=[True, False], helptext="Do not loop animated GIFs", category="file", tags=["advanced"])
         self.set("slideshow_directory", "img", helptext="directory full of images for slideshow", category="file")
         self.set("slideshow_hold_sec", 10.0, helptext="length of time to display each image in a slideshow", category="file")
         self.set("transition", "none", choices=["none", "fade", "wipe"], helptext="Slideshow transition", category="file")
