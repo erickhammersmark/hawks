@@ -22,9 +22,9 @@ class HawksSettings(Settings):
         self.set("filepath", "")
         self.set("debug", False)
         self.set("advanced", False)
-        self.set("bgcolor", "blue", helptext="Background color when rendering text", category="text")
+        self.set("bgcolor", "black", helptext="Background color when rendering text", category="text")
         self.set("outercolor", "black", helptext="Outer color of rendered text", category="text")
-        self.set("innercolor", "green", helptext="Inner color of rendered text", category="text")
+        self.set("innercolor", "white", helptext="Inner color of rendered text", category="text")
         self.set("font", "FreeSansBold", helptext="Font to use when rendering text", category="text", tags=["advanced"])
         self.set("x", 0, category="file", tags=["advanced"])
         self.set("y", 0, category="file", tags=["advanced"])
@@ -48,7 +48,7 @@ class HawksSettings(Settings):
             category="matrix",
             tags=["advanced"],
         )
-        self.set("text", "12", helptext='Text to render (if filename is "none")', category="text")
+        self.set("text", "hello", helptext='Text to render (if filename is "none")', category="text")
         self.set("textsize", 27, category="text", tags=["advanced"])
         self.set("thickness", 1, helptext="Thickness of outercolor border around text", category="text")
         self.set(
@@ -64,10 +64,10 @@ class HawksSettings(Settings):
         self.set("filename", "none", helptext='Image file to display (or "none")', category="file")
         self.set("autosize", True, choices=[True, False], category="text", tags=["advanced"])
         self.set("text_margin", 2, helptext="Margin of background color around text", category="text")
-        self.set("brightness", 255, helptext="Image brighness, full bright = 255", category="matrix")
+        self.set("brightness", 192, helptext="Image brighness, full bright = 255", category="matrix")
         self.set("back_and_forth", False, helptext="Loop GIF back and forth", choices=[False, True], category="file")
         self.set("url", "", helptext="Fetch image from url", category="url")
-        self.set("urls", "", choices=[], category="url")
+        self.set("urls", "", choices=[], category="url", read_only=True)
         self.set("urls_file", "", helptext="File containing image urls, one url per line", category="url", tags=["advanced"])
         self.set("config_file", ".hawks.json", helptext="Hawks config file for image urls and saved configs (JSON)", tags=["advanced"])
         self.set(

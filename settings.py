@@ -13,7 +13,8 @@ class Settings(Base):
         self.tags = {}
         self.config_file = ".hawks.json"
         self.configs = {}
-        self.internal = set(["helptext", "choices", "internal", "hooks", "categories", "config_file", "tags"])
+        self.read_only = set(["configs"])
+        self.internal = set(["helptext", "choices", "internal", "hooks", "categories", "config_file", "tags", "read_only"])
 
         for k, v in kwargs.items():
             self.set(k, v)
@@ -57,7 +58,7 @@ class Settings(Base):
     def __contains__(self, name):
         return name in self.__dict__
 
-    def set(self, name, value, helptext=None, choices=None, hooks=None, category=None, tags=None):
+    def set(self, name, value, helptext=None, choices=None, hooks=None, category=None, tags=None, read_only=False):
         if helptext is not None:
             self.helptext[name] = helptext
         if choices is not None:
@@ -68,6 +69,8 @@ class Settings(Base):
             self.categories[name] = category
         if tags is not None:
             self.tags[name] = tags
+        if read_only:
+            self.read_only.add(name)
 
         existing = self.get(name)
         if type(existing) == int:
@@ -95,10 +98,10 @@ class Settings(Base):
     def __iter__(self):
         return iter(self.list())
 
-    def get(self, name):
+    def get(self, name, default=None):
         if hasattr(self, name):
             return getattr(self, name)
-        return None
+        return default
 
     def list_categories(self):
         cats = list(set(self.categories.values()))
