@@ -110,39 +110,7 @@ class ImageController(Base):
             #self.ctrl.disc_animations()
             img_ctrl = DiscAnimationsImageController(self.settings)
         elif mode == "slideshow":
-            # slideshow works by itself calling this function against each of the
-            # images in this directory, each on a new instance of ImageController.
-            # Once it has called show() on the MatrixController for each image,
-            # it sets a timer, after which it will loop again, stop the old
-            # ImageController and make a new one. If the file being shown has a total
-            # duration longer than the slideshow hold time, that timer will adjust to
-            # let the file play at least one time through. Animations shorter than the
-            # hold time can loop.
-            while self.go:
-                for filename in os.listdir(self.slideshow_directory):
-                    hold_time_ms = self.slideshow_hold_sec * 1000
-                    fullpath = os.path.join(self.slideshow_directory, filename)
-                    if os.path.isdir(fullpath):
-                        continue
-
-                    if img_ctrl:
-                        img_ctrl.stop()
-                    settings = copy(self.settings)
-                    settings.set("filename", fullpath, propagate=False)
-                    img_ctrl = ImageController(self.frame_queue, settings)
-                    if not img_ctrl:
-                        continue
-
-                    self.hawks.ctrl.stop()
-                    self.drain_queue()
-                    img_ctrl.show("file")
-                    self.hawks.ctrl.show()
-
-                    duration = sum(f[1] for f in img_ctrl.static_frames)
-                    if duration > hold_time_ms:
-                        hold_time_ms = duration
-
-                    time.sleep(float(hold_time_ms) / 1000.0)
+            img_ctrl = SlideshowImageController(self.settings)
         else:
             img_ctrl = TextImageController(self.settings)
 
@@ -1047,6 +1015,58 @@ class URLImageController(FileImageController):
         frames = FileImageController(self.settings).render()
         os.unlink(self.filename)
         return frames
+
+
+class SlideshowImageController(ImageController):
+    # FIXME: slideshow works by itself calling this function against each of the
+    # images in this directory, each on a new instance of ImageController.
+    # Once it has called show() on the MatrixController for each image,
+    # it sets a timer, after which it will loop again, stop the old
+    # ImageController and make a new one. If the file being shown has a total
+    # duration longer than the slideshow hold time, that timer will adjust to
+    # let the file play at least one time through. Animations shorter than the
+    # hold time can loop.
+
+    def __init__(self, settings):
+        super().__init__(None, settings)
+        self.files = os.listdir(self.slideshow_directory)
+        self.fileno = 0
+        self.static_frames = []
+        self.frameno = 0
+        self.hold_time_ms = self.slideshow_hold_sec * 1000
+        self.next_render_time_sec = time.time()
+
+    def render(self):
+        if time.time() >= self.next_render_time_sec:
+            fullpath = os.path.join(self.slideshow_directory, self.files[self.fileno])
+            self.fileno += 1
+            if self.fileno >= len(self.files):
+                self.fileno = 0
+            settings = copy(self.settings)
+            settings.set("filename", fullpath, propagate=False)
+            img_ctrl = FileImageController(settings)
+            if img_ctrl:
+                self.static_frames = img_ctrl.render()
+                print(f"rendering {self.files[self.fileno]} at {time.time()}, got {len(self.static_frames)} frames")
+                duration = sum(f[1] for f in img_ctrl.static_frames)
+                hold_time_ms = self.hold_time_ms
+                if duration > hold_time_ms:
+                    hold_time_ms = duration
+                self.next_render_time_sec += hold_time_ms / 1000.0
+
+        if self.static_frames:
+            frame = self.static_frames[self.frameno]
+            if self.frameno < len(self.static_frames) - 1:
+                self.frameno += 1
+            elif not self.noloop:
+                self.frameno = 0
+            if frame[1] == 0:
+                frame = (frame[0], 100)
+            print(f"returning frame {frame}")
+            return frame  
+
+        print("returning blank")
+        return (self.blank, 100)
 
 
 class NetworkWeatherImageController(ImageController):
