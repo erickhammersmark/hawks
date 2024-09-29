@@ -1036,12 +1036,20 @@ class SlideshowImageController(ImageController):
         self.hold_time_ms = self.slideshow_hold_sec * 1000
         self.next_render_time_sec = time.time()
 
+    def next_filename(self, recursion_count=0):
+        fullpath = os.path.join(self.slideshow_directory, self.files[self.fileno])
+        self.fileno += 1
+        if self.fileno >= len(self.files):
+            self.fileno = 0
+        if os.path.isdir(fullpath):
+            if recursion_count >= len(self.files):
+                raise Exception(f"Path contains only directories: {self.slideshow_directory}")
+            return self.next_filename(recursion_count=recursion_count+1)
+        return fullpath
+
     def render(self):
         if time.time() >= self.next_render_time_sec:
-            fullpath = os.path.join(self.slideshow_directory, self.files[self.fileno])
-            self.fileno += 1
-            if self.fileno >= len(self.files):
-                self.fileno = 0
+            fullpath = self.next_filename()
             settings = copy(self.settings)
             settings.set("filename", fullpath, propagate=False)
             img_ctrl = FileImageController(settings)
