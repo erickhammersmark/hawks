@@ -1046,13 +1046,17 @@ class SlideshowImageController(ImageController):
             settings.set("filename", fullpath, propagate=False)
             img_ctrl = FileImageController(settings)
             if img_ctrl:
-                self.static_frames = img_ctrl.render()
-                print(f"rendering {self.files[self.fileno]} at {time.time()}, got {len(self.static_frames)} frames")
-                duration = sum(f[1] for f in img_ctrl.static_frames)
+                frames = img_ctrl.render()
+                if self.filter and self.filter != "none":
+                    frames = getattr(img_ctrl, "filter_" + self.filter)(frames)
+                self.static_frames, self.bright_frames = self.transform(frames)
+                self.frameno = 0
+                #print(f"rendering {self.files[self.fileno]} at {time.time()}, got {len(self.static_frames)} frames")
+                duration = sum(f[1] for f in self.static_frames)
                 hold_time_ms = self.hold_time_ms
                 if duration > hold_time_ms:
                     hold_time_ms = duration
-                self.next_render_time_sec += hold_time_ms / 1000.0
+                self.next_render_time_sec = time.time() + hold_time_ms / 1000.0
 
         if self.static_frames:
             frame = self.static_frames[self.frameno]
@@ -1062,10 +1066,10 @@ class SlideshowImageController(ImageController):
                 self.frameno = 0
             if frame[1] == 0:
                 frame = (frame[0], 100)
-            print(f"returning frame {frame}")
+            #print(f"returning frame {frame}")
             return frame  
 
-        print("returning blank")
+        #print("returning blank")
         return (self.blank, 100)
 
 
