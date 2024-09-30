@@ -121,7 +121,7 @@ class HawksSettings(Settings):
         self.set("noloop", False, choices=[True, False], helptext="Do not loop animated GIFs", category="file", tags=["advanced"])
         self.set("slideshow_directory", "img", helptext="directory full of images for slideshow", category="file")
         self.set("slideshow_hold_sec", 10.0, helptext="length of time to display each image in a slideshow", category="file")
-        self.set("transition", "none", choices=["none", "fade", "wipe"], helptext="Slideshow transition", category="file")
+        self.set("transition", "none", choices=["none", "fade", "wipeleft", "wiperight", "wipeup", "wipedown", "random"], helptext="Slideshow transition", category="file")
         self.set("transition_duration_ms", 250, helptext="Slideshow transition duration in ms", category="file")
         self.set("transition_frames_max", 18, helptext="Max number of frames to render for slideshow transition", category="file", tags=["advanced"])
         self.set("no_webui_one_mode_only", False, choices=[True, False], helptext="Prevent webui from hiding unused mode settings", category="matrix", tags=["advanced"])

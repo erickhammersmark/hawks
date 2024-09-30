@@ -262,36 +262,48 @@ class ImageController(Base):
                 continue
             saf[frame_no].putdata(new_data[idx])
 
-    def do_transition(self, prev_frame, next_frame):
-        if self.transition == "fade":
-            return self.transition_fade(prev_frame, next_frame)
-        if "wipe" in self.transition:
-            return self.transition_wipe(prev_frame, next_frame)
+    def do_transition(self, prev_frame, next_frame, transition=None, static=False):
+        _transition = transition or self.transition
+        if _transition == "fade":
+            return self.transition_fade(prev_frame, next_frame, static=static)
+        if "wipe" in _transition:
+            return self.transition_wipe(prev_frame, next_frame, transition=transition, static=static)
+        if _transition == "random":
+            rand_transition = choice([tr for tr in self.settings.choices["transition"] if tr != "none"])
+            return self.do_transition(prev_frame, next_frame, transition=rand_transition, static=static)
 
-    def transition_fade(self, prev_frame, next_frame):
+    def transition_fade(self, prev_frame, next_frame, static=False):
         duration = self.transition_duration_ms / self.transition_frames_max
+        static_frames = []
         for n in range(1, self.transition_frames_max):
             next_pct = float(n) / self.transition_frames_max
             image = Image.blend(prev_frame[0], next_frame[0], next_pct)
-            self.frame_queue.put((image, duration))
+            if static:
+                static_frames.append((image, duration))
+            else:
+                self.frame_queue.put((image, duration))
+        if static:
+            return static_frames
 
-    def transition_wipe(self, prev_frame, next_frame):
+    def transition_wipe(self, prev_frame, next_frame, transition=None, static=False):
+        _transition = transition or self.transition
         duration = self.transition_duration_ms / self.transition_frames_max
         delta_c = prev_frame[0].width / self.transition_frames_max
         delta_r = prev_frame[0].height / self.transition_frames_max
         sz = prev_frame[0].size # tuple. 0 is width/cols, 1 is height/rows
+        static_frames = []
         for n in range(1, self.transition_frames_max):
             image = Image.new("RGB", sz)
             image.paste(prev_frame[0], (0, 0))
             nc = int(n * delta_c)
             nr = int(n * delta_r)
-            if self.transition == "wiperight":
+            if _transition == "wiperight":
                 box = (0, 0, nc, sz[1])
                 pos = (0, 0)
-            elif self.transition == "wipedown":
+            elif _transition == "wipedown":
                 box = (0, 0, sz[0], nr)
                 pos = (0, 0)
-            elif self.transition == "wipeup":
+            elif _transition == "wipeup":
                 y = sz[1] - nr
                 box = (0, y, sz[0], sz[1])
                 pos = (0, y)
@@ -300,7 +312,12 @@ class ImageController(Base):
                 box = (x, 0, sz[0], sz[1])
                 pos = (x, 0)
             image.paste(next_frame[0].crop(box), pos)
-            self.frame_queue.put((image, duration))
+            if static:
+                static_frames.append((image, duration))
+            else:
+                self.frame_queue.put((image, duration))
+        if static:
+            return static_frames
 
 
     def rainbow_color_from_value(self, value):
@@ -1033,8 +1050,12 @@ class SlideshowImageController(ImageController):
         self.fileno = 0
         self.static_frames = []
         self.frameno = 0
+        self.transition_frames = []
+        self.transition_frameno = 0
         self.hold_time_ms = self.slideshow_hold_sec * 1000
         self.next_render_time_sec = time.time()
+        self.new_image = True
+        self.frame = None
 
     def next_filename(self, recursion_count=0):
         fullpath = os.path.join(self.slideshow_directory, self.files[self.fileno])
@@ -1058,6 +1079,7 @@ class SlideshowImageController(ImageController):
                 if self.filter and self.filter != "none":
                     frames = getattr(img_ctrl, "filter_" + self.filter)(frames)
                 self.static_frames, self.bright_frames = self.transform(frames)
+                self.new_image = True
                 self.frameno = 0
                 #print(f"rendering {self.files[self.fileno]} at {time.time()}, got {len(self.static_frames)} frames")
                 duration = sum(f[1] for f in self.static_frames)
@@ -1065,6 +1087,22 @@ class SlideshowImageController(ImageController):
                 if duration > hold_time_ms:
                     hold_time_ms = duration
                 self.next_render_time_sec = time.time() + hold_time_ms / 1000.0
+
+        if self.new_image:
+            self.new_image = False
+            if self.frame and self.static_frames:
+                self.transition_frames = self.do_transition(self.frame, self.static_frames[0], static=True)
+                if self.transition_frames:
+                    self.transition_frameno = 0
+                    transition_duration_ms = sum(frame[1] for frame in self.transition_frames)
+                    self.next_render_time_sec += transition_duration_ms / 1000.0
+
+        if self.transition_frames:
+            frame = self.transition_frames[self.transition_frameno]
+            self.transition_frameno += 1
+            if self.transition_frameno >= len(self.transition_frames):
+                self.transition_frames = []
+            return frame
 
         if self.static_frames:
             frame = self.static_frames[self.frameno]
@@ -1075,6 +1113,7 @@ class SlideshowImageController(ImageController):
             if frame[1] == 0:
                 frame = (frame[0], 100)
             #print(f"returning frame {frame}")
+            self.frame = frame
             return frame  
 
         #print("returning blank")
