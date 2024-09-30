@@ -1035,14 +1035,37 @@ class URLImageController(FileImageController):
 
 
 class SlideshowImageController(ImageController):
-    # FIXME: slideshow works by itself calling this function against each of the
-    # images in this directory, each on a new instance of ImageController.
-    # Once it has called show() on the MatrixController for each image,
-    # it sets a timer, after which it will loop again, stop the old
-    # ImageController and make a new one. If the file being shown has a total
-    # duration longer than the slideshow hold time, that timer will adjust to
-    # let the file play at least one time through. Animations shorter than the
-    # hold time can loop.
+    """
+    SlideshowImageController will loop forever over all of the files in
+    settings.slideshow_directory, loading one and then returning single
+    frames from it from render() until it is time to load the next file.
+    If the file is an animation, it will continue to return frames from
+    that file until all of the frames have been returned at least once,
+    even if the time to do so exceeds settings.slideshow_hold_sec.
+
+    Disconnecting the loading and storage of the frames from each of the
+    files from ImageController's own static_frames mechanic makes it simpler
+    for SlideshowImageController to contol which frames get returned when,
+    but makes it more complicated to play a set of pre-rendered frames from
+    the frame_queue while a new set of frames is loaded from the next file.
+
+    In fact, it does no pre-loading at all, and it will wait until
+    ImageController calls its render() after the current file's time is
+    done before it even begins loading the next image. This is only noticable
+    when one animation is followed by a long animation, which takes some time
+    to load.
+
+    Even with pre-loading, this is a more computationally expensive way to
+    display still images. Building more direct support for slideshows into
+    ImageController or making the interactions between ImageController and its
+    children more flexible would be a nice improvement to this feature. There
+    is no reason for ImageController to keep asking SlideshowImageControler
+    to render the same frame over and over when everyone could know that that
+    frame has to stay up for settings.slideshow_hold_sec. Same could be true
+    for animations, as there is no reason why ImageController shouldn't use
+    its existing static_frames mechanic and itself understand when to call
+    SlideshowImageController.render() again.
+    """
 
     def __init__(self, settings):
         super().__init__(None, settings)
