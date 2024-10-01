@@ -991,7 +991,10 @@ class GifFileImageController(FileImageController):
                 gif.seek(n)
                 image = gif.convert("RGB")
                 if self.animate_gifs:
-                    duration = int(gif.info["duration"])
+                    try:
+                        duration = int(gif.info["duration"])
+                    except KeyError:
+                        duration = 0
                     if duration == 0 and not self.no_gif_override_duration_zero:
                         duration = 100
                     if n == gif.n_frames - 1:
@@ -1109,11 +1112,15 @@ class SlideshowImageController(ImageController):
                 hold_time_ms = self.hold_time_ms
                 if duration > hold_time_ms:
                     hold_time_ms = duration
+                    self.noloop = True
+                else:
+                    self.noloop = False
                 self.next_render_time_sec = time.time() + hold_time_ms / 1000.0
 
         if self.new_image:
             self.new_image = False
-            if self.frame and self.static_frames:
+            if self.transition and self.frame and self.static_frames:
+                self.transition_frames = []
                 self.transition_frames = self.do_transition(self.frame, self.static_frames[0], static=True)
                 if self.transition_frames:
                     self.transition_frameno = 0
@@ -1131,7 +1138,9 @@ class SlideshowImageController(ImageController):
             frame = self.static_frames[self.frameno]
             if self.frameno < len(self.static_frames) - 1:
                 self.frameno += 1
-            elif not self.noloop:
+            elif self.noloop:
+                self.next_render_time_sec = time.time()
+            else:
                 self.frameno = 0
             if frame[1] == 0:
                 frame = (frame[0], 100)
@@ -1140,7 +1149,7 @@ class SlideshowImageController(ImageController):
             return frame  
 
         #print("returning blank")
-        return (self.blank, 100)
+        return (Image.new("RGB", (self.active_cols, self.active_rows), "black"), 100)
 
 
 class NetworkWeatherImageController(ImageController):
