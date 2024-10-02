@@ -271,6 +271,7 @@ class ImageController(Base):
         if _transition == "random":
             rand_transition = choice([tr for tr in self.settings.choices["transition"] if tr != "none"])
             return self.do_transition(prev_frame, next_frame, transition=rand_transition, static=static)
+        return []
 
     def transition_fade(self, prev_frame, next_frame, static=False):
         duration = self.transition_duration_ms / self.transition_frames_max
@@ -1119,7 +1120,7 @@ class SlideshowImageController(ImageController):
 
         if self.new_image:
             self.new_image = False
-            if self.transition and self.frame and self.static_frames:
+            if self.transition and self.transition != "none" and self.frame and self.static_frames:
                 self.transition_frames = []
                 self.transition_frames = self.do_transition(self.frame, self.static_frames[0], static=True)
                 if self.transition_frames:
