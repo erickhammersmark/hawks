@@ -1073,21 +1073,35 @@ class SlideshowImageController(ImageController):
     def __init__(self, settings):
         super().__init__(None, settings)
         self.files = os.listdir(self.slideshow_directory)
+        if self.slideshow_order == "alphabetical":
+            self.files.sort()
+        elif self.slideshow_order == "random":
+            self.randomize_files()
         self.fileno = 0
         self.static_frames = []
         self.frameno = 0
         self.transition_frames = []
         self.transition_frameno = 0
         self.hold_time_ms = self.slideshow_hold_sec * 1000
+        self.frame_target = 0
+        self.frame_count = 0
         self.next_render_time_sec = time.time()
         self.new_image = True
         self.frame = None
+
+    def randomize_files(self):
+        new_list = []
+        while self.files:
+            new_list.append(self.files.pop(randint(0, len(self.files)-1)))
+        self.files = new_list
 
     def next_filename(self, recursion_count=0):
         fullpath = os.path.join(self.slideshow_directory, self.files[self.fileno])
         self.fileno += 1
         if self.fileno >= len(self.files):
             self.fileno = 0
+            if self.slideshow_order == "random":
+                self.randomize_files()
         if os.path.isdir(fullpath):
             if recursion_count >= len(self.files):
                 raise Exception(f"Path contains only directories: {self.slideshow_directory}")
@@ -1095,8 +1109,9 @@ class SlideshowImageController(ImageController):
         return fullpath
 
     def render(self):
-        if time.time() >= self.next_render_time_sec:
+        if self.frame_count >= self.frame_target and time.time() >= self.next_render_time_sec:
             fullpath = self.next_filename()
+            #print(f"rendering {fullpath} at {time.time()}")
             settings = copy(self.settings)
             settings.set("filename", fullpath, propagate=False)
             img_ctrl = FileImageController(settings)
@@ -1106,32 +1121,44 @@ class SlideshowImageController(ImageController):
                     frames = getattr(img_ctrl, "filter_" + self.filter)(frames)
                 self.static_frames, self.bright_frames = self.transform(frames)
                 self.new_image = True
+                self.transition_frames = []
                 self.frameno = 0
-                #print(f"rendering {self.files[self.fileno]} at {time.time()}, got {len(self.static_frames)} frames")
-                duration = sum(f[1] for f in self.static_frames)
-                hold_time_ms = self.hold_time_ms
-                if duration > hold_time_ms:
+                self.frame_count = 0
+                duration = sum(f[1] or 100 for f in self.static_frames)
+                hold_time_ms = 0
+                if duration > self.hold_time_ms:
                     hold_time_ms = duration
                     self.noloop = True
+                    self.frame_target = len(self.static_frames)
                 else:
                     self.noloop = False
-                self.next_render_time_sec = time.time() + hold_time_ms / 1000.0
+                    i = 0
+                    self.frame_target = 0
+                    while hold_time_ms < self.hold_time_ms:
+                        hold_time_ms += self.static_frames[i][1] or 100
+                        self.frame_target += 1
+                        i += 1
+                        if i >= len(self.static_frames):
+                            i = 0
+                self.this_hold_time_sec = hold_time_ms / 1000.0
+                self.next_render_time_sec = time.time() + self.this_hold_time_sec
 
         if self.new_image:
             self.new_image = False
             if self.transition and self.frame and self.static_frames:
-                self.transition_frames = []
                 self.transition_frames = self.do_transition(self.frame, self.static_frames[0], static=True)
                 if self.transition_frames:
                     self.transition_frameno = 0
                     transition_duration_ms = sum(frame[1] for frame in self.transition_frames)
                     self.next_render_time_sec += transition_duration_ms / 1000.0
+                    self.frame_target += len(self.transition_frames)
 
         if self.transition_frames:
             frame = self.transition_frames[self.transition_frameno]
             self.transition_frameno += 1
             if self.transition_frameno >= len(self.transition_frames):
                 self.transition_frames = []
+            self.frame_count += 1
             return frame
 
         if self.static_frames:
@@ -1144,11 +1171,10 @@ class SlideshowImageController(ImageController):
                 self.frameno = 0
             if frame[1] == 0:
                 frame = (frame[0], 100)
-            #print(f"returning frame {frame}")
             self.frame = frame
+            self.frame_count += 1
             return frame  
 
-        #print("returning blank")
         return (Image.new("RGB", (self.active_cols, self.active_rows), "black"), 100)
 
 
