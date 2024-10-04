@@ -1145,7 +1145,7 @@ class SlideshowImageController(ImageController):
 
         if self.new_image:
             self.new_image = False
-            if self.transition and self.frame and self.static_frames:
+            if self.transition and self.transition != "none" and self.frame and self.static_frames:
                 self.transition_frames = self.do_transition(self.frame, self.static_frames[0], static=True)
                 if self.transition_frames:
                     self.transition_frameno = 0
