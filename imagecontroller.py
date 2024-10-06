@@ -126,10 +126,9 @@ class ImageController(Base):
                 self.static_frames, self.bright_frames = self.transform(frames)
                 self.frame_no = -1
                 self.direction = 1
-        if self.static_frames:
-            prev_frame = self.hawks.ctrl.frame
-            next_frame = self.static_frames[0]
-            if self.transition:
+        if self.static_frames and self.transition != "none":
+                prev_frame = self.hawks.ctrl.frame
+                next_frame = self.static_frames[0]
                 # some function that shoves frames into the queue, < the queue depth
                 self.do_transition(prev_frame, next_frame)
         self.render()
