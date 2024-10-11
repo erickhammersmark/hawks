@@ -9,6 +9,8 @@ class RGBMatrix(object):
         for k, v in kwargs.items():
             setattr(self, k, v)
         self.clear_image = Image.new("RGB", (self.options.cols, self.options.rows), (0, 0, 0, 0))
+        self.frame = None
+        self.image = None
 
     def text_as_color(self, text, rgb):
         """
@@ -22,6 +24,8 @@ class RGBMatrix(object):
         return escape_seq.format(*rgb[0:3], text)
 
     def print_image(self, image, cols=None):
+        if image is self.image and self.frame:
+            return
         count = 0
         output = []
         output.append("\033[2J\033[H")
@@ -40,7 +44,9 @@ class RGBMatrix(object):
                 output.append("\n")
         output.append("\n")
 
-        sys.stdout.write("".join(output))
+        self.image = image
+        self.frame = "".join(output)
+        sys.stdout.write(self.frame)
 
     def SetImage(self, image, *args, **kwargs):
         self.print_image(image)
