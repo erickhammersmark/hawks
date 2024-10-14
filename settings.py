@@ -58,15 +58,15 @@ class Settings(Base):
     def __contains__(self, name):
         return name in self.__dict__
 
-    def set(self, name, value, helptext=None, choices=None, hooks=None, category=None, tags=None, read_only=False):
+    def set(self, name, value, helptext=None, choices=None, hooks=None, categories=None, tags=None, read_only=False):
         if helptext is not None:
             self.helptext[name] = helptext
         if choices is not None:
             self.choices[name] = choices
         if hooks is not None:
             self.hooks[name] = hooks
-        if category is not None:
-            self.categories[name] = category
+        if categories is not None:
+            self.categories[name] = categories
         if tags is not None:
             self.tags[name] = tags
         if read_only:
@@ -104,12 +104,15 @@ class Settings(Base):
         return default
 
     def list_categories(self):
-        cats = list(set(self.categories.values()))
-        cats.sort(key=lambda x: {"matrix": 0, "misc": 1, "file": 2, "text": 3}.get(x, 4))
+        cats = set()
+        for vals in self.categories.values():
+            cats.update(set(vals))
+        cats = list(cats)
+        cats.sort(key=lambda x: {"matrix": 0, "misc": 1, "file": 2, "slideshow": 3, "text": 4}.get(x, 4))
         return cats
 
     def all_from_category(self, category):
-        return (kv for kv in self.list() if self.categories.get(kv[0], None) == category)
+        return (kv for kv in self.list() if category in self.categories.get(kv[0], []))
 
     def get_tags(self, name):
         return self.tags.get(name, [])

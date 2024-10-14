@@ -133,6 +133,9 @@ class ImageController(Base):
                 self.do_transition(prev_frame, next_frame)
         self.render()
 
+    def blank(self):
+        return Image.new("RGB", (self.active_cols, self.active_rows), "black")
+
     def stop(self):
         self.go = False
         if getattr(self, "timer", None):
@@ -1114,34 +1117,39 @@ class SlideshowImageController(ImageController):
             #print(f"rendering {fullpath} at {time.time()}")
             settings = copy(self.settings)
             settings.set("filename", fullpath, propagate=False)
+            self.frame_target = 0
+            self.next_render_time_sec = time.time()
             img_ctrl = FileImageController(settings)
-            if img_ctrl:
-                frames = img_ctrl.render()
-                if self.filter and self.filter != "none":
-                    frames = getattr(img_ctrl, "filter_" + self.filter)(frames)
-                self.static_frames, self.bright_frames = self.transform(frames)
-                self.new_image = True
-                self.transition_frames = []
-                self.frameno = 0
-                self.frame_count = 0
-                duration = sum(f[1] or 100 for f in self.static_frames)
-                hold_time_ms = 0
-                if duration > self.hold_time_ms:
-                    hold_time_ms = duration
-                    self.noloop = True
-                    self.frame_target = len(self.static_frames)
-                else:
-                    self.noloop = False
-                    i = 0
-                    self.frame_target = 0
-                    while hold_time_ms < self.hold_time_ms:
-                        hold_time_ms += self.static_frames[i][1] or 100
-                        self.frame_target += 1
-                        i += 1
-                        if i >= len(self.static_frames):
-                            i = 0
-                self.this_hold_time_sec = hold_time_ms / 1000.0
-                self.next_render_time_sec = time.time() + self.this_hold_time_sec
+            if not img_ctrl:
+                return (self.blank(), 100)
+            frames = img_ctrl.render()
+            if not frames:
+                return (self.blank(), 100)
+            if self.filter and self.filter != "none":
+                frames = getattr(img_ctrl, "filter_" + self.filter)(frames)
+            self.static_frames, self.bright_frames = self.transform(frames)
+            self.new_image = True
+            self.transition_frames = []
+            self.frameno = 0
+            self.frame_count = 0
+            duration = sum(f[1] or 100 for f in self.static_frames)
+            hold_time_ms = 0
+            if duration > self.hold_time_ms:
+                hold_time_ms = duration
+                self.noloop = True
+                self.frame_target = len(self.static_frames)
+            else:
+                self.noloop = False
+                i = 0
+                self.frame_target = 0
+                while hold_time_ms < self.hold_time_ms:
+                    hold_time_ms += self.static_frames[i][1] or 100
+                    self.frame_target += 1
+                    i += 1
+                    if i >= len(self.static_frames):
+                        i = 0
+            self.this_hold_time_sec = hold_time_ms / 1000.0
+            self.next_render_time_sec = time.time() + self.this_hold_time_sec
 
         if self.new_image:
             self.new_image = False
@@ -1175,7 +1183,7 @@ class SlideshowImageController(ImageController):
             self.frame_count += 1
             return frame  
 
-        return (Image.new("RGB", (self.active_cols, self.active_rows), "black"), 100)
+        return (self.blank(), 100)
 
 
 class NetworkWeatherImageController(ImageController):

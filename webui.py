@@ -88,9 +88,6 @@ class Webui(object):
             if ("{self.hawks.settings.no_webui_one_mode_only}" == "True") {{
                 return;
             }}
-            if (mode == "slideshow") {{
-                mode = "file"
-            }}
             var categories = document.getElementsByClassName("category");
             for (let c = 0; c < categories.length; c++) {{
                 if (categories[c].title == "matrix") {{
@@ -134,8 +131,7 @@ class Webui(object):
             body.append(f"<h3>{time.asctime()}: {message}</h3>")
         body.append('<form method="post" action="/"><table>')
         body.append(f'<tr><td><input label="Advanced" type="checkbox" name="advanced" id="advanced" {"checked" if self.hawks.settings.get("advanced") else ""} />Advanced</td><td></td><td rowspan=4><img height="64" src="/api/do/image"></img></td></tr>')
-        categories = ["matrix", "file", "text", "url"]
-        categories.extend(list(set(self.hawks.settings.list_categories()).difference(set(categories))))
+        categories = self.hawks.settings.list_categories()
         for category in categories:
             body.append(f"<tr class=\"category\" title=\"{category}\"><td><strong>{category} settings</strong></td></tr>")
             cat_settings = list(self.hawks.settings.all_from_category(category))

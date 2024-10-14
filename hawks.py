@@ -22,22 +22,22 @@ class HawksSettings(Settings):
         self.set("filepath", "")
         self.set("debug", False)
         self.set("advanced", False)
-        self.set("bgcolor", "black", helptext="Background color when rendering text", category="text")
-        self.set("outercolor", "black", helptext="Outer color of rendered text", category="text")
-        self.set("innercolor", "white", helptext="Inner color of rendered text", category="text")
-        self.set("font", "FreeSansBold", helptext="Font to use when rendering text", category="text", tags=["advanced"])
-        self.set("x", 0, category="file", tags=["advanced"])
-        self.set("y", 0, category="file", tags=["advanced"])
-        self.set("rows", 32, helptext="Image height", choices=[32, 64, 128], category="matrix", tags=["advanced"])
-        self.set("cols", 32, helptext="Image width", choices=[32, 64, 128], category="matrix", tags=["advanced"])
-        self.set("p_rows", 0, helptext="Matrix height", choices=[32, 64, 128], category="matrix", tags=["advanced"])
-        self.set("p_cols", 0, helptext="Matrix width", choices=[32, 64, 128, 256], category="matrix", tags=["advanced"])
+        self.set("bgcolor", "black", helptext="Background color when rendering text", categories=["text"])
+        self.set("outercolor", "black", helptext="Outer color of rendered text", categories=["text"])
+        self.set("innercolor", "white", helptext="Inner color of rendered text", categories=["text"])
+        self.set("font", "FreeSansBold", helptext="Font to use when rendering text", categories=["text"], tags=["advanced"])
+        self.set("x", 0, categories=["file"], tags=["advanced"])
+        self.set("y", 0, categories=["file"], tags=["advanced"])
+        self.set("rows", 32, helptext="Image height", choices=[32, 64, 128], categories=["matrix"], tags=["advanced"])
+        self.set("cols", 32, helptext="Image width", choices=[32, 64, 128], categories=["matrix"], tags=["advanced"])
+        self.set("p_rows", 0, helptext="Matrix height", choices=[32, 64, 128], categories=["matrix"], tags=["advanced"])
+        self.set("p_cols", 0, helptext="Matrix width", choices=[32, 64, 128, 256], categories=["matrix"], tags=["advanced"])
         self.set(
             "decompose",
             False,
             helptext="Display is a chain of two 64x32 RGB LED matrices arranged to form a big square",
             choices=[False, True],
-            category="matrix",
+            categories=["matrix"],
             tags=["advanced"],
         )
         self.set(
@@ -45,37 +45,37 @@ class HawksSettings(Settings):
             0,
             helptext="rpi-rgb-led-matrix option led-row-addr-type, default 0",
             choices=[0, 1, 2, 3, 4],
-            category="matrix",
+            categories=["matrix"],
             tags=["advanced"],
         )
-        self.set("text", "hello", helptext='Text to render (if filename is "none")', category="text")
-        self.set("textsize", 27, category="text", tags=["advanced"])
-        self.set("thickness", 1, helptext="Thickness of outercolor border around text", category="text")
+        self.set("text", "hello", helptext='Text to render', categories=["text"])
+        self.set("textsize", 27, categories=["text"], tags=["advanced"])
+        self.set("thickness", 1, helptext="Thickness of outercolor border around text", categories=["text"])
         self.set(
             "animation",
             "none",
             helptext='Options are "waving" or "none"',
             choices=["none", "waving", "disc_animations", "glitch"],
-            category="matrix",
+            categories=["matrix"],
         )
-        self.set("amplitude", 0.4, helptext="Amplitude of waving animation", category="matrix", tags=["advanced"])
-        self.set("fps", 16, helptext="FPS of waving animation", category="matrix", tags=["advanced"])
-        self.set("period", 2000, helptext="Period of waving animation", category="matrix", tags=["advanced"])
-        self.set("filename", "none", helptext='Image file to display (or "none")', category="file")
-        self.set("autosize", True, choices=[True, False], category="text", tags=["advanced"])
-        self.set("text_margin", 2, helptext="Margin of background color around text", category="text")
-        self.set("brightness", 192, helptext="Image brighness, full bright = 255", category="matrix")
-        self.set("back_and_forth", False, helptext="Loop GIF back and forth", choices=[False, True], category="file")
-        self.set("url", "", helptext="Fetch image from url", category="url")
-        self.set("urls", "", choices=[], category="url", read_only=True)
-        self.set("urls_file", "", helptext="File containing image urls, one url per line", category="url", tags=["advanced"])
+        self.set("amplitude", 0.4, helptext="Amplitude of waving animation", categories=["matrix"], tags=["advanced"])
+        self.set("fps", 16, helptext="FPS of waving animation", categories=["matrix"], tags=["advanced"])
+        self.set("period", 2000, helptext="Period of waving animation", categories=["matrix"], tags=["advanced"])
+        self.set("filename", "none", helptext='Image file to display (or "none")', categories=["file"])
+        self.set("autosize", True, choices=[True, False], categories=["text"], tags=["advanced"])
+        self.set("text_margin", 2, helptext="Margin of background color around text", categories=["text"])
+        self.set("brightness", 192, helptext="Image brighness, full bright = 255", categories=["matrix"])
+        self.set("back_and_forth", False, helptext="Loop GIF back and forth", choices=[False, True], categories=["file", "slideshow"])
+        self.set("url", "", helptext="Fetch image from url", categories=["url"])
+        self.set("urls", "", choices=[], categories=["url"], read_only=True)
+        self.set("urls_file", "", helptext="File containing image urls, one url per line", categories=["url"], tags=["advanced"])
         self.set("config_file", ".hawks.json", helptext="Hawks config file for image urls and saved configs (JSON)", tags=["advanced"])
         self.set(
             "disc",
             False,
             helptext="Display is a 255-element DotStar disc",
             choices=[False, True],
-            category="matrix",
+            categories=["matrix"],
             tags=["advanced"],
         )
         self.set(
@@ -91,41 +91,41 @@ class HawksSettings(Settings):
                 "ROTATE_270",
                 "TRANSPOSE",
             ],
-            category="matrix",
+            categories=["matrix"],
         )
-        self.set("rotate", 0, helptext="Rotation in degrees", category="matrix")
+        self.set("rotate", 0, helptext="Rotation in degrees", categories=["matrix"])
         self.set(
-            "mock", False, helptext="Display is mock rgbmatrix", choices=[False, True], category="matrix", tags=["advanced"]
+            "mock", False, helptext="Display is mock rgbmatrix", choices=[False, True], categories=["matrix"], tags=["advanced"]
         )
         self.set(
-            "nodisplay", False, helptext="Do not output to a display, including the mock", choices=[False, True], category="matrix", tags=["advanced"]
+            "nodisplay", False, helptext="Do not output to a display, including the mock", choices=[False, True], categories=["matrix"], tags=["advanced"]
         )
         self.set(
             "mode",
             "text",
             helptext="Valid modes are 'text', 'file', 'url', 'slideshow', and 'disc_animations'",
             choices=["text", "file", "url", "slideshow", "disc_animations"],
-            category="matrix",
+            categories=["matrix"],
         )
-        self.set("gif_frame_no", 0, helptext="Frame number of gif to statically display (when not animating)", category="file", tags=["advanced"])
-        self.set("gif_speed", 1.0, helptext="Multiplier for gif animation speed", category="file")
-        self.set("gif_loop_delay", 0, helptext="Delay (ms) between repeatations of an animated gif", category="file", tags=["advanced"])
-        self.set("no_gif_override_duration_zero", False, helptext="Don't use 100ms frame time instead of 0", choices=[True, False], category="file", tags=["advanced"])
-        self.set("animate_gifs", True, choices=[True, False], helptext="Animate animated GIFs", category="file", tags=["advanced"])
-        self.set("zoom", False, choices=[True, False], helptext="Crop images to fill screen", category="matrix")
-        self.set("zoom_center", True, choices=[True, False], helptext="When zooming, zoom into center of image", category="matrix")
-        self.set("zoom_level", 1.0, helptext="Custom zoom level", category="matrix")
-        self.set("fit", False, choices=[True, False], helptext="Fit image to display", category="matrix")
-        self.set("filter", "none", choices=["none", "halloween"], helptext="Filter to apply to image", category="matrix")
-        self.set("underscan", 0, helptext="Number of border rows and columns to leave blank", category="matrix")
-        self.set("noloop", False, choices=[True, False], helptext="Do not loop animated GIFs", category="file", tags=["advanced"])
-        self.set("slideshow_directory", "img", helptext="directory full of images for slideshow", category="file")
-        self.set("slideshow_hold_sec", 10.0, helptext="length of time to display each image in a slideshow", category="file")
-        self.set("slideshow_order", "none", helptext="order in which to display slideshow images", category="file", choices=["none", "random", "alphabetical"])
-        self.set("transition", "none", choices=["none", "fade", "wipeleft", "wiperight", "wipeup", "wipedown", "random"], helptext="Slideshow transition", category="file")
-        self.set("transition_duration_ms", 250, helptext="Slideshow transition duration in ms", category="file")
-        self.set("transition_frames_max", 18, helptext="Max number of frames to render for slideshow transition", category="file", tags=["advanced"])
-        self.set("no_webui_one_mode_only", False, choices=[True, False], helptext="Prevent webui from hiding unused mode settings", category="matrix", tags=["advanced"])
+        self.set("gif_frame_no", 0, helptext="Frame number of gif to statically display (when not animating)", categories=["file", "slideshow"], tags=["advanced"])
+        self.set("gif_speed", 1.0, helptext="Multiplier for gif animation speed", categories=["file", "slideshow"])
+        self.set("gif_loop_delay", 0, helptext="Delay (ms) between repeatations of an animated gif", categories=["file", "slideshow"], tags=["advanced"])
+        self.set("no_gif_override_duration_zero", False, helptext="Don't use 100ms frame time instead of 0", choices=[True, False], categories=["file", "slideshow"], tags=["advanced"])
+        self.set("animate_gifs", True, choices=[True, False], helptext="Animate animated GIFs", categories=["file", "slideshow"], tags=["advanced"])
+        self.set("zoom", False, choices=[True, False], helptext="Crop images to fill screen", categories=["matrix"])
+        self.set("zoom_center", True, choices=[True, False], helptext="When zooming, zoom into center of image", categories=["matrix"])
+        self.set("zoom_level", 1.0, helptext="Custom zoom level", categories=["matrix"])
+        self.set("fit", False, choices=[True, False], helptext="Fit image to display", categories=["matrix"])
+        self.set("filter", "none", choices=["none", "halloween"], helptext="Filter to apply to image", categories=["matrix"])
+        self.set("underscan", 0, helptext="Number of border rows and columns to leave blank", categories=["matrix"])
+        self.set("noloop", False, choices=[True, False], helptext="Do not loop animated GIFs", categories=["file", "slideshow"], tags=["advanced"])
+        self.set("slideshow_directory", "img", helptext="directory full of images for slideshow", categories=["slideshow"])
+        self.set("slideshow_hold_sec", 10.0, helptext="length of time to display each image in a slideshow", categories=["slideshow"])
+        self.set("slideshow_order", "none", helptext="order in which to display slideshow images", categories=["slideshow"], choices=["none", "random", "alphabetical"])
+        self.set("transition", "none", choices=["none", "fade", "wipeleft", "wiperight", "wipeup", "wipedown", "random"], helptext="Slideshow transition", categories=["slideshow"])
+        self.set("transition_duration_ms", 250, helptext="Slideshow transition duration in ms", categories=["slideshow"])
+        self.set("transition_frames_max", 18, helptext="Max number of frames to render for slideshow transition", categories=["slideshow"], tags=["advanced"])
+        self.set("no_webui_one_mode_only", False, choices=[True, False], helptext="Prevent webui from hiding unused mode settings", categories=["matrix"], tags=["advanced"])
 
 
     def set(self, name, value, propagate=True, **kwargs):
