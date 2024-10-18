@@ -66,6 +66,7 @@ class HawksSettings(Settings):
         self.set("text_margin", 2, helptext="Margin of background color around text", categories=["text"])
         self.set("brightness", 192, helptext="Image brighness, full bright = 255", categories=["matrix"])
         self.set("back_and_forth", False, helptext="Loop GIF back and forth", choices=[False, True], categories=["file", "slideshow"])
+        self.set("gif_repeat_whole_times", False, helptext="Play GIFS a whole number of times in slideshows", choices=[False, True], categories=["slideshow"])
         self.set("url", "", helptext="Fetch image from url", categories=["url"])
         self.set("urls", "", choices=[], categories=["url"], read_only=True)
         self.set("urls_file", "", helptext="File containing image urls, one url per line", categories=["url"], tags=["advanced"])

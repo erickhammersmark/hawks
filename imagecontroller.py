@@ -126,6 +126,8 @@ class ImageController(Base):
                 self.static_frames, self.bright_frames = self.transform(frames)
                 self.frame_no = -1
                 self.direction = 1
+            else:
+                self.frame_queue.put(frames)
         if self.static_frames and self.transition != "none":
                 prev_frame = self.hawks.ctrl.frame
                 next_frame = self.static_frames[0]
@@ -1088,7 +1090,6 @@ class SlideshowImageController(ImageController):
         self.hold_time_ms = self.slideshow_hold_sec * 1000
         self.frame_target = 0
         self.frame_count = 0
-        self.next_render_time_sec = time.time()
         self.new_image = True
         self.frame = None
 
@@ -1112,13 +1113,11 @@ class SlideshowImageController(ImageController):
         return fullpath
 
     def render(self):
-        if self.frame_count >= self.frame_target and time.time() >= self.next_render_time_sec:
-            fullpath = self.next_filename()
-            #print(f"rendering {fullpath} at {time.time()}")
+        if self.frame_count >= self.frame_target:
+            self.fullpath = self.next_filename()
             settings = copy(self.settings)
-            settings.set("filename", fullpath, propagate=False)
+            settings.set("filename", self.fullpath, propagate=False)
             self.frame_target = 0
-            self.next_render_time_sec = time.time()
             img_ctrl = FileImageController(settings)
             if not img_ctrl:
                 return (self.blank(), 100)
@@ -1133,23 +1132,21 @@ class SlideshowImageController(ImageController):
             self.frameno = 0
             self.frame_count = 0
             duration = sum(f[1] or 100 for f in self.static_frames)
-            hold_time_ms = 0
             if duration > self.hold_time_ms:
-                hold_time_ms = duration
                 self.noloop = True
                 self.frame_target = len(self.static_frames)
             else:
                 self.noloop = False
                 i = 0
-                self.frame_target = 0
-                while hold_time_ms < self.hold_time_ms:
-                    hold_time_ms += self.static_frames[i][1] or 100
-                    self.frame_target += 1
-                    i += 1
-                    if i >= len(self.static_frames):
-                        i = 0
-            self.this_hold_time_sec = hold_time_ms / 1000.0
-            self.next_render_time_sec = time.time() + self.this_hold_time_sec
+                whole_reps = int(self.hold_time_ms / duration)
+                self.frame_target = len(self.static_frames) * whole_reps
+                if not self.gif_repeat_whole_times:
+                    while duration < self.hold_time_ms:
+                        duration += self.static_frames[i][1] or 100
+                        self.frame_target += 1
+                        i += 1
+                        if i >= len(self.static_frames):
+                            i = 0
 
         if self.new_image:
             self.new_image = False
@@ -1158,7 +1155,6 @@ class SlideshowImageController(ImageController):
                 if self.transition_frames:
                     self.transition_frameno = 0
                     transition_duration_ms = sum(frame[1] for frame in self.transition_frames)
-                    self.next_render_time_sec += transition_duration_ms / 1000.0
                     self.frame_target += len(self.transition_frames)
 
         if self.transition_frames:
@@ -1171,10 +1167,11 @@ class SlideshowImageController(ImageController):
 
         if self.static_frames:
             frame = self.static_frames[self.frameno]
+            thisframeno = self.frameno
             if self.frameno < len(self.static_frames) - 1:
                 self.frameno += 1
             elif self.noloop:
-                self.next_render_time_sec = time.time()
+                self.frame_target = 0
             else:
                 self.frameno = 0
             if frame[1] == 0:
