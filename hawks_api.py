@@ -43,12 +43,13 @@ def run_api(ip, port, hawks):
 Hawks API usage:
   /api/get                Return current settings
   /api/get/settings       Return current settings
-  /api/get/setting/key    Return the value of one setting (404 on error)
-  /api/get/key            Return the value of one setting (200 w/usage on error)
+  /api/get/dump           Dump detailed values for settings
+  /api/get/setting/<key>  Return the value of one setting (404 on error)
+  /api/get/<key>          Return the value of one setting (200 w/usage on error)
   /api/get/presets        Return a list of presets
-  /api/set/key/value      Modify a current setting. /key/value can be repeated.
+  /api/set/<key>/<value>  Modify a current setting. /key/value can be repeated.
   /api/do/image           Returns a PNG of the current image
-  /api/do/preset/name     Apply the named preset
+  /api/do/preset/<name>   Apply the named preset
   /api/do/save            Save the current configuration
   /api/do/load            Load a saved configuration
 
@@ -66,7 +67,12 @@ Settings:
         if not parts or parts[0] == "settings":
             # GET /api or /api/settings, return a dump of all of the settings
             return req.send(
-                200, body=json.dumps(dict((k, v) for k, v in hawks.settings))
+                #200, body=json.dumps(dict((k, v) for k, v in hawks.settings))
+                200, body=json.dumps(hawks.settings.list())
+            )
+        if parts[0] == "dump":
+            return req.send(
+                200, body=json.dumps(hawks.settings.dump())
             )
         if parts[0] == "presets":
             # GET /api/presets, dump the list of available presets
@@ -254,6 +260,7 @@ Settings:
     webui = Webui(hawks, api_set)
 
     api.register_endpoint("default", usage)
+    api.register_endpoint("/api", api_get)
     api.register_endpoint("/api/get", api_get)
     api.register_endpoint("/api/set", api_set)
     api.register_endpoint("/api/do", api_do)

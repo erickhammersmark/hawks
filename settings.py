@@ -8,16 +8,26 @@ class Settings(Base):
         super().__init__()
         self.helptext = {}
         self.choices = {}
-        self.hooks = {}
         self.categories = {}
         self.tags = {}
         self.config_file = ".hawks.json"
         self.configs = {}
         self.read_only = set(["configs"])
-        self.internal = set(["helptext", "choices", "internal", "hooks", "categories", "config_file", "tags", "read_only"])
+        self.internal = set(["helptext", "choices", "internal", "categories", "config_file", "tags", "read_only"])
 
         for k, v in kwargs.items():
             self.set(k, v)
+
+    def dump(self):
+        conf = {}
+        for k, v in self:
+            conf[k] = {}
+            conf[k]["value"] = v
+            conf[k]["helptext"] = self.helptext.get(k, "")
+            conf[k]["choices"] = self.choices.get(k, [])
+            conf[k]["categories"] = self.categories.get(k, [])
+            conf[k]["tags"] = self.tags.get(k, [])
+        return conf
 
     def apply_dict(self, data):
         for k, v in data.items():
@@ -58,13 +68,11 @@ class Settings(Base):
     def __contains__(self, name):
         return name in self.__dict__
 
-    def set(self, name, value, helptext=None, choices=None, hooks=None, categories=None, tags=None, read_only=False):
+    def set(self, name, value, helptext=None, choices=None, categories=None, tags=None, read_only=False):
         if helptext is not None:
             self.helptext[name] = helptext
         if choices is not None:
             self.choices[name] = choices
-        if hooks is not None:
-            self.hooks[name] = hooks
         if categories is not None:
             self.categories[name] = categories
         if tags is not None:
@@ -84,9 +92,6 @@ class Settings(Base):
             except:
                 pass
         setattr(self, name, value)
-        if name in self.hooks:
-            for hook in self.hooks[name]:
-                hook(name, value)
 
     def list(self):
         return [
