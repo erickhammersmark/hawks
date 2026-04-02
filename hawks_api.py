@@ -28,6 +28,7 @@ def read_urls(hawks):
     return urls
 
 def run_api(ip, port, hawks):
+    hawks.debug = True
     api = api_server.Api(prefix="/")
 
     hawks.settings.set("urls", "", choices=read_urls(hawks))
@@ -156,6 +157,7 @@ Settings:
         return data
 
     def api_set(req, msg=None, respond=True):
+        hawks.db(f"api_set( {req}, msg={msg}, respond={respond}")
         # such a stupid hack
         if respond:
             send = req.send
@@ -168,6 +170,7 @@ Settings:
         except:
             pass
         data.update(dict(tups(req.parts[2:])))
+        hawks.db(f"data: {data}")
 
         try:
             data = normalize_data(data)
@@ -179,8 +182,10 @@ Settings:
             if hawks.settings.get(key) != value:
                 hawks.settings.set(key, value)
                 show = True
+                hawks.db(f"Found changed value at key {key}: {value}. show = True")
 
         if show:
+            hawks.db("About to call hawks.show()")
             hawks.show()
 
         if msg:

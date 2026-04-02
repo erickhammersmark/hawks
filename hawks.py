@@ -17,7 +17,7 @@ class HawksSettings(Settings):
         self.hawks = None
         self.internal.add("hawks")
         self.internal.add("filepath")
-        self.internal.add("debug")
+        #self.internal.add("debug")
         self.internal.add("advanced")
         self.set("filepath", "")
         self.set("debug", False)

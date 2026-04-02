@@ -79,6 +79,7 @@ class Api(object):
         paths.reverse()
         for _p in paths:
             if path.startswith(_p):
+                print(f"path {path} matches endpoint {_p}")
                 return self.endpoints[_p]
         return self.endpoints.get("default", None)
 
