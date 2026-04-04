@@ -32,7 +32,6 @@ class MatrixController(Base):
         self.timer = None
         self.go = True
         self.nodisplay = False
-        self.img_ctrl = None
         self.row_address_type = 0
 
         for (k, v) in self.settings:
@@ -91,19 +90,6 @@ class MatrixController(Base):
             print(options.cols, options.rows, options.chain_length)
             self.matrix = RGBMatrix(options=options)
 
-        self.show()
-
-    def set_img_ctrl(self, img_ctrl):
-        self.img_ctrl = img_ctrl
-
-    def set_image(self, image):
-        self.stop()
-        if self.img_ctrl:
-            self.img_ctrl.stop()
-            self.img_ctrl = None
-        while not self.frame_queue.empty():
-            self.frame_queue.get()
-        self.frame_queue.put((image, 0))
         self.show()
 
     def reshape(self, image):
@@ -269,8 +255,14 @@ class MatrixController(Base):
 
 def main():
     frame_queue = Queue()
-    ctrl = MatrixController(frame_queue, (("rows", 128), ("cols", 128), ("p_cols", 128), ("p_rows", 64), ("decompose", True)))
-    ctrl.set_image(Image.open("img/hawks.png").convert("RGB"))
+    #ctrl = MatrixController(frame_queue, (("rows", 128), ("cols", 128), ("p_cols", 128), ("p_rows", 64), ("decompose", True), ("mock", True)))
+    ctrl = MatrixController(frame_queue, (("rows", 16), ("cols", 16), ("p_cols", 16), ("p_rows", 16), ("decompose", False), ("mock", True)))
+    ctrl.stop()
+    while not frame_queue.empty():
+        frame_queue.get()
+    frame_queue.put((Image.open("img/hawks.png").convert("RGB"),0))
+    ctrl.show()
+
     while True:
         time.sleep(1000)
 
