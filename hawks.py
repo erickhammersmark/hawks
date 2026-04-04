@@ -55,7 +55,7 @@ class HawksSettings(Settings):
             "animation",
             "none",
             helptext='Options are "waving" or "none"',
-            choices=["none", "waving", "disc_animations", "glitch"],
+            choices=["none", "waving", "disc_colors", "disc_sparkle", "glitch"],
             categories=["matrix"],
         )
         self.set("amplitude", 0.4, helptext="Amplitude of waving animation", categories=["matrix"], tags=["advanced"])
@@ -104,8 +104,8 @@ class HawksSettings(Settings):
         self.set(
             "mode",
             "text",
-            helptext="Valid modes are 'text', 'file', 'url', 'slideshow', and 'disc_animations'",
-            choices=["text", "file", "url", "slideshow", "disc_animations"],
+            helptext="Valid modes are 'text', 'file', 'url', 'slideshow', 'disc_colors', and 'disc_sparkle'",
+            choices=["text", "file", "url", "slideshow", "disc_colors", "disc_sparkle"],
             categories=["matrix"],
         )
         self.set("gif_frame_no", 0, helptext="Frame number of gif to statically display (when not animating)", categories=["file", "slideshow"], tags=["advanced"])

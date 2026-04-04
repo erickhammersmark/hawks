@@ -35,7 +35,7 @@ class ImageController(Base):
         ImageController objects should not pre-render images in __init__, as
         some properties of the ImageController will be assigned by the
         MatrixController. MatrixController will only call ImageController.render()
-        at MatrixController.show() time, which is infrequent. It is OK to to
+        at MatrixController.show() time, which is infrequent. It is OK to do
         expensive calculations in render().
         """
 
@@ -105,10 +105,12 @@ class ImageController(Base):
             img_ctrl = FileImageController(self.settings)
         elif mode == "network_weather":
             img_ctrl = NetworkWeatherImageController(self.settings)
-        elif mode == "disc_animations":
+        elif mode == "disc_colors":
             self.static_frames = []
-            #self.ctrl.disc_animations()
-            img_ctrl = DiscAnimationsImageController(self.settings)
+            img_ctrl = DiscAnimationsColorsImageController(self.settings)
+        elif mode == "disc_sparkle":
+            self.static_frames = []
+            img_ctrl = DiscAnimationsSparkleImageController(self.settings)
         elif mode == "slideshow":
             img_ctrl = SlideshowImageController(self.settings)
         else:
@@ -1297,13 +1299,11 @@ class NetworkWeatherImageController(ImageController):
             # Couldn't connect, try again next time
             pass
 
-
-class DiscAnimationsImageController(ImageController):
+class DiscAnimationsColorsImageController(ImageController):
     def __init__(self, settings):
         self.settings = settings
         super().__init__(None, settings)
-        self.cols = self.active_cols
-        self.rows = self.active_rows
+
         self.circle_colors = []
         color = 100
         for circle in disc.Disc.circles:
@@ -1320,6 +1320,70 @@ class DiscAnimationsImageController(ImageController):
             if self.circle_colors[idx] >= 1024:
                 self.circle_colors[idx] = 0
         return (frame, 50)
+
+class DiscAnimationsSparkleImageController(ImageController):
+    def __init__(self, settings):
+        self.settings = settings
+        super().__init__(None, settings)
+
+        self.flashers = list( { "pixel": n } for n in range(0, 255) )
+        for fsh in self.flashers:
+            self.flasher_defaults(fsh)
+
+        self.flash_faux_time_ms = 0
+        self.flash_time_ms_min = 128
+        self.flash_time_ms_max = 1024
+        self.flash_brightness_min = 0
+        self.flash_brightness_max = 255
+        self.flash_count_max = 64
+        self.flash_count_min = 16
+        self.flash_update_interval_ms = 25
+        self.flash_color_off = (self.flash_brightness_min,) * 3
+        self.flash_available_pixels = set(range(0, 255))
+
+    def flasher_defaults(self, fsh):
+        fsh["brightness"] = [0] * 3
+        fsh["target"] = [0] * 3
+        fsh["delta"] = [0] * 3
+        fsh["on"] = False
+
+    def render(self):
+        frame = []
+        self.flash_faux_time_ms += self.flash_update_interval_ms
+        for fsh in self.flashers:
+            if not fsh["on"]:
+                frame.append(self.flash_color_off)
+                continue
+            for c in (0, 1, 2):
+                fsh["brightness"][c] += fsh["delta"][c]
+            if any(fsh["brightness"][c] >= fsh["target"][c] for c in (0, 1, 2)):
+                for c in (0, 1, 2):
+                    fsh["delta"][c] = 0 - fsh["delta"][c]
+
+            if any(fsh["brightness"][c] <= 0 for c in (0, 1, 2)):
+                frame.append(self.flash_color_off)
+                self.flasher_defaults(fsh)
+                self.flash_available_pixels.add(fsh["pixel"])
+            else:
+                color = tuple(int(min(self.flash_brightness_max, cb)) for cb in fsh["brightness"])
+                frame.append(color)
+
+        rand_target = randint(self.flash_count_min, self.flash_count_max)
+        while (255 - len(self.flash_available_pixels)) < rand_target:
+            pxl = choice(tuple(self.flash_available_pixels))
+            self.flash_available_pixels.remove(pxl)
+            fsh = self.flashers[pxl]
+            fsh["on"] = True
+
+            flashing_time_ms = randint(self.flash_time_ms_min, self.flash_time_ms_max)
+
+            fsh["target"] = list(randint(self.flash_brightness_min + 64, self.flash_brightness_max) for c in (0, 1, 2))
+
+            fsh["delta"] = [0] * 3
+            num_timeslices = float(flashing_time_ms) / self.flash_update_interval_ms
+            for c in (0, 1, 2):
+                fsh["delta"][c] = int(fsh["target"][c] / num_timeslices)
+        return (frame, 25)
 
 
 def main():
