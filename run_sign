@@ -11,7 +11,7 @@ hawks_settings = HawksSettings()
 
 def add_arg(parser, name, **kwargs):
     if "help" not in kwargs:
-        kwargs["help"] = hawks_settings.helptext.get(name)
+        kwargs["help"] = hawks_settings.helptext.get(name, "")
     if "default" not in kwargs:
         kwargs["default"] = hawks_settings.get(name, "")
     if "type" not in kwargs:
@@ -23,6 +23,10 @@ def add_arg(parser, name, **kwargs):
                 kwargs["action"] = "store_true"
         else:
             kwargs["type"] = default_type
+    if "choices" not in kwargs:
+        choices = hawks_settings.choices.get(name, None)
+        if choices and set(choices) != set([True, False]):
+            kwargs["choices"] = choices
     parser.add_argument("--" + name, **kwargs)
 
 def parse_args():
@@ -61,7 +65,6 @@ def main():
     if myip and args.showip:
         hawks.settings.set("text", splitip(myip))
     hawks.show()
-    hawks.settings.choices["font"] = [x.strip(".ttf") for x in os.listdir("/usr/share/fonts/truetype/freefont")]
     if args.noapi:
         while True:
             time.sleep(1000)

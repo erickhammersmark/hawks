@@ -108,9 +108,6 @@ class ImageController(Base):
         elif mode == "disc_colors":
             self.static_frames = []
             img_ctrl = DiscAnimationsColorsImageController(self.settings)
-        elif mode == "disc_sparkle":
-            self.static_frames = []
-            img_ctrl = DiscAnimationsSparkleImageController(self.settings)
         elif mode == "sparkle":
             self.static_frames = []
             img_ctrl = SparkleImageController(self.settings)
@@ -1324,76 +1321,7 @@ class DiscAnimationsColorsImageController(ImageController):
                 self.circle_colors[idx] = 0
         return (frame, 50)
 
-class DiscAnimationsSparkleImageController(ImageController):
-    def __init__(self, settings):
-        self.settings = settings
-        super().__init__(None, settings)
-
-        self.flashers = list( { "pixel": n } for n in range(0, 255) )
-        for fsh in self.flashers:
-            self.flasher_defaults(fsh)
-
-        self.flash_faux_time_ms = 0
-        self.flash_time_ms_min = 128
-        self.flash_time_ms_max = 1024
-        self.flash_brightness_min = 0
-        self.flash_brightness_max = 255
-        self.flash_count_max = 64
-        self.flash_count_min = 16
-        self.flash_update_interval_ms = 25
-        self.flash_color_off = (self.flash_brightness_min,) * 3
-        self.flash_available_pixels = set(range(0, 255))
-
-    def flasher_defaults(self, fsh):
-        fsh["brightness"] = [0] * 3
-        fsh["target"] = [0] * 3
-        fsh["delta"] = [0] * 3
-        fsh["on"] = False
-
-    def render(self):
-        frame = []
-        self.flash_faux_time_ms += self.flash_update_interval_ms
-        for fsh in self.flashers:
-            if not fsh["on"]:
-                frame.append(self.flash_color_off)
-                continue
-            for c in (0, 1, 2):
-                fsh["brightness"][c] += fsh["delta"][c]
-            if any(fsh["brightness"][c] >= fsh["target"][c] for c in (0, 1, 2)):
-                for c in (0, 1, 2):
-                    fsh["delta"][c] = 0 - fsh["delta"][c]
-
-            if any(fsh["brightness"][c] <= 0 for c in (0, 1, 2)):
-                frame.append(self.flash_color_off)
-                self.flasher_defaults(fsh)
-                self.flash_available_pixels.add(fsh["pixel"])
-            else:
-                color = tuple(int(min(self.flash_brightness_max, cb)) for cb in fsh["brightness"])
-                frame.append(color)
-
-        rand_target = randint(self.flash_count_min, self.flash_count_max)
-        while (255 - len(self.flash_available_pixels)) < rand_target:
-            pxl = choice(tuple(self.flash_available_pixels))
-            self.flash_available_pixels.remove(pxl)
-            fsh = self.flashers[pxl]
-            fsh["on"] = True
-
-            flashing_time_ms = randint(self.flash_time_ms_min, self.flash_time_ms_max)
-
-            fsh["target"] = list(randint(self.flash_brightness_min + 64, self.flash_brightness_max) for c in (0, 1, 2))
-
-            fsh["delta"] = [0] * 3
-            num_timeslices = float(flashing_time_ms) / self.flash_update_interval_ms
-            for c in (0, 1, 2):
-                fsh["delta"][c] = int(fsh["target"][c] / num_timeslices)
-        return (frame, 25)
-
 class SparkleImageController(ImageController):
-    """
-    Attempt to make the sparkle controller generic.
-    Consider letting each flasher have a radius or x and y dimensions.
-    """
-
     def __init__(self, settings):
         self.settings = settings
         super().__init__(None, settings)
@@ -1403,33 +1331,40 @@ class SparkleImageController(ImageController):
         else:
             self.num_pixels = self.active_rows * self.active_cols
 
-        self.flashers = list( { "pixel": n } for n in range(0, self.num_pixels) )
-        for fsh in self.flashers:
-            self.flasher_defaults(fsh)
+        # ImageController.__init__ sets all settings passed from Hawks
+        # as self attributes. If you see settings and wonder where they
+        # came from, they're in HawksSettings in hawks.py.
 
-        self.flash_faux_time_ms = 0
-        self.flash_time_ms_min = 128
-        self.flash_time_ms_max = 1024
-        self.flash_brightness_min = 0
-        self.flash_brightness_max = 255
-        self.flash_count_min = round(math.sqrt(self.num_pixels))
-        self.flash_count_max = self.flash_count_min * 4
-        self.flash_update_interval_ms = 25
-        self.flash_color_off = (self.flash_brightness_min,) * 3
-        self.flash_available_pixels = set(range(0, self.num_pixels))
+        self.sparkle_faux_time_ms = 0
+        if self.sparkle_count_auto:
+            self.sparkle_count_min = round(math.sqrt(self.num_pixels))
+            self.sparkle_count_max = self.sparkle_count_min * 4
+        self.sparkle_update_interval_ms = 25
+        self.sparkle_color_off = (self.sparkle_brightness_min,) * 3
+        self.sparkle_available_pixels = set(range(0, self.num_pixels))
 
-    def flasher_defaults(self, fsh):
+        self.sparklers = list( { "pixel": n } for n in range(0, self.num_pixels) )
+        for fsh in self.sparklers:
+            self.sparkler_defaults(fsh)
+
+    def sparkler_defaults(self, fsh):
         fsh["brightness"] = [0] * 3
         fsh["target"] = [0] * 3
+        fsh["color_off"] = self.sparkle_color_off
         fsh["delta"] = [0] * 3
         fsh["on"] = False
 
     def render(self):
         imgdata = []
-        self.flash_faux_time_ms += self.flash_update_interval_ms
-        for fsh in self.flashers:
+        self.sparkle_faux_time_ms += self.sparkle_update_interval_ms
+
+        quarter_max = round(self.sparkle_brightness_max * .25)
+        if self.sparkle_brightness_max - self.sparkle_brightness_min < quarter_max:
+            self.sparkle_brightness_min = 0
+
+        for fsh in self.sparklers:
             if not fsh["on"]:
-                imgdata.append(self.flash_color_off)
+                imgdata.append(fsh["color_off"])
                 continue
             for c in (0, 1, 2):
                 fsh["brightness"][c] += fsh["delta"][c]
@@ -1437,30 +1372,38 @@ class SparkleImageController(ImageController):
                 for c in (0, 1, 2):
                     fsh["delta"][c] = 0 - fsh["delta"][c]
 
-            if any(fsh["brightness"][c] <= 0 for c in (0, 1, 2)):
-                imgdata.append(self.flash_color_off)
-                self.flasher_defaults(fsh)
-                self.flash_available_pixels.add(fsh["pixel"])
+            if any(fsh["brightness"][c] <= fsh["color_off"][c] for c in (0, 1, 2)):
+                imgdata.append(fsh["color_off"])
+                self.sparkler_defaults(fsh)
+                self.sparkle_available_pixels.add(fsh["pixel"])
             else:
-                color = tuple(int(min(self.flash_brightness_max, cb)) for cb in fsh["brightness"])
+                color = tuple(int(min(self.sparkle_brightness_max, cb)) for cb in fsh["brightness"])
                 imgdata.append(color)
 
-        rand_target = randint(self.flash_count_min, self.flash_count_max)
-        while (self.num_pixels - len(self.flash_available_pixels)) < rand_target:
-            pxl = choice(tuple(self.flash_available_pixels))
-            self.flash_available_pixels.remove(pxl)
-            fsh = self.flashers[pxl]
+        rand_target = randint(self.sparkle_count_min, self.sparkle_count_max)
+        while (self.num_pixels - len(self.sparkle_available_pixels)) < rand_target:
+            pxl = choice(tuple(self.sparkle_available_pixels))
+            self.sparkle_available_pixels.remove(pxl)
+            fsh = self.sparklers[pxl]
             fsh["on"] = True
+            fsh["brightness"] = [self.sparkle_brightness_min] * 3
 
-            flashing_time_ms = randint(self.flash_time_ms_min, self.flash_time_ms_max)
+            sparkling_time_ms = randint(self.sparkle_time_ms_min, self.sparkle_time_ms_max)
 
-            fsh["target"] = list(randint(self.flash_brightness_min + 64, self.flash_brightness_max) for c in (0, 1, 2))
+            fsh["target"] = list(
+                    randint(
+                        self.sparkle_brightness_min + quarter_max,
+                        self.sparkle_brightness_max
+                    )
+                    for c in (0, 1, 2)
+            )
 
             fsh["delta"] = [0] * 3
-            num_timeslices = float(flashing_time_ms) / self.flash_update_interval_ms
+            num_timeslices = float(sparkling_time_ms) / self.sparkle_update_interval_ms
             for c in (0, 1, 2):
                 fsh["delta"][c] = int(fsh["target"][c] / num_timeslices)
         if self.disc:
+            # matrix renderer for the disc supports raw image data
             return (imgdata, 25)
         img = self.blank()
         img.putdata(imgdata)

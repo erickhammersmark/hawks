@@ -26,6 +26,10 @@ class HawksSettings(Settings):
         self.set("outercolor", "black", helptext="Outer color of rendered text", categories=["text"])
         self.set("innercolor", "white", helptext="Inner color of rendered text", categories=["text"])
         self.set("font", "FreeSansBold", helptext="Font to use when rendering text", categories=["text"], tags=["advanced"])
+        try:
+            self.choices["font"] = [x.strip(".ttf") for x in os.listdir("/usr/share/fonts/truetype/freefont")]
+        except:
+            pass
         self.set("x", 0, categories=["file"], tags=["advanced"])
         self.set("y", 0, categories=["file"], tags=["advanced"])
         self.set("rows", 32, helptext="Image height", choices=[32, 64, 128], categories=["matrix"], tags=["advanced"])
@@ -54,8 +58,8 @@ class HawksSettings(Settings):
         self.set(
             "animation",
             "none",
-            helptext='Options are "waving" or "none"',
-            choices=["none", "waving", "disc_colors", "disc_sparkle", "glitch"],
+            helptext='Options are "waving", "glitch", or "none"',
+            choices=["none", "waving", "glitch"],
             categories=["matrix"],
         )
         self.set("amplitude", 0.4, helptext="Amplitude of waving animation", categories=["matrix"], tags=["advanced"])
@@ -104,8 +108,8 @@ class HawksSettings(Settings):
         self.set(
             "mode",
             "text",
-            helptext="Valid modes are 'text', 'file', 'url', 'slideshow', 'disc_colors', and 'disc_sparkle'",
-            choices=["text", "file", "url", "slideshow", "disc_colors", "disc_sparkle"],
+            helptext="Valid modes are 'text', 'file', 'url', 'slideshow', 'disc_colors', and 'sparkle'",
+            choices=["text", "file", "url", "slideshow", "disc_colors", "sparkle"],
             categories=["matrix"],
         )
         self.set("gif_frame_no", 0, helptext="Frame number of gif to statically display (when not animating)", categories=["file", "slideshow"], tags=["advanced"])
@@ -127,6 +131,13 @@ class HawksSettings(Settings):
         self.set("transition_duration_ms", 250, helptext="Slideshow transition duration in ms", categories=["slideshow"])
         self.set("transition_frames_max", 18, helptext="Max number of frames to render for slideshow transition", categories=["slideshow"], tags=["advanced"])
         self.set("no_webui_one_mode_only", False, choices=[True, False], helptext="Prevent webui from hiding unused mode settings", categories=["matrix"], tags=["advanced"])
+        self.set("sparkle_time_ms_min", 128, helptext="Minimum halflife for a sparkling pixel", categories=["sparkle"])
+        self.set("sparkle_time_ms_max", 1024, helptext="Maximum halflife for a sparkling pixel", categories=["sparkle"])
+        self.set("sparkle_brightness_min", 0, helptext="Minimum brightness for a sparkling pixel", categories=["sparkle"], tags=["advanced"])
+        self.set("sparkle_brightness_max", 255, helptext="Maximum brightness for a sparkling pixel", categories=["sparkle"])
+        self.set("sparkle_count_auto", True, choices=[True, False], helptext="Let sparkle mode autoscale sparkling pixel count", categories=["sparkle"], tags=["advanced"])
+        self.set("sparkle_count_min", 16, helptext="Minimum simultaneous sparkling pixels", categories=["sparkle"], tags=["advanced"])
+        self.set("sparkle_count_max", 64, helptext="Maximum simultaneous sparkling pixels", categories=["sparkle"], tags=["advanced"])
 
 
     def set(self, name, value, propagate=True, **kwargs):
@@ -143,14 +154,6 @@ class HawksSettings(Settings):
         if propagate and self.hawks:
             setattr(self.hawks.ctrl, name, self.get(name))
             setattr(self.hawks.img_ctrl, name, self.get(name))
-
-    def render(self, names):
-        """
-        Renders the named settings only. This is used to pass only the relevant settings to the
-        constructors of Controllers.
-        """
-
-        return dict((name, self.get(name)) for name in names)
 
 
 class Hawks(Base):
