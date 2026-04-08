@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import math
+import sys
 import time
 from base import Base
 from PIL import Image
@@ -221,6 +222,8 @@ class MatrixController(Base):
             frame_interval = self.next_time - time.time()
             self.timer = Timer(frame_interval, self.render)
             self.timer.start()
+            if frame_interval <=0:
+                sys.stderr.write(f"{time.time()} timer interval {round(1000 * frame_interval)}ms < 0 seconds, matrix.render took longer than the last frame's duration\n")
 
     def show(self):
         """

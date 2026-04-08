@@ -1339,13 +1339,17 @@ class SparkleImageController(ImageController):
         if self.sparkle_count_auto:
             self.sparkle_count_min = round(math.sqrt(self.num_pixels))
             self.sparkle_count_max = self.sparkle_count_min * 4
-        self.sparkle_update_interval_ms = 25
+        self.sparkle_update_interval_ms = 100
         self.sparkle_color_off = (self.sparkle_brightness_min,) * 3
         self.sparkle_available_pixels = set(range(0, self.num_pixels))
 
         self.sparklers = list( { "pixel": n } for n in range(0, self.num_pixels) )
         for fsh in self.sparklers:
             self.sparkler_defaults(fsh)
+
+        self.sparkle_count = 0
+        self.sparkle_target = self.sparkle_count_min
+        self.sparkle_climbing = True
 
     def sparkler_defaults(self, fsh):
         fsh["brightness"] = [0] * 3
@@ -1376,14 +1380,27 @@ class SparkleImageController(ImageController):
                 imgdata.append(fsh["color_off"])
                 self.sparkler_defaults(fsh)
                 self.sparkle_available_pixels.add(fsh["pixel"])
+                self.sparkle_count -= 1
             else:
                 color = tuple(int(min(self.sparkle_brightness_max, cb)) for cb in fsh["brightness"])
                 imgdata.append(color)
 
-        rand_target = randint(self.sparkle_count_min, self.sparkle_count_max)
-        while (self.num_pixels - len(self.sparkle_available_pixels)) < rand_target:
+        if (self.sparkle_climbing and (self.sparkle_count >= self.sparkle_target)) or \
+           (not self.sparkle_climbing and (self.sparkle_count <= self.sparkle_target)):
+                self.sparkle_target = min(
+                    max(
+                        self.sparkle_target + randint(0 - self.sparkle_count_min / 2, self.sparkle_count_min / 2),
+                        self.sparkle_count_min
+                    ),
+                    self.sparkle_count_max
+                )
+                self.sparkle_climbing = self.sparkle_target > self.sparkle_count
+
+        while self.sparkle_climbing:
             pxl = choice(tuple(self.sparkle_available_pixels))
             self.sparkle_available_pixels.remove(pxl)
+            self.sparkle_count += 1
+            self.sparkle_climbing = self.sparkle_target > self.sparkle_count
             fsh = self.sparklers[pxl]
             fsh["on"] = True
             fsh["brightness"] = [self.sparkle_brightness_min] * 3
@@ -1402,12 +1419,13 @@ class SparkleImageController(ImageController):
             num_timeslices = float(sparkling_time_ms) / self.sparkle_update_interval_ms
             for c in (0, 1, 2):
                 fsh["delta"][c] = int(fsh["target"][c] / num_timeslices)
+        print(f"Target: {self.sparkle_target}, count: {self.sparkle_count}, climbing: {self.sparkle_climbing}")
         if self.disc:
             # matrix renderer for the disc supports raw image data
-            return (imgdata, 25)
+            return (imgdata, self.sparkle_update_interval_ms)
         img = self.blank()
         img.putdata(imgdata)
-        return (img, 25)
+        return (img, self.sparkle_update_interval_ms)
 
 
 def main():
