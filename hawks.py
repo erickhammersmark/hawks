@@ -232,8 +232,6 @@ class Hawks(Base):
         self.stop()
         self.img_ctrl = ImageController(self.frame_queue, self.settings)
         self.img_ctrl.show(self.settings.mode)
-        self.img_ctrl_render_thread = Thread(target=self.img_ctrl.render)
-        self.img_ctrl_render_thread.start()
         return self.ctrl.show()
 
     def screenshot(self):
