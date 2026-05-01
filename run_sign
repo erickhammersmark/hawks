@@ -11,7 +11,7 @@ hawks_settings = HawksSettings()
 
 def add_arg(parser, name, **kwargs):
     if "help" not in kwargs:
-        kwargs["help"] = hawks_settings.helptext.get(name, "")
+        kwargs["help"] = hawks_settings.get_helptext(name, "")
     if "default" not in kwargs:
         kwargs["default"] = hawks_settings.get(name, "")
     if "type" not in kwargs:
@@ -24,7 +24,7 @@ def add_arg(parser, name, **kwargs):
         else:
             kwargs["type"] = default_type
     if "choices" not in kwargs:
-        choices = hawks_settings.choices.get(name, None)
+        choices = hawks_settings.get_choices(name, None)
         if choices and set(choices) != set([True, False]):
             kwargs["choices"] = choices
     parser.add_argument("--" + name, **kwargs)

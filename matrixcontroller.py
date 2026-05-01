@@ -6,7 +6,7 @@ import time
 from base import Base
 from PIL import Image
 from queue import Queue
-from threading import Timer
+from threading import Thread
 
 
 class MatrixController(Base):
@@ -188,42 +188,48 @@ class MatrixController(Base):
     def render(self):
         self.db("render()")
 
-        # If we have a frame update pending, cancel it
-        if self.timer:
-            self.timer.cancel()
-            self.timer = None
-
         # self.show() sets self.go to true, but hawks.show() will set it to false so
         # that we stop spending time drawing animations while it renders new frames.
-        # Also used by hawks.show() to make this ImageController exit so a new one
-        # can be the only thing writing to the frame queue.
-        if not self.go:
-            return
+        while self.go:
+            start_time_sec = time.time()
+            # draw this frame on the hardware thingy (or the mock)
+            if self.frame and self.frame_queue.empty():
+                # we were showing something and have nothing: leave it up for another duration ms
+                pass
+            elif not self.frame_queue.empty():
+                # it's time for a new one and there's something in the queue. get it.
+                self.frame = self.shape_one_for_display(self.frame_queue.get())
+            if not self.frame:
+                # if it's time for a new frame and we don't have one at all,
+                # blank for 100ms, then try again
+                self.frame=(self.blank, 100)
 
-        # draw this frame on the hardware thingy (or the mock)
-        if self.frame and self.frame_queue.empty():
-            # we were showing something and have nothing: leave it up for another duration ms
-            pass
-        elif not self.frame_queue.empty():
-            # it's time for a new one and there's something in the queue. get it.
-            self.frame = self.shape_one_for_display(self.frame_queue.get())
-        if not self.frame:
-            # if it's time for a new frame and we don't have one at all,
-            # blank for 100ms, then try again
-            self.frame=(self.blank, 100)
+            self.SetFrame(self.frame)
+            duration = self.frame[1]
+            if duration <= 0:
+                return
 
-        self.SetFrame(self.frame)
+            # Subtracting this loop's runtime from the new frame's
+            # duration is a filthy hack. If the frames have different
+            # durations, this will mess them all up.
+            # Fortunately, the "streaming" animations have consistent
+            # durations and very few animated GIFs have variable durations.
+            frame_interval = (duration / 1000.0) - (time.time() - start_time_sec)
+            if frame_interval > 0:
+                time.sleep(frame_interval)
+            else:
+                sys.stderr.write(f"One matrix render loop took {frame_interval + duration / 1000.0} sec, longer than frame's duration of {duration} ms")
 
-        duration = self.frame[1]
-
-        if duration:
-            # duration is in ms
-            self.next_time = self.next_time + duration / 1000.0
-            frame_interval = self.next_time - time.time()
-            self.timer = Timer(frame_interval, self.render)
-            self.timer.start()
-            if frame_interval <=0:
-                sys.stderr.write(f"{time.time()} timer interval {round(1000 * frame_interval)}ms < 0 seconds, matrix.render took longer than the last frame's duration\n")
+            """
+            if duration:
+                # duration is in ms
+                self.next_time = self.next_time + duration / 1000.0
+                frame_interval = self.next_time - time.time()
+                if frame_interval <=0:
+                    sys.stderr.write(f"{time.time()} timer interval {round(1000 * frame_interval)}ms < 0 seconds, matrix.render took longer than the last frame's duration\n")
+                else:
+                    time.sleep(frame_interval)
+            """
 
     def show(self):
         """
@@ -239,15 +245,16 @@ class MatrixController(Base):
         self.next_time = time.time()
         self.frame = None
         self.go = True
-        self.render()
+        self.render_thread = Thread(target=self.render)
+        self.render_thread.start()
 
     def stop(self):
         """
         Stop displaying new frames.
         """
         self.go = False
-        if getattr(self, "timer", None):
-            self.timer.cancel()
+        if getattr(self, "render_thread", None):
+            self.render_thread.join()
 
     def start(self):
         """

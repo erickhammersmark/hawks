@@ -7,7 +7,6 @@ from settings import Settings
 from matrixcontroller import MatrixController
 from imagecontroller import ImageController
 from queue import Queue
-from threading import Thread
 
 
 class HawksSettings(Settings):

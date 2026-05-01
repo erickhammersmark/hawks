@@ -118,12 +118,12 @@ Settings:
                 if key == "url" and value:
                     if not test_url(value):
                         raise HawksApiValidationException(f"Unable to fetch image from {value}")
-                    if value not in hawks.settings.choices["urls"]:
-                        hawks.settings.choices["urls"].append(value)
+                    if value not in hawks.settings.get_choices("urls"):
+                        hawks.settings.add_choice("urls", value)
                     if hawks.settings.urls_file:
                         try:
                             URLS = open(hawks.settings.urls_file, "w")
-                            URLS.write("\n".join(hawks.settings.choices["urls"]))
+                            URLS.write("\n".join(hawks.settings.get_choices("urls")))
                             URLS.close()
                         except Exception as e:
                             print(e)

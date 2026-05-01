@@ -10,14 +10,14 @@ import sys
 import tempfile
 import time
 from base import Base
+from collections import defaultdict
 from copy import copy
 from math import pi, sin
 from matrixcontroller import MatrixController
 from PIL import Image, ImageDraw, ImageFont, ImageColor, GifImagePlugin, UnidentifiedImageError
 from random import randint, choice
-from threading import Timer
+from threading import Thread
 from urllib.parse import unquote
-
 
 class ImageController(Base):
     """
@@ -135,15 +135,16 @@ class ImageController(Base):
                 next_frame = self.static_frames[0]
                 # some function that shoves frames into the queue, < the queue depth
                 self.do_transition(prev_frame, next_frame)
-        self.render()
+        self.render_thread = Thread(target=self.render)
+        self.render_thread.start()
 
     def blank(self):
         return Image.new("RGB", (self.active_cols, self.active_rows), "black")
 
     def stop(self):
         self.go = False
-        if getattr(self, "timer", None):
-            self.timer.cancel()
+        if getattr(self, "render_thread", None):
+            self.render_thread.join()
 
     def next_static_frame(self):
         self.frame_no += self.direction
@@ -163,24 +164,27 @@ class ImageController(Base):
     def render(self):
         #self.render_calls += 1
         #print(f"{self.render_calls}, {self.frame_queue.qsize()}")
-        if getattr(self, "timer", None):
-            self.timer.cancel()
-        if not self.go:
-            return
-        if not self.static_frames and not self.img_ctrl:
-            return
-        while self.frame_queue.qsize() < self.queue_target_depth:
-            if self.static_frames:
-                frame = self.next_static_frame()
-            elif self.img_ctrl:
-                frame = self.img_ctrl.render()
-            else:
-                break
-            if not frame:
+        while self.go:
+            start = time.time()
+            if not self.static_frames and not self.img_ctrl:
                 return
-            self.frame_queue.put(frame)
-        self.timer = Timer(0.100, self.render)
-        self.timer.start()
+            while self.frame_queue.qsize() < self.queue_target_depth:
+                if self.static_frames:
+                    frame = self.next_static_frame()
+                elif self.img_ctrl:
+                    frame = self.img_ctrl.render()
+                else:
+                    break
+                if not frame:
+                    # consider changing this behavior. in the case where
+                    # an imagecontroller is dynamically rendering frames,
+                    # it would be nice if it could return nothing and
+                    # let that mean "keep what you have but ask again"
+                    return
+                self.frame_queue.put(frame)
+            # run every 0.1 seconds, not wait 0.1 seconds until the next run
+            interval_sec = max(0, 0.1 - (time.time() - start))
+            time.sleep(interval_sec)
 
     def transform(self, static_frames):
         """
@@ -275,7 +279,7 @@ class ImageController(Base):
         if "wipe" in _transition:
             return self.transition_wipe(prev_frame, next_frame, transition=transition, static=static)
         if _transition == "random":
-            rand_transition = choice([tr for tr in self.settings.choices["transition"] if tr != "none"])
+            rand_transition = choice([tr for tr in self.settings.get_choices("transition") if tr != "none"])
             return self.do_transition(prev_frame, next_frame, transition=rand_transition, static=static)
         return []
 
@@ -1346,10 +1350,15 @@ class SparkleImageController(ImageController):
         self.sparklers = list( { "pixel": n } for n in range(0, self.num_pixels) )
         for fsh in self.sparklers:
             self.sparkler_defaults(fsh)
+        self.imgdata = [0] * self.num_pixels
+        self.img = self.blank()
 
         self.sparkle_count = 0
         self.sparkle_target = self.sparkle_count_min
         self.sparkle_climbing = True
+        self.sparkle_mean_ttl_sec = (2 * (self.sparkle_time_ms_min + ((self.sparkle_time_ms_max - self.sparkle_time_ms_min) / 2)) / 1000.0)
+        self.sparkle_update_interval_sec = self.sparkle_update_interval_ms / 1000.0
+        self.sparkle_add_per_interval = 1
 
     def sparkler_defaults(self, fsh):
         fsh["brightness"] = [0] * 3
@@ -1359,16 +1368,16 @@ class SparkleImageController(ImageController):
         fsh["on"] = False
 
     def render(self):
-        imgdata = []
         self.sparkle_faux_time_ms += self.sparkle_update_interval_ms
+        #render_stats = defaultdict(int)
 
         quarter_max = round(self.sparkle_brightness_max * .25)
         if self.sparkle_brightness_max - self.sparkle_brightness_min < quarter_max:
             self.sparkle_brightness_min = 0
 
-        for fsh in self.sparklers:
+        for pxl, fsh in enumerate(self.sparklers):
             if not fsh["on"]:
-                imgdata.append(fsh["color_off"])
+                self.imgdata[pxl] = fsh["color_off"]
                 continue
             for c in (0, 1, 2):
                 fsh["brightness"][c] += fsh["delta"][c]
@@ -1377,55 +1386,63 @@ class SparkleImageController(ImageController):
                     fsh["delta"][c] = 0 - fsh["delta"][c]
 
             if any(fsh["brightness"][c] <= fsh["color_off"][c] for c in (0, 1, 2)):
-                imgdata.append(fsh["color_off"])
+                #render_stats["finished"] += 1
+                self.imgdata[pxl] = fsh["color_off"]
                 self.sparkler_defaults(fsh)
                 self.sparkle_available_pixels.add(fsh["pixel"])
                 self.sparkle_count -= 1
             else:
+                #render_stats["updated"] += 1
                 color = tuple(int(min(self.sparkle_brightness_max, cb)) for cb in fsh["brightness"])
-                imgdata.append(color)
+                self.imgdata[pxl] = color
 
         if (self.sparkle_climbing and (self.sparkle_count >= self.sparkle_target)) or \
            (not self.sparkle_climbing and (self.sparkle_count <= self.sparkle_target)):
+                #render_stats["changed_target"] += 1
                 self.sparkle_target = min(
                     max(
-                        self.sparkle_target + randint(0 - self.sparkle_count_min / 2, self.sparkle_count_min / 2),
+                        self.sparkle_target + randint(0, self.sparkle_count_min) - self.sparkle_count_min / 2,
                         self.sparkle_count_min
                     ),
                     self.sparkle_count_max
                 )
                 self.sparkle_climbing = self.sparkle_target > self.sparkle_count
 
-        while self.sparkle_climbing:
-            pxl = choice(tuple(self.sparkle_available_pixels))
-            self.sparkle_available_pixels.remove(pxl)
-            self.sparkle_count += 1
-            self.sparkle_climbing = self.sparkle_target > self.sparkle_count
-            fsh = self.sparklers[pxl]
-            fsh["on"] = True
-            fsh["brightness"] = [self.sparkle_brightness_min] * 3
+        if self.sparkle_climbing:
+            pixel_loss_per_second = self.sparkle_count / self.sparkle_mean_ttl_sec
+            pixel_loss_per_interval = pixel_loss_per_second * self.sparkle_update_interval_sec
+            self.sparkle_add_per_interval = max(math.ceil(pixel_loss_per_interval), 1)
+            #render_stats["add_per_interval"] = self.sparkle_add_per_interval
+            for n in range(self.sparkle_add_per_interval):
+                pxl = choice(tuple(self.sparkle_available_pixels))
+                self.sparkle_available_pixels.remove(pxl)
+                self.sparkle_count += 1
+                self.sparkle_climbing = self.sparkle_target > self.sparkle_count
+                fsh = self.sparklers[pxl]
+                fsh["on"] = True
+                fsh["brightness"] = [self.sparkle_brightness_min] * 3
 
-            sparkling_time_ms = randint(self.sparkle_time_ms_min, self.sparkle_time_ms_max)
+                sparkling_time_ms = randint(self.sparkle_time_ms_min, self.sparkle_time_ms_max)
 
-            fsh["target"] = list(
-                    randint(
-                        self.sparkle_brightness_min + quarter_max,
-                        self.sparkle_brightness_max
-                    )
-                    for c in (0, 1, 2)
-            )
+                fsh["target"] = list(
+                        randint(
+                            self.sparkle_brightness_min + quarter_max,
+                            self.sparkle_brightness_max
+                        )
+                        for c in (0, 1, 2)
+                )
 
-            fsh["delta"] = [0] * 3
-            num_timeslices = float(sparkling_time_ms) / self.sparkle_update_interval_ms
-            for c in (0, 1, 2):
-                fsh["delta"][c] = int(fsh["target"][c] / num_timeslices)
-        print(f"Target: {self.sparkle_target}, count: {self.sparkle_count}, climbing: {self.sparkle_climbing}")
+                fsh["delta"] = [0] * 3
+                num_timeslices = float(sparkling_time_ms) / self.sparkle_update_interval_ms
+                for c in (0, 1, 2):
+                    fsh["delta"][c] = int(fsh["target"][c] / num_timeslices)
+                #render_stats["added"] += 1
+        #print(f"Target: {self.sparkle_target}, count: {self.sparkle_count}, climbing: {self.sparkle_climbing}, {render_stats}")
         if self.disc:
             # matrix renderer for the disc supports raw image data
-            return (imgdata, self.sparkle_update_interval_ms)
-        img = self.blank()
-        img.putdata(imgdata)
-        return (img, self.sparkle_update_interval_ms)
+            return (self.imgdata, self.sparkle_update_interval_ms)
+        self.img.putdata(self.imgdata)
+        return (self.img, self.sparkle_update_interval_ms)
 
 
 def main():

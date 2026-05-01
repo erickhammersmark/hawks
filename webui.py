@@ -116,12 +116,12 @@ class Webui(object):
         '''
 
         try:
-            self.hawks.settings.choices["filename"] = [
+            self.hawks.settings.set_choices("filename", [
                 #os.path.join(filepath, item) for item in os.listdir(filepath)
                 item for item in os.listdir(filepath)
-            ]
+            ])
         except FileNotFoundError:
-            self.hawks.settings.choices["filename"] = None
+            self.hawks.settings.set_choices("filename", None)
 
         #self.hawks.settings.set("urls", self.hawks.settings.url, choices=read_urls(self.hawks), show=False)
 
@@ -143,14 +143,14 @@ class Webui(object):
                 body.append(f"<tr class=\"{setting_class}\">")
                 if setting == "filename":
                     value = unquote(value).replace(f"{filepath}/", "")
-                if setting in self.hawks.settings.helptext:
-                    helptext = self.hawks.settings.helptext[setting]
+                if setting in self.hawks.settings.get_helptext(setting):
+                    helptext = self.hawks.settings.get_helptext(setting)
                     body.append(f'<td title="{helptext}">')
                 else:
                     body.append("<td>")
                 body.append(f"{setting}</td><td>")
-                if setting in self.hawks.settings.choices and self.hawks.settings.choices[setting]:
-                    choices = self.hawks.settings.choices[setting]
+                choices = self.hawks.settings.get_choices(setting)
+                if choices:
                     if setting == "filename":
                         choices.sort()
                         body.append(f'<select name={setting} value={value} size=12 oninput="update_preview(this.value)">')
